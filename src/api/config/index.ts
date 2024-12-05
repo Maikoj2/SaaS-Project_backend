@@ -1,3 +1,3 @@
-export * from './Db/Mongoose';
-export * from './Db';
+export * from './db/Mongoose';
+export * from './db';
 export * from './logger';
