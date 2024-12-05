@@ -1,0 +1,39 @@
+C:\Users\User\Desktop\SAAS-Project-BackEnd
+├── dist
+|  └── src
+|     └── api
+|        ├── config
+|        ├── middlewares
+|        ├── models
+|        ├── routes
+|        └── utils
+├── logs
+└── src
+   └── api
+      ├── config
+      |  ├── Db
+      |  └── logger
+      ├── controllers
+      |  ├── auth
+      |  ├── base
+      |  ├── tenant
+      |  └── user
+      ├── middlewares
+      |  ├── auth
+      |  ├── error
+      |  ├── tenant
+      |  └── validation
+      ├── models
+      |  └── server
+      ├── responses
+      ├── routes
+      |  └── auth
+      ├── utils
+      |  └── common
+      └── validators
+         ├── tenant
+         └── user
+
+directory: 795
+
+ignored: directory (23)
