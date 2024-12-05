@@ -3,7 +3,8 @@
 Backend service for a multi-tenant SAAS application built with TypeScript and Express.
 
 ## Project Structure
-── src/                      # Source code
+```
+src/                      # Source code
     └── api/
         ├── config/          # Configuration files
         │   ├── Db/         # Database configurations
