@@ -1,6 +1,4 @@
 import { Injectable } from '@decorators/di';
-import { matchedData } from 'express-validator';
-
 import { AuthError } from '../errors/AuthError';
 
 import { User } from '../models/mongoose';
@@ -118,7 +116,6 @@ export class AuthService {
 
     public async loginUser(data: { email: string; password: string; tenant: string }): Promise<AuthResponse> {
         const user = await this.findUser(data.email, data.tenant);
-        console.log(user);
         
         // Verificar si el usuario está bloqueado
         await this.checkLoginAttemptsAndBlockExpires(user);
@@ -147,7 +144,16 @@ export class AuthService {
     }
 
     private async findUser(email: string, tenant: string) {        
-        const user = await User.byTenant(tenant).findOne({ email: email.toLowerCase() }).select('password');
+        const user = await User.byTenant(tenant).findOne({ email: email.toLowerCase() }).select('+password').select([
+            'name',
+            'email',
+            'role',
+            'verified',
+            'loginAttempts',
+            'blockExpires',
+            'createdAt',
+            'updatedAt'
+        ]);
         if (!user) {
             throw new AuthError('Credenciales inválidas', 401);
         }
@@ -155,6 +161,8 @@ export class AuthService {
     }
 
     private async checkLoginAttemptsAndBlockExpires(user: any) {
+        
+        
         if (user.blockExpires > Date.now()) {
             throw new AuthError('Usuario bloqueado temporalmente', 409);
         }
