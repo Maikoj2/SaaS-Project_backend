@@ -42,7 +42,7 @@ const UserSchema = new Schema(
         phone: { type: String, required: false },
         address: { type: Object, required: false },
         loginAttempts: { type: Number, default: 0, select: false },
-        blockExpires: { type: Date, default: Date.now, select: false },
+        blockExpires: { type: Date, default: Date.now, select: false, nullable: true },
         socialNetwork: { type: Array },
         referredCode: {
             type: String,
