@@ -8,13 +8,15 @@ import { AuthResponse, RegisterDTO } from '../interfaces';
 import { TokenService } from './token.service';
 import { SettingsService } from './settings.service';
 import bcrypt from 'bcryptjs';
+import { authConfig } from '../config';
+
 
 @Injectable()
 export class AuthService {
     private readonly tokenService: TokenService;
     private readonly settingsService: SettingsService;
-    private readonly MAX_LOGIN_ATTEMPTS = 5;
-    private readonly BLOCK_TIME = 2 * 60 * 60 * 1000; // 2 horas en ms
+    private readonly MAX_LOGIN_ATTEMPTS = authConfig.MAX_LOGIN_ATTEMPTS;
+    private readonly BLOCK_TIME = authConfig.BLOCK_TIME;
     
 
     constructor() {
