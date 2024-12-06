@@ -1,5 +1,5 @@
 import { Injectable } from '@decorators/di';
-
+import { matchedData } from 'express-validator';
 
 import { AuthError } from '../errors/AuthError';
 
@@ -7,11 +7,14 @@ import { User } from '../models/mongoose';
 import { AuthResponse, RegisterDTO } from '../interfaces';
 import { TokenService } from './token.service';
 import { SettingsService } from './settings.service';
+import bcrypt from 'bcryptjs';
 
 @Injectable()
 export class AuthService {
     private readonly tokenService: TokenService;
     private readonly settingsService: SettingsService;
+    private readonly MAX_LOGIN_ATTEMPTS = 5;
+    private readonly BLOCK_TIME = 2 * 60 * 60 * 1000; // 2 horas en ms
     
 
     constructor() {
@@ -109,5 +112,70 @@ export class AuthService {
 
         return await User.byTenant(tenant)
             .findOne({ email: email.toLowerCase() });
+    }
+
+    public async loginUser(data: { email: string; password: string; tenant: string }): Promise<AuthResponse> {
+        const user = await this.findUser(data.email, data.tenant);
+        console.log(user);
+        
+        // Verificar si el usuario está bloqueado
+        await this.checkLoginAttemptsAndBlockExpires(user);
+        
+        // Verificar contraseña
+        const isPasswordMatch = await this.checkPassword(data.password, user);
+        
+        if (!isPasswordMatch) {
+            await this.passwordsDoNotMatch(user);
+            throw new AuthError('Credenciales inválidas', 401);
+        }
+        // Reset intentos de login y generar token
+        user.loginAttempts = 0;
+        user.blockExpires = new Date(0);
+        await user.save();
+
+        const token = this.tokenService.generateToken(user._id.toString());
+        const userInfo = this.formatUserResponse(user);
+        const settings = await this.settingsService.getSettings(data.tenant);
+
+        return {
+            session: token,
+            user: userInfo,
+            settings
+        };
+    }
+
+    private async findUser(email: string, tenant: string) {        
+        const user = await User.byTenant(tenant).findOne({ email: email.toLowerCase() }).select('password');
+        if (!user) {
+            throw new AuthError('Credenciales inválidas', 401);
+        }
+        return user;
+    }
+
+    private async checkLoginAttemptsAndBlockExpires(user: any) {
+        if (user.blockExpires > Date.now()) {
+            throw new AuthError('Usuario bloqueado temporalmente', 409);
+        }
+        
+        if (user.loginAttempts >= this.MAX_LOGIN_ATTEMPTS) {
+            user.blockExpires = new Date(Date.now() + this.BLOCK_TIME);
+            await user.save();
+            throw new AuthError('Usuario bloqueado temporalmente', 409);
+        }
+    }
+
+    private async checkPassword(password: string, user: any): Promise<boolean> {
+        return await bcrypt.compare(password, user.password);
+    }
+
+    private async passwordsDoNotMatch(user: any) {
+        user.loginAttempts += 1;
+        await user.save();
+        
+        if (user.loginAttempts >= this.MAX_LOGIN_ATTEMPTS) {
+            user.blockExpires = new Date(Date.now() + this.BLOCK_TIME);
+            await user.save();
+            throw new AuthError('Usuario bloqueado temporalmente', 409);
+        }
     }
 } 

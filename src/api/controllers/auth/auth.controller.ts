@@ -1,14 +1,12 @@
 import { Response } from 'express';
-
-
+import { matchedData } from 'express-validator';
+import { AuthService } from '../../services/auth.service';
 import { Logger } from '../../config/logger/WinstonLogger';
 
-
 import { AuthError } from '../../errors/AuthError';
-import { CustomRequests, RegisterDTO } from '../../interfaces';
-import { ApiResponse } from '../../responses';
-import { AuthService } from '../../services/auth.service';
 
+import { ApiResponse } from '../../responses';
+import { CustomRequests } from '../../interfaces';
 
 export class AuthController {
     private readonly authService: AuthService;
@@ -26,7 +24,7 @@ export class AuthController {
                 tenant: req.clientAccount
             });
 
-            const registerData: RegisterDTO = {
+            const registerData = {
                 name: req.body.name,
                 email: req.body.email,
                 password: req.body.password,
@@ -35,25 +33,50 @@ export class AuthController {
 
             const result = await this.authService.registerUser(registerData);
 
-            this.logger.info('Usuario registrado exitosamente', {
-                userId: result.user._id,
-                tenant: req.clientAccount
-            });
-
             res.status(201).json(
                 ApiResponse.success(result, 'Usuario registrado exitosamente')
             );
 
         } catch (error) {
-            this.logger.error('Error en registro de usuario:', error);
-
+            this.logger.error('Error en registro:', error);
             if (error instanceof AuthError) {
                 res.status(error.statusCode).json(
                     ApiResponse.error(error.message)
                 );
                 return;
             }
+            res.status(500).json(
+                ApiResponse.error('Error interno del servidor')
+            );
+        }
+    };
 
+    public login = async (req: CustomRequests, res: Response): Promise<void> => {
+        try {
+            const tenant = req.clientAccount;
+            if (!tenant) {
+                throw new AuthError('Tenant no encontrado', 404);
+            }
+
+            const data = matchedData(req);
+            const result = await this.authService.loginUser({
+                email: data.email,
+                password: data.password,
+                tenant
+            });
+
+            res.status(200).json(
+                ApiResponse.success(result, 'Login exitoso')
+            );
+
+        } catch (error) {
+            this.logger.error('Error en login:', error);
+            if (error instanceof AuthError) {
+                res.status(error.statusCode).json(
+                    ApiResponse.error(error.message)
+                );
+                return;
+            }
             res.status(500).json(
                 ApiResponse.error('Error interno del servidor')
             );
@@ -72,25 +95,18 @@ export class AuthController {
                 req.body.id
             );
 
-            this.logger.info('Usuario verificado exitosamente', {
-                userId: result.user._id,
-                tenant: req.clientAccount
-            });
-
             res.status(200).json(
                 ApiResponse.success(result, 'Usuario verificado exitosamente')
             );
 
         } catch (error) {
-            this.logger.error('Error en verificación de usuario:', error);
-
+            this.logger.error('Error en verificación:', error);
             if (error instanceof AuthError) {
                 res.status(error.statusCode).json(
                     ApiResponse.error(error.message)
                 );
                 return;
             }
-
             res.status(500).json(
                 ApiResponse.error('Error interno del servidor')
             );
