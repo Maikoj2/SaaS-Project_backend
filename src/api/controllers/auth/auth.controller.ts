@@ -7,13 +7,16 @@ import { AuthError } from '../../errors/AuthError';
 
 import { ApiResponse } from '../../responses';
 import { CustomRequests } from '../../interfaces';
+import { SettingsService } from '../../services';
 
 export class AuthController {
     private readonly authService: AuthService;
+    private readonly settingsService: SettingsService;
     private readonly logger: Logger;
 
     constructor() {
         this.authService = new AuthService();
+        this.settingsService = new SettingsService();
         this.logger = new Logger();
     }
 
@@ -109,6 +112,22 @@ export class AuthController {
             }
             res.status(500).json(
                 ApiResponse.error('Error interno del servidor')
+            );
+        }
+    };
+
+    public checkExist = async (req: CustomRequests, res: Response): Promise<void> => {
+        try {
+            const tenant = req.clientAccount as string;
+            const settings = await this.settingsService.findByTenant(tenant);
+
+            res.status(200).json(
+                ApiResponse.success({ exists: !!settings })
+            );
+        } catch (error) {
+            this.logger.error('Error checking settings:', error);
+            res.status(500).json(
+                ApiResponse.error('Error al verificar configuraciones')
             );
         }
     };

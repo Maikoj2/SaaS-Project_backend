@@ -4,6 +4,7 @@ import bodyParser from 'body-parser';
 import { DatabaseConnection, Logger } from '../../config';
 import { RouteLoader } from '../../routes';
 import { errorMiddleware } from '../../middlewares';
+import { env } from '../../config/env.config';
 
 
 
@@ -17,7 +18,7 @@ export class Server {
 
     constructor() {
         this.app = express();
-        this.port = process.env.PORT || '8000';
+        this.port = env.PORT || '8000';
         this.logger = new Logger();
         this.db = new DatabaseConnection();
         this.routeLoader = new RouteLoader();
@@ -48,7 +49,7 @@ export class Server {
     }
 
     private setupRoutes(): void {
-        this.app.use('/api/v1', this.routeLoader.loadRoutes());
+        this.app.use(env.API_PREFIX, this.routeLoader.loadRoutes());
         
         // Manejo de rutas no encontradas
         this.app.use('*', (req, res) => {

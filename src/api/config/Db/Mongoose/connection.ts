@@ -1,6 +1,7 @@
 import mongoose from 'mongoose';
 import { Injectable } from '@decorators/di';
 import { Logger } from '../../logger';
+import { env } from '../../env.config';
 
 
 @Injectable()
@@ -12,8 +13,8 @@ export class DatabaseConnection {
 
     constructor() {
         this.logger = new Logger();
-        this.DB_URI = process.env.DB_URI || 'mongodb://localhost:27017';
-        this.DB_NAME = process.env.DB_NAME || 'default_db';
+        this.DB_URI = env.DB_URI || 'mongodb://localhost:27017';
+        this.DB_NAME = env.DB_NAME || 'default_db';
         this.options = {
             dbName: this.DB_NAME,
             maxPoolSize: 10,

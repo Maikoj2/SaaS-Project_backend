@@ -4,5 +4,6 @@ export enum AuthRoute {
     LOGIN = '/login',
     FORGOT = '/forgot',
     RESET = '/reset',
-    TOKEN = '/token'
+    TOKEN = '/token',
+    CHECK = '/check'
 } 

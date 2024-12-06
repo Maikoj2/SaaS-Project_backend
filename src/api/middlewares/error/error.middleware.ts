@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { Logger } from '../../config/logger/WinstonLogger';
+import { env } from '../../config/env.config';
 
 export const errorMiddleware = (
     error: Error,
@@ -19,6 +20,6 @@ export const errorMiddleware = (
     res.status(500).json({
         success: false,
         message: 'Error interno del servidor',
-        error: process.env.NODE_ENV === 'development' ? error.message : undefined
+        error: env.NODE_ENV === 'development' ? error.message : undefined
     });
 };

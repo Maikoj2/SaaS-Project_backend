@@ -30,6 +30,7 @@
     "cors": "^2.8.5",
     "crypto": "^1.0.1",
     "dotenv": "^16.4.5",
+    "envalid": "^8.0.0",
     "expeditious-engine-redis": "^0.1.2",
     "express": "^4.21.1",
     "express-expeditious": "^5.1.1",
@@ -49,6 +50,8 @@
     "winston": "^3.17.0"
   },
   "scripts": {
-    "lint": "eslint './src/**/*.{ts,tsx}'"
+    "lint": "eslint './src/**/*.{ts,tsx}'",
+    "start": "nodemon dist/src/app.js",
+    "watch-ts": "tsc -w"
   }
 }

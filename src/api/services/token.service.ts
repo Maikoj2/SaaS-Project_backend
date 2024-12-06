@@ -1,5 +1,6 @@
 import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
+import { env } from '../config/env.config';
 
 export class TokenService {
     private readonly secret: string;
@@ -8,7 +9,7 @@ export class TokenService {
     private readonly iv = Buffer.alloc(16, 0);
 
     constructor() {
-        this.secret = process.env.JWT_SECRET || 'default-secret-key';
+        this.secret = env.JWT_SECRET || 'default-secret-key';
         this.key = crypto.scryptSync(this.secret, 'salt', 24);
     }
 

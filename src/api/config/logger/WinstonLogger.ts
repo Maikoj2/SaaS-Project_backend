@@ -2,6 +2,7 @@ import winston from 'winston';
 import { Injectable } from '@decorators/di';
 import path from 'path';
 import fs from 'fs';
+import { env } from '../env.config';
 
 @Injectable()
 export class Logger {
@@ -31,7 +32,7 @@ export class Logger {
         );
 
         this.logger = winston.createLogger({
-            level: process.env.LOG_LEVEL || 'info',
+            level: env.LOG_LEVEL || 'info',
             format: logFormat,
             transports: [
                 new winston.transports.File({
@@ -48,7 +49,7 @@ export class Logger {
             ]
         });
 
-        if (process.env.NODE_ENV !== 'production') {
+        if (env.NODE_ENV !== 'production') {
             this.logger.add(new winston.transports.Console({
                 format: winston.format.combine(
                     winston.format.colorize(),

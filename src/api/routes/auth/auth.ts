@@ -40,5 +40,14 @@ app.post(
     ],
     authController.login
 )
+app.get(
+    AuthRoute.CHECK,
+    [
+        origin.checkDomain,
+        origin.checkTenant,
+        trimRequest.all
+    ],
+    authController.checkExist
+)
 
 export default app
