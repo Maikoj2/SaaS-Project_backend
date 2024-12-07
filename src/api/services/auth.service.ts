@@ -2,25 +2,35 @@ import { Injectable } from '@decorators/di';
 import { AuthError } from '../errors/AuthError';
 
 import { User } from '../models/mongoose';
-import { AuthResponse, RegisterDTO } from '../interfaces';
+import { AuthResponse, CustomRequest, RegisterDTO } from '../interfaces';
 import { TokenService } from './token.service';
 import { SettingsService } from './settings.service';
 import bcrypt from 'bcryptjs';
 import { authConfig } from '../config';
+import { PluginService } from './plugin.service';
+
+interface TokenResponse {
+    token: string;
+    settings?: any;
+    plugins?: any[];
+    parentAccount?: string;
+}
 
 
 @Injectable()
 export class AuthService {
     private readonly tokenService: TokenService;
     private readonly settingsService: SettingsService;
+    private readonly pluginService: PluginService;
     private readonly MAX_LOGIN_ATTEMPTS = authConfig.MAX_LOGIN_ATTEMPTS;
     private readonly BLOCK_TIME = authConfig.BLOCK_TIME;
-    
+
 
     constructor() {
         this.tokenService = new TokenService();
         this.settingsService = new SettingsService();
-    
+        this.pluginService = new PluginService();
+
     }
 
     public async registerUser(data: RegisterDTO): Promise<AuthResponse> {
@@ -88,6 +98,36 @@ export class AuthService {
         };
     }
 
+    public async refreshToken(req: CustomRequest): Promise<TokenResponse> {
+        const tenant = req.clientAccount;
+        const tokenEncrypted = req.headers.authorization?.replace('Bearer ', '').trim();
+        if (!tokenEncrypted) {
+            throw new AuthError('Token no proporcionado', 401);
+        }
+        if (!tenant) {
+            throw new AuthError('tenant no proporcionado', 401);
+        }
+        // Verificar y decodificar token
+        const userId = await this.tokenService.getUserIdFromToken(tokenEncrypted);
+        
+        // Buscar usuario
+        const user = await User.byTenant(tenant).findById(userId);
+        
+        if (!user) {
+            throw new AuthError('Usuario no encontrado', 404);
+        }
+        // Generar nuevo token
+        const tokenData = this.tokenService.generateToken(user._id.toString());
+        
+        // Agregar datos adicionales
+        return {
+            token: tokenData,
+            settings: await this.settingsService.getSettings(tenant),
+            plugins: await this.pluginService.getPlugins(tenant),
+            ...(req.parentAccount && { parentAccount: req.parentAccount })
+        };
+    }
+
     private async createUser(userData: any) {
         const model = User.byTenant(userData.tenant);
         const user = new model(userData);
@@ -116,13 +156,13 @@ export class AuthService {
 
     public async loginUser(data: { email: string; password: string; tenant: string }): Promise<AuthResponse> {
         const user = await this.findUser(data.email, data.tenant);
-        
+
         // Verificar si el usuario está bloqueado
         await this.checkLoginAttemptsAndBlockExpires(user);
-        
+
         // Verificar contraseña
         const isPasswordMatch = await this.checkPassword(data.password, user);
-        
+
         if (!isPasswordMatch) {
             await this.passwordsDoNotMatch(user);
             throw new AuthError('Credenciales inválidas', 401);
@@ -143,7 +183,7 @@ export class AuthService {
         };
     }
 
-    private async findUser(email: string, tenant: string) {        
+    private async findUser(email: string, tenant: string) {
         const user = await User.byTenant(tenant).findOne({ email: email.toLowerCase() }).select('+password').select([
             'name',
             'email',
@@ -161,12 +201,12 @@ export class AuthService {
     }
 
     private async checkLoginAttemptsAndBlockExpires(user: any) {
-        
-        
+
+
         if (user.blockExpires > Date.now()) {
             throw new AuthError('Usuario bloqueado temporalmente', 409);
         }
-        
+
         if (user.loginAttempts >= this.MAX_LOGIN_ATTEMPTS) {
             user.blockExpires = new Date(Date.now() + this.BLOCK_TIME);
             await user.save();
@@ -181,7 +221,7 @@ export class AuthService {
     private async passwordsDoNotMatch(user: any) {
         user.loginAttempts += 1;
         await user.save();
-        
+
         if (user.loginAttempts >= this.MAX_LOGIN_ATTEMPTS) {
             user.blockExpires = new Date(Date.now() + this.BLOCK_TIME);
             await user.save();

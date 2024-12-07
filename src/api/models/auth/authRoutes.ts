@@ -7,3 +7,10 @@ export enum AuthRoute {
     TOKEN = '/token',
     CHECK = '/check'
 } 
+export enum AuthRole {
+    ADMIN = 'admin',
+    ORGANIZER = 'organizer',
+    REFEREE = 'referee',
+    TEAM_MEMBER = 'team_member',
+    VIEWER = 'viewer'
+}

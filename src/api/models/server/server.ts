@@ -5,6 +5,8 @@ import { DatabaseConnection, Logger } from '../../config';
 import { RouteLoader } from '../../routes';
 import { errorMiddleware } from '../../middlewares';
 import { env } from '../../config/env.config';
+import '../../config/passport/passport'
+import passport from 'passport';
 
 
 
@@ -33,6 +35,10 @@ export class Server {
         this.app.use(cors());
         this.app.use(express.json());
         this.app.use(bodyParser.urlencoded({ extended: true }));
+
+         // Inicializar Passport
+         this.app.use(passport.initialize());
+        
         
         // Archivos estáticos
         this.app.use(express.static('public'));

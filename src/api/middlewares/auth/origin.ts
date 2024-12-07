@@ -1,6 +1,6 @@
 import { NextFunction, Request, Response } from 'express';
 import { parse } from 'psl';
-import { CustomRequests } from '../../interfaces';
+import { CustomRequest } from '../../interfaces';
 import { Logger } from '../../config/logger';
 
 const getExpeditiousCache = require('express-expeditious');
@@ -18,7 +18,7 @@ const parseDomain = (data: RegExpExecArray) => {
     }
 }
 
-const checkDomain = async (req: CustomRequests, res: Response, next: NextFunction) => {
+const checkDomain = async (req: CustomRequest, res: Response, next: NextFunction) => {
     try {
         const origin = req.get('origin');
         
@@ -44,7 +44,7 @@ const checkDomain = async (req: CustomRequests, res: Response, next: NextFunctio
     }
 }
 
-const checkTenant = async (req: CustomRequests, res: Response, next: NextFunction) => {
+const checkTenant = async (req: CustomRequest, res: Response, next: NextFunction) => {
     try {
         if (process.env.USE_REDIS === 'true') {
             if (!cache) {

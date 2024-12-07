@@ -6,7 +6,7 @@ import { Logger } from '../../config/logger/WinstonLogger';
 import { AuthError } from '../../errors/AuthError';
 
 import { ApiResponse } from '../../responses';
-import { CustomRequests } from '../../interfaces';
+import { CustomRequest } from '../../interfaces';
 import { SettingsService } from '../../services';
 
 export class AuthController {
@@ -20,7 +20,7 @@ export class AuthController {
         this.logger = new Logger();
     }
 
-    public register = async (req: CustomRequests, res: Response): Promise<void> => {
+    public register = async (req: CustomRequest, res: Response): Promise<void> => {
         try {
             this.logger.info('Iniciando registro de usuario', {
                 email: req.body.email,
@@ -54,7 +54,7 @@ export class AuthController {
         }
     };
 
-    public login = async (req: CustomRequests, res: Response): Promise<void> => {
+    public login = async (req: CustomRequest, res: Response): Promise<void> => {
         try {
             const tenant = req.clientAccount;
             if (!tenant) {
@@ -67,7 +67,10 @@ export class AuthController {
                 password: data.password,
                 tenant
             });
-
+            this.logger.info('Token generado:', {
+                userId: result.user._id,
+                token: result.session // el token que generas
+            });
             res.status(200).json(
                 ApiResponse.success(result, 'Login exitoso')
             );
@@ -86,7 +89,7 @@ export class AuthController {
         }
     };
 
-    public verify = async (req: CustomRequests, res: Response): Promise<void> => {
+    public verify = async (req: CustomRequest, res: Response): Promise<void> => {
         try {
             this.logger.info('Iniciando verificación de usuario', {
                 verificationId: req.body.id,
@@ -116,7 +119,7 @@ export class AuthController {
         }
     };
 
-    public checkExist = async (req: CustomRequests, res: Response): Promise<void> => {
+    public checkExist = async (req: CustomRequest, res: Response): Promise<void> => {
         try {
             const tenant = req.clientAccount as string;
             const settings = await this.settingsService.findByTenant(tenant);
@@ -131,4 +134,28 @@ export class AuthController {
             );
         }
     };
+
+    public getRefreshToken = async (req: CustomRequest, res: Response): Promise<void> => {
+    try {
+        const result = await this.authService.refreshToken(req);
+        
+        res.status(200).json(
+            ApiResponse.success(result, 'Token actualizado exitosamente')
+        );
+
+    } catch (error) {
+        this.logger.error('Error refreshing token:', error);
+        
+        if (error instanceof AuthError) {
+            res.status(error.statusCode).json(
+                ApiResponse.error(error.message)
+            );
+            return;
+        }
+
+        res.status(500).json(
+            ApiResponse.error('Error al refrescar token')
+        );
+    }
+};
 } 
