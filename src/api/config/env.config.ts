@@ -18,11 +18,15 @@ export const env = cleanEnv(process.env, {
     // JWT
     JWT_SECRET: str(),
     JWT_EXPIRATION_IN_MINUTES: str({ default: '60' }),
+    JWT_REFRESH_SECRET: str(),
 
     // Auth
     MAX_LOGIN_ATTEMPTS: num({ default: 5 }),
     BLOCK_TIME_HOURS: num({ default: 2 }),
 
     // API
-    API_PREFIX: str({ default: '/api/v1' })
+    API_PREFIX: str({ default: '/api/v1' }),
+
+    // Crypto
+    CRYPTO_SECRET: str()
 }); 

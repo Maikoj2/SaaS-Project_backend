@@ -5,6 +5,9 @@ import mongoosePaginate from "mongoose-paginate-v2";
 import mongoTenant from "mongo-tenant";
 import mongoose_delete from "mongoose-delete";
 import { IUser, IUserMethods } from "../../../interfaces/IUser";
+import { AUTH_CONSTANTS } from "../../../constants";
+import { PasswordUtil } from "../../../utils";
+
 
 export interface IUserDocument extends IUser, Document {}
 export interface IUserModel extends Model<IUserDocument, {}, IUserMethods> {
@@ -50,7 +53,9 @@ const UserSchema = new Schema(
             required: true,
             default: () => customAlphabet('KA1234567890', 8)()
         },
-        dummy: { type: Boolean, default: false }
+        dummy: { type: Boolean, default: false },
+        resetPasswordToken: { type: String },
+        resetPasswordExpires: { type: Date }
     },
     {
         versionKey: false,
@@ -77,19 +82,8 @@ const GenSalt = (user: any, SALT_FACTOR: number, next: CallbackWithoutResultAndO
     })
 }
 
-UserSchema.pre('save', function (next) {
-    const that = this
-    const SALT_FACTOR = 5
-    if (!that.isModified('password')) {
-        return next()
-    }
-    return GenSalt(that, SALT_FACTOR, next)
-});
-
 UserSchema.methods.comparePassword = function (passwordAttempt: any, cb: any) {
-    compare(passwordAttempt, this.password, (err, isMatch) =>
-        err ? cb(err) : cb(null, isMatch)
-    )
+    return PasswordUtil.comparePassword(passwordAttempt, this.password);
 }
 
 // Plugins

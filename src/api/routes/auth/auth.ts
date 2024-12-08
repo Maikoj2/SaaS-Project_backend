@@ -6,6 +6,7 @@ import { authValidation } from "../../validators";
 import { AuthController } from "../../controllers";
 import { handleAuthError, requireAuth } from "../../config";
 import { roleAuthorization } from "../../middlewares/auth/roleAuthorization.middleware";
+import { auth } from "../../middlewares/auth.middleware";
 
 const app: Express = express();
 const authController = new AuthController();
@@ -55,6 +56,7 @@ app.get(
 app.get(
     AuthRoute.TOKEN,
     [
+        auth as RequestHandler,
         requireAuth,
         handleAuthError,
         roleAuthorization([
@@ -68,7 +70,39 @@ app.get(
         origin.checkTenant as RequestHandler,
         trimRequest.all
     ],
-    authController.getRefreshToken as RequestHandler
+    authController.verifyToken as RequestHandler
+)
+ 
+app.post(
+    AuthRoute.FORGOT,
+    [
+        origin.checkDomain as RequestHandler,
+        origin.checkTenant as RequestHandler,
+        trimRequest.all,
+        ...authValidation.forgotPassword
+    ],
+    authController.forgotPassword as RequestHandler
+)
+
+app.post(
+    AuthRoute.RESET,
+    [
+        origin.checkDomain as RequestHandler,
+        origin.checkTenant as RequestHandler,
+        trimRequest.all,
+        ...authValidation.resetPassword
+    ],
+    authController.resetPassword as RequestHandler
+)
+app.post(
+    AuthRoute.REFRESH,
+    [
+        auth as RequestHandler,
+        origin.checkDomain as RequestHandler,
+        origin.checkTenant as RequestHandler,
+        trimRequest.all
+    ],
+    authController.refreshToken as RequestHandler
 )
 
 export default app

@@ -13,4 +13,5 @@ export interface CustomRequest extends Request {
     userReferred?: string | null;
     tenant?: string | null;
     parentAccount?: string | null;
+    getLocale?: () => string;
 }

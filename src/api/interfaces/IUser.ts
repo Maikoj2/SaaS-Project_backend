@@ -20,6 +20,8 @@ export interface IUser {
     socialNetwork: any[];
     referredCode: string;
     dummy: boolean;
+    resetPasswordToken?: string;
+    resetPasswordExpires?: Date;
 }
 
 export interface IUserMethods {

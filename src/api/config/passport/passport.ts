@@ -3,25 +3,24 @@ import { Strategy as JwtStrategy, ExtractJwt } from 'passport-jwt';
 import { User } from '../../models/mongoose/user';
 import { env } from '../env.config';
 import { Logger } from '../logger/WinstonLogger';
-import { TokenService } from '../../services/token.service';
+import { decrypt } from '../../utils';
 
 const logger = new Logger();
-const tokenService = new TokenService();
 
 const opts = {
     jwtFromRequest: (req: Request) => {
         try {
             const encryptedToken = ExtractJwt.fromAuthHeaderAsBearerToken()(req);
-            if (!encryptedToken) {
-                return null;
-            }
+            if (!encryptedToken) return null;
 
-            // Desencriptar el token
-            const decryptedToken = tokenService.decrypt(encryptedToken);
-
-            return decryptedToken;
+            // Decrypt and parse the tokens
+            const decrypted = decrypt(encryptedToken);
+            const tokens = JSON.parse(decrypted);
+            
+            // Return the access token
+            return tokens.accessToken;
         } catch (error) {
-            logger.error('Error procesando token:', error);
+            logger.error('Error processing token:', error);
             return null;
         }
     },
@@ -32,13 +31,7 @@ const opts = {
 passport.use(
     new JwtStrategy(opts, async (req, jwt_payload, done) => {
         try {
-
-
-            if (!jwt_payload.data?._id) {
-                return done(null, false);
-            }
-
-            const user = await User.findById(jwt_payload.data._id)
+            const user = await User.findById(jwt_payload.userId)
                 .select('-password');
 
             if (user) {
@@ -51,9 +44,7 @@ passport.use(
     })
 );
 
-export const requireAuth = passport.authenticate('jwt', {
-    session: false
-});
+export const requireAuth = passport.authenticate('jwt', { session: false });
 
 // Middleware para manejar errores de autenticación
 export const handleAuthError = (err: any, req: any, res: any, next: any) => {
@@ -61,7 +52,7 @@ export const handleAuthError = (err: any, req: any, res: any, next: any) => {
         logger.warn('Error de autenticación:', err);
         return res.status(401).json({
             success: false,
-            error: 'No autorizado'
+            error: 'Unauthorized'
         });
     }
     next(err);

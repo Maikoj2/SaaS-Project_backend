@@ -2,10 +2,11 @@ export enum AuthRoute {
     VERIFY = '/verify',
     REGISTER = '/register',
     LOGIN = '/login',
-    FORGOT = '/forgot',
-    RESET = '/reset',
+    FORGOT = '/forgot-password',
+    RESET = '/reset-password',
     TOKEN = '/token',
-    CHECK = '/check'
+    CHECK = '/check',
+    REFRESH = '/refresh-token'
 } 
 export enum AuthRole {
     ADMIN = 'admin',

@@ -1,72 +1,58 @@
 import jwt from 'jsonwebtoken';
-import crypto from 'crypto';
 import { env } from '../config/env.config';
-import { Logger } from '../config/logger/WinstonLogger';
+
 import { AuthError } from '../errors/AuthError';
+import { Injectable } from '@decorators/di';
+import { decrypt, encrypt } from '../utils';
+
 interface TokenPayload {
-    data: {
-        _id: string;
-    };
-    exp?: number;
-    iat?: number;
+    userId: string;
+    type: 'access' | 'refresh';
 }
 
+@Injectable()
 export class TokenService {
-    private readonly secret: string;
-    private readonly key: Buffer;
-    private readonly algorithm = 'aes-192-cbc';
-    private readonly iv = Buffer.alloc(16, 0);
-    private readonly logger: Logger;
-
-    constructor() {
-        this.secret = env.JWT_SECRET;
-        this.key = crypto.scryptSync(this.secret, 'salt', 24);
-        this.logger = new Logger();
-    }
+    private readonly ACCESS_TOKEN_EXPIRY = '15m';
+    private readonly REFRESH_TOKEN_EXPIRY = '7d';
 
     public generateToken(userId: string): string {
-        const expiration = Math.floor(Date.now() / 1000) + 60 * (Number(process.env.JWT_EXPIRATION_IN_MINUTES) || 60);
+        const tokens = this.generateTokens(userId);
         
-        const token = jwt.sign(
-            {
-                data: { _id: userId },
-                exp: expiration
-            },
-            this.secret
-        );
+        // Encriptar los tokens en un solo string como antes
+        const tokenData = {
+            accessToken: tokens.accessToken,
+            refreshToken: tokens.refreshToken
+        };
 
-        return this.encrypt(token);
+        return encrypt(JSON.stringify(tokenData));
     }
 
-    public verifyToken(encryptedToken: string): TokenPayload | null {
+    public  getUserIdFromToken(encryptedToken: string): string {
         try {
-            const decryptedToken = this.decrypt(encryptedToken);
-            const decoded = jwt.verify(decryptedToken, this.secret) as TokenPayload;
-            return decoded;
+            // Desencriptar el token
+            const decrypted = decrypt(encryptedToken);
+            const tokens = JSON.parse(decrypted);
+            
+            // Verificar el access token
+            const decoded = jwt.verify(tokens.accessToken, env.JWT_SECRET) as TokenPayload;
+            return decoded.userId;
         } catch (error) {
-            this.logger.error('Error verificando token:', error);
-            return null;
+            throw new AuthError('Token inválido o expirado', 401);
         }
     }
 
-    public getUserIdFromToken(encryptedToken: string): string {
-        const decoded = this.verifyToken(encryptedToken);
-        if (!decoded?.data?._id) {
-            throw new AuthError('Token inválido', 401);
-        }
-        return decoded.data._id;
-    }
-
-    private encrypt(text: string): string {
-        const cipher = crypto.createCipheriv(this.algorithm, this.key, this.iv);
-        let encrypted = cipher.update(text, 'utf8', 'hex');
-        encrypted += cipher.final('hex');
-        return encrypted;
-    }
-    public decrypt(encryptedText: string): string {
-        const decipher = crypto.createDecipheriv(this.algorithm, this.key, this.iv);
-        let decrypted = decipher.update(encryptedText, 'hex', 'utf8');
-        decrypted += decipher.final('utf8');
-        return decrypted;
+    private generateTokens(userId: string) {
+        return {
+            accessToken: jwt.sign(
+                { userId, type: 'access' } as TokenPayload,
+                env.JWT_SECRET,
+                { expiresIn: this.ACCESS_TOKEN_EXPIRY }
+            ),
+            refreshToken: jwt.sign(
+                { userId, type: 'refresh' } as TokenPayload,
+                env.JWT_REFRESH_SECRET,
+                { expiresIn: this.REFRESH_TOKEN_EXPIRY }
+            )
+        };
     }
 } 
