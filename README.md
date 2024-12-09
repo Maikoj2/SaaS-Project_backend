@@ -4,31 +4,47 @@ Backend service for a multi-tenant SAAS application built with TypeScript and Ex
 
 ## Project Structure
 ```
-src/                      # Source code
-    └── api/
-        ├── config/          # Configuration files
-        │   ├── Db/         # Database configurations
-        │   └── logger/     # Logging configurations
-        ├── controllers/    # Request handlers
-        │   ├── auth/      # Authentication controllers
-        │   ├── base/      # Base controller classes
-        │   ├── tenant/    # Tenant management
-        │   └── user/      # User management
-        ├── middlewares/   # Express middlewares
-        │   ├── auth/      # Authentication middlewares
-        │   ├── error/     # Error handling
-        │   ├── tenant/    # Tenant-specific middlewares
-        │   └── validation/# Request validation
-        ├── models/        # Data models
-        │   └── server/    # Server configuration
-        ├── responses/     # Response formatters
-        ├── routes/        # API routes
-        │   └── auth/      # Authentication routes
-        ├── utils/         # Utility functions
-        │   └── common/    # Common utilities
-        └── validators/    # Input validators
-            ├── tenant/    # Tenant validation
-            └── user/      # User validation
+src
+   └── api
+   |  ├── config
+   |  |  ├── auth
+   |  |  ├── db
+   |  |  ├── logger
+   |  |  └── passport
+   |  ├── constants
+   |  ├── controllers
+   |  |  ├── auth
+   |  |  ├── base
+   |  |  ├── profile
+   |  |  ├── tenant
+   |  |  └── user
+   |  ├── errors
+   |  ├── interfaces
+   |  ├── middlewares
+   |  |  ├── auth
+   |  |  ├── error
+   |  |  ├── tenant
+   |  |  └── validation
+   |  ├── models
+   |  |  ├── apiRoutes
+   |  |  ├── mongoose
+   |  |  └── server
+   |  ├── responses
+   |  ├── routes
+   |  |  ├── auth
+   |  |  ├── authSocial
+   |  |  └── profile
+   |  ├── services
+   |  ├── templates
+   |  ├── utils
+   |  └── validators
+   |     ├── auth
+   |     ├── custom
+   |     ├── tenant
+   |     └── user
+
+
+
 ```
 
 ## Installation
