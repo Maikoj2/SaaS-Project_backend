@@ -55,4 +55,45 @@ export class TokenService {
             )
         };
     }
+
+    public async refreshTokens(encryptedToken: string): Promise<string> {
+        try {
+            // Desencriptar tokens actuales
+            const decrypted = decrypt(encryptedToken);
+            const tokens = JSON.parse(decrypted);
+            
+            // Verificar refresh token
+            const decoded = jwt.verify(
+                tokens.refreshToken, 
+                env.JWT_REFRESH_SECRET
+            ) as TokenPayload;
+
+            if (decoded.type !== 'refresh') {
+                throw new AuthError('Invalid refresh token', 401);
+            }
+
+            // Generar nuevos tokens
+            const newTokens = this.generateTokens(decoded.userId);
+            
+            // Encriptar y retornar
+            return encrypt(JSON.stringify(newTokens));
+
+        } catch (error) {
+            throw new AuthError('Invalid refresh token', 401);
+        }
+    }
+
+    public verifyAccessToken(encryptedToken: string): TokenPayload {
+        try {
+            const decrypted = decrypt(encryptedToken);
+            const tokens = JSON.parse(decrypted);
+            
+            return jwt.verify(
+                tokens.accessToken, 
+                env.JWT_SECRET
+            ) as TokenPayload;
+        } catch (error) {
+            throw new AuthError('Invalid access token', 401);
+        }
+    }
 } 

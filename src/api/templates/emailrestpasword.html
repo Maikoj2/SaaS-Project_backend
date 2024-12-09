@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Restablecimiento de Contraseña</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #f4f4f4;
+      padding: 20px;
+      margin: 0;
+    }
+
+    .container {
+      max-width: 600px;
+      background-color: #ffffff;
+      margin: 0 auto;
+      padding: 30px;
+      border-radius: 8px;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    }
+
+    h1 {
+      color: #333;
+    }
+
+    p {
+      color: #555;
+      font-size: 16px;
+      line-height: 1.5;
+    }
+
+    a {
+      display: inline-block;
+      margin-top: 20px;
+      padding: 12px 25px;
+      background-color: #007bff;
+      color: white;
+      text-decoration: none;
+      border-radius: 5px;
+      font-size: 16px;
+      transition: background-color 0.3s;
+    }
+
+    a:hover {
+      background-color: #0056b3;
+    }
+
+    .footer {
+      margin-top: 30px;
+      font-size: 12px;
+      color: #888;
+      text-align: center;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="container">
+    <h1>Hola ${data.name}</h1>
+    <p>Has solicitado restablecer tu contraseña.</p>
+    <p>Haz clic en el siguiente enlace para continuar:</p>
+    <a href="${resetLink}" target="_blank">Restablecer Contraseña</a>
+    <p>Este enlace expirará en 1 hora.</p>
+    <p>Si no solicitaste este cambio, ignora este mensaje.</p>
+
+    <div class="footer">
+      <p>&copy; 2024 Tu Empresa. Todos los derechos reservados.</p>
+    </div>
+  </div>
+</body>
+
+</html>

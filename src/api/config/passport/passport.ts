@@ -48,11 +48,14 @@ export const requireAuth = passport.authenticate('jwt', { session: false });
 
 // Middleware para manejar errores de autenticación
 export const handleAuthError = (err: any, req: any, res: any, next: any) => {
-    if (err.name === 'AuthenticationError') {
+    if (err.name === 'AuthenticationError' || err.name === 'AuthError') {
         logger.warn('Error de autenticación:', err);
+        
         return res.status(401).json({
-            success: false,
-            error: 'Unauthorized'
+            status: 'error',
+            code: err.code || 'AUTH_ERROR',
+            message: err.message || 'Error de autenticación',
+            shouldRefresh: err.message?.includes('expirado') || false
         });
     }
     next(err);

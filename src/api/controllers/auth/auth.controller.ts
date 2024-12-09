@@ -85,7 +85,7 @@ export class AuthController {
 
     public verify = async (req: CustomRequest, res: Response): Promise<void> => {
         try {
-            this.logger.info('Iniciando verificación de usuario', {
+            this.logger.info('Starting user verification', {
                 verificationId: req.body.id,
                 tenant: req.clientAccount
             });
@@ -96,11 +96,11 @@ export class AuthController {
             );
 
             res.status(200).json(
-                ApiResponse.success(result, 'Usuario verificado exitosamente')
+                ApiResponse.success(result, 'User verified successfully')
             );
 
         } catch (error) {
-            this.logger.error('Error en verificación:', error);
+            this.logger.error('Error in verification:', error);
             if (error instanceof AuthError) {
                 res.status(error.statusCode).json(
                     ApiResponse.error(error.message)
@@ -108,7 +108,7 @@ export class AuthController {
                 return;
             }
             res.status(500).json(
-                ApiResponse.error('Error interno del servidor')
+                ApiResponse.error('Internal server error')
             );
         }
     };

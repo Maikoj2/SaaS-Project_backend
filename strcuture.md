@@ -76,3 +76,5 @@ src/
 │   │
 │   ├── app.ts         # Configuración de Express
 │   └── server.ts      # Punto de entrada
+
+npx tree-cli -l 4 --ignore='node_modules/, .git/, .gitignore, dist/, logs/, types/' -o out.txt -d

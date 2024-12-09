@@ -7,7 +7,6 @@ const tokenService = new TokenService();
 
 export const auth = async (req: CustomRequest, res: Response, next: NextFunction) => {
     try {
-        // Obtener token del header
         const token = req.headers.authorization?.replace('Bearer ', '');
         
         if (!token) {
@@ -15,22 +14,41 @@ export const auth = async (req: CustomRequest, res: Response, next: NextFunction
         }
 
         try {
-            // verify access token
+            // Intenta verificar el access token
             const userId = tokenService.getUserIdFromToken(token);
             req.id = userId;
             next();
         } catch (error) {
-            if (error instanceof Error && error.name === 'TokenExpiredError') {
-                // Token expired, the client must use refresh token
-                res.status(401).json({
-                    message: 'Token expired',
-                    code: 'TOKEN_EXPIRED'
-                });
+            // Si es ruta de refresh, permite continuar
+            if (req.path.includes('/refresh-token')) {
+                req.token = token;
+                next();
                 return;
             }
-            throw error;
+
+            // Para otras rutas, intenta refresh automático
+            try {
+                const newToken = await tokenService.refreshTokens(token);
+                const userId = tokenService.getUserIdFromToken(newToken);
+                
+                res.setHeader('Authorization', `Bearer ${newToken}`);
+                req.id = userId;
+                next();
+            } catch (refreshError) {
+                return res.status(401).json({
+                    status: 'error',
+                    code: 'ACCESS_TOKEN_EXPIRED',
+                    message: 'El token de acceso ha expirado',
+                    shouldRefresh: true
+                });
+            }
         }
     } catch (error) {
-        next(error);
+        return res.status(401).json({
+            status: 'error',
+            code: 'INVALID_TOKEN',
+            message: error instanceof Error ? error.message : 'Token inválido',
+            shouldRefresh: false
+        });
     }
 }; 

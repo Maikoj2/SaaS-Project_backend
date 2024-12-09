@@ -15,3 +15,11 @@ export enum AuthRole {
     TEAM_MEMBER = 'team_member',
     VIEWER = 'viewer'
 }
+
+export enum AuthSocialRoute {
+    GOOGLE = '/google',
+    FACEBOOK = '/facebook',
+    APPLE = '/apple',
+    MICROSOFT = '/microsoft',
+    GITHUB = '/github'
+}

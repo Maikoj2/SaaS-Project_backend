@@ -1,7 +1,7 @@
 import express, { Express, Request, RequestHandler, Response } from "express";
 import trimRequest from 'trim-request'
 import { origin } from "../../middlewares";
-import { AuthRole, AuthRoute } from "../../models/auth/authRoutes";
+import { AuthRole, AuthRoute } from "../../models/apiRoutes/auth/authRoutes";
 import { authValidation } from "../../validators";
 import { AuthController } from "../../controllers";
 import { handleAuthError, requireAuth } from "../../config";
@@ -11,6 +11,7 @@ import { auth } from "../../middlewares/auth.middleware";
 const app: Express = express();
 const authController = new AuthController();
 
+// auth route to verify user by tenant and verification id
 app.post(
     AuthRoute.VERIFY,
     [
@@ -21,6 +22,7 @@ app.post(
     authController.verify as RequestHandler
 )
 
+// auth route to register user
 app.post(
     AuthRoute.REGISTER,
     [
@@ -32,6 +34,7 @@ app.post(
     authController.register as RequestHandler
 )
 
+// auth route to login user
 app.post(
     AuthRoute.LOGIN,
     [
@@ -43,6 +46,7 @@ app.post(
     authController.login as RequestHandler
 )
 
+// auth route to check if user exists
 app.get(
     AuthRoute.CHECK,
     [
@@ -53,6 +57,7 @@ app.get(
     authController.checkExist as RequestHandler
 )
 
+// auth route to verify token
 app.get(
     AuthRoute.TOKEN,
     [
@@ -73,6 +78,7 @@ app.get(
     authController.verifyToken as RequestHandler
 )
  
+// auth route to forgot password
 app.post(
     AuthRoute.FORGOT,
     [
@@ -84,6 +90,7 @@ app.post(
     authController.forgotPassword as RequestHandler
 )
 
+// auth route to reset password
 app.post(
     AuthRoute.RESET,
     [
@@ -94,6 +101,8 @@ app.post(
     ],
     authController.resetPassword as RequestHandler
 )
+
+// auth route to refresh token
 app.post(
     AuthRoute.REFRESH,
     [
@@ -104,5 +113,7 @@ app.post(
     ],
     authController.refreshToken as RequestHandler
 )
+
+// TODO: auth route to login with google, facebook 
 
 export default app
