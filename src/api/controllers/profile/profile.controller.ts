@@ -4,10 +4,12 @@ import { ApiResponse } from '../../responses/apiResponse';
 import { ProfileService } from '../../services';
 import { CustomRequest } from '../../interfaces';
 import { matchedData } from 'express-validator';
+import { MongooseHelper } from '../../utils';
 
 export class ProfileController {
     private readonly logger: Logger;
     private readonly profileService: ProfileService;
+
 
     constructor() {
         this.logger = new Logger();
@@ -18,6 +20,8 @@ export class ProfileController {
         try {
             const userId = req.id as string;
             const tenant = req.clientAccount as string;
+            // Validar ID
+            await MongooseHelper.validateId(userId);
             
             const profile = await this.profileService.getProfile(userId, tenant);
             
@@ -59,6 +63,27 @@ export class ProfileController {
             this.logger.error('Error updating profile:', error);
             res.status(500).json(
                 ApiResponse.error('Error updating profile')
+            );
+        }
+    }
+
+    public changePassword = async (req: CustomRequest, res: Response): Promise<void> => {
+        try {
+            const userId = req.id as string;
+            const tenant = req.clientAccount as string;
+
+            // Validar ID
+            await MongooseHelper.validateId(userId);
+
+            const changePassword = await this.profileService.changePassword(userId, tenant, req.body);
+
+            res.status(200).json(
+                ApiResponse.success(changePassword, 'Password changed successfully')
+            );
+        } catch (error) {
+            this.logger.error('Error changing password:', error);
+            res.status(500).json(
+                ApiResponse.error('Error changing password')
             );
         }
     }

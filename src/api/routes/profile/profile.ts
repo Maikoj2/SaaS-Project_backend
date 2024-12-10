@@ -5,12 +5,13 @@ import { AuthRole } from '../../models/apiRoutes/auth/authRoutes';
 import { roleAuthorization } from '../../middlewares/auth/roleAuthorization.middleware';
 import { handleAuthError, requireAuth } from '../../config';
 import { ProfileRoute } from '../../models/apiRoutes';
-import { profileValidation } from '../../validators';
+import { changePasswordValidation, profileValidation } from '../../validators';
 import trimRequest from 'trim-request';
 
 const app: Express = express();
 const profileController = new ProfileController();
 
+// get the user data from data base an show ITenant
 app.get(ProfileRoute.PROFILE,
     [
         origin.checkDomain as RequestHandler,
@@ -30,6 +31,7 @@ app.get(ProfileRoute.PROFILE,
     profileController.getProfile as RequestHandler
 );
 
+// update the user data from database and show the updated data
 app.patch(ProfileRoute.PROFILE,
     [
         origin.checkDomain as RequestHandler,
@@ -49,5 +51,22 @@ app.patch(ProfileRoute.PROFILE,
     ],
     profileController.updateProfile as RequestHandler
 )
+
+app.post(ProfileRoute.CHANGE_PASSWORD,[
+    origin.checkDomain as RequestHandler,
+    origin.checkTenant as RequestHandler,
+    auth as RequestHandler,
+    requireAuth,
+    handleAuthError,
+    roleAuthorization([
+        AuthRole.ADMIN,
+        AuthRole.ORGANIZER,
+        AuthRole.REFEREE,
+        AuthRole.TEAM_MEMBER,
+        AuthRole.VIEWER
+    ]) as RequestHandler,
+    trimRequest.all,
+    changePasswordValidation.changePassword
+], profileController.changePassword as RequestHandler )
 
 export default app;

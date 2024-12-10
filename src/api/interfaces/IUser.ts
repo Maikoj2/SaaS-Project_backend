@@ -1,3 +1,5 @@
+import { IUserDocument } from "../models/mongoose/user/User";
+
 export interface IUser {
     _id: string;
     name: string;
@@ -22,6 +24,7 @@ export interface IUser {
     dummy: boolean;
     resetPasswordToken?: string;
     resetPasswordExpires?: Date;
+    save(): Promise<IUserDocument>;
 }
 
 export interface IUserMethods {

@@ -7,6 +7,7 @@ import { AuthController } from "../../controllers";
 import { handleAuthError, requireAuth } from "../../config";
 import { roleAuthorization } from "../../middlewares/auth/roleAuthorization.middleware";
 import { auth } from "../../middlewares/auth.middleware";
+import { ValidationChain } from "express-validator";
 
 const app: Express = express();
 const authController = new AuthController();
@@ -29,7 +30,7 @@ app.post(
         origin.checkDomain as RequestHandler,
         origin.checkTenant as RequestHandler,
         trimRequest.all,
-        ...authValidation.register
+        ...authValidation.register as ValidationChain[]
     ],
     authController.register as RequestHandler
 )
@@ -41,7 +42,7 @@ app.post(
         origin.checkDomain as RequestHandler,
         // origin.checkTenant, 
         trimRequest.all,
-        ...authValidation.login,
+        ...authValidation.login as ValidationChain[]
     ],
     authController.login as RequestHandler
 )
@@ -85,7 +86,7 @@ app.post(
         origin.checkDomain as RequestHandler,
         origin.checkTenant as RequestHandler,
         trimRequest.all,
-        ...authValidation.forgotPassword
+        ...authValidation.forgotPassword as ValidationChain[]
     ],
     authController.forgotPassword as RequestHandler
 )
@@ -97,7 +98,7 @@ app.post(
         origin.checkDomain as RequestHandler,
         origin.checkTenant as RequestHandler,
         trimRequest.all,
-        ...authValidation.resetPassword
+        ...authValidation.resetPassword as ValidationChain[]
     ],
     authController.resetPassword as RequestHandler
 )

@@ -5,13 +5,13 @@ import mongoosePaginate from "mongoose-paginate-v2";
 import mongoTenant from "mongo-tenant";
 import mongoose_delete from "mongoose-delete";
 import { IUser, IUserMethods } from "../../../interfaces/IUser";
-import { AUTH_CONSTANTS } from "../../../constants";
 import { PasswordUtil } from "../../../utils";
 
 
 export interface IUserDocument extends IUser, Document {}
 export interface IUserModel extends Model<IUserDocument, {}, IUserMethods> {
     byTenant(tenant: string): IUserModel;
+    save(): Promise<IUserDocument>;
 }
 
 const UserSchema = new Schema(
