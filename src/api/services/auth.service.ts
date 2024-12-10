@@ -12,6 +12,7 @@ import { randomBytes } from 'crypto';
 import { Logger } from '../config/logger/WinstonLogger';
 import { EmailService } from './email.service';
 import { PasswordUtil } from '../utils';
+import { UserHelper } from '../utils/user.helper';
 
 
 interface TokenResponse {
@@ -52,12 +53,15 @@ export class AuthService {
 
         // Verificar tenant existente
         const existingTenant = await this.settingsService.findByTenant(tenant);
+
+
         if (existingTenant) {
             throw new AuthError('Tenant already exists', 422);
         }
 
         // Verificar email existente
-        const existingUser = await this.findUserByEmail(email, tenant);
+        const existingUser = await UserHelper.findUserByEmail(User, email, tenant, {})
+        console.log('existingUser', existingUser);
         if (existingUser) {
             throw new AuthError('Email already registered', 422);
         }
@@ -121,17 +125,17 @@ export class AuthService {
 
         // Verificar refresh token
         const decoded = this.tokenService.getUserIdFromToken(refreshToken);
-        
+
         // Buscar usuario
         const user = await User.byTenant(tenant).findById(decoded);
-        
+
         if (!user) {
             throw new AuthError('User not found', 404);
         }
 
         // Generar nuevos tokens
         const tokens = this.tokenService.generateToken(user._id.toString());
-        
+
         return {
             token: tokens,
             settings: await this.settingsService.getSettings(tenant),
@@ -139,13 +143,13 @@ export class AuthService {
             ...(req.parentAccount && { parentAccount: req.parentAccount })
         };
     }
-    
+
     public async forgotPassword(email: string, tenant: string, locale: string): Promise<{ message: string }> {
         try {
             // Buscar usuario
             const user = await User.byTenant(tenant)
                 .findOne({ email });
-                
+
             if (!user) {
                 throw new AuthError('User not found', 404);
             }
@@ -181,13 +185,22 @@ export class AuthService {
     }
 
     public async loginUser(data: { email: string; password: string; tenant: string }): Promise<AuthResponse> {
-        const user = await this.findUser(data.email, data.tenant);
+
+
+        const user = await UserHelper.findUserByEmail(User, data.email, data.tenant, {
+            select: ['+password'],
+            throwError: false,
+            errorMessage: 'Invalid credentials'
+        });
+        if (!user) {
+            throw new AuthError('Invalid credentials', 401);
+        }
 
         // Verificar si el usuario está bloqueado
         await this.checkLoginAttemptsAndBlockExpires(user);
 
-         // 2. Loggear información
-         this.logger.info('Login attempt:', {
+        // 2. Loggear información
+        this.logger.info('Login attempt:', {
             email: data.email,
             storedHash: user.password.substring(0, 10) + '...',
             passwordAttempt: data.password
@@ -199,7 +212,7 @@ export class AuthService {
             isPasswordMatch,
             passwordLength: data.password.length,
             hashLength: user.password.length
-        }); 
+        });
         if (!isPasswordMatch) {
             await this.passwordsDoNotMatch(user);
             throw new AuthError('Invalid credentials', 401);
@@ -219,7 +232,7 @@ export class AuthService {
             settings
         };
     }
-    
+
     public async resetPassword(token: string, newPassword: string, tenant: string): Promise<{ message: string }> {
         try {
             const user = await User.byTenant(tenant)
@@ -234,7 +247,7 @@ export class AuthService {
 
             // Usar PasswordUtil para hashear
             const hashedPassword = await PasswordUtil.hashPassword(newPassword);
-            
+
             user.password = hashedPassword;
             user.resetPasswordToken = undefined;
             user.resetPasswordExpires = undefined;
@@ -254,23 +267,6 @@ export class AuthService {
     }
 
     // private methods
-    private async findUser(email: string, tenant: string) {
-        const user = await User.byTenant(tenant).findOne({ email: email.toLowerCase() }).select('+password').select([
-            'name',
-            'email',
-            'role',
-            'verified',
-            'loginAttempts',
-            'blockExpires',
-            'createdAt',
-            'updatedAt'
-        ]);
-        if (!user) {
-            throw new AuthError('Invalid credentials', 401);
-        }
-        return user;
-    }
-
     private async checkLoginAttemptsAndBlockExpires(user: any) {
 
 
@@ -285,11 +281,16 @@ export class AuthService {
         }
     }
 
-    private async checkPassword(password: string, user: any): Promise<boolean> {
+    public async checkPassword(password: string, user: any): Promise<boolean> {
+        console.log(password, user);
         return await compare(password, user.password);
     }
 
     private async passwordsDoNotMatch(user: any) {
+        // Asegúrate de que loginAttempts sea un número
+        if (typeof user.loginAttempts !== 'number') {
+            user.loginAttempts = 0;
+        }
         user.loginAttempts += 1;
         await user.save();
 
@@ -321,8 +322,8 @@ export class AuthService {
         if (!email) {
             throw new AuthError('Email is required', 400);
         }
-        
+
         return await User.byTenant(tenant)
-        .findOne({ email: email.toLowerCase() });
+            .findOne({ email: email.toLowerCase() });
     }
 } 

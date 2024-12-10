@@ -2,25 +2,27 @@ import { Injectable } from '@decorators/di';
 import { Logger } from '../config';
 import { User } from '../models/mongoose/user';
 import { MongooseHelper } from '../utils/mongoose.helper';
-import { IUser } from '../interfaces';
-import { SocialNetworkHelper } from '../utils';
+import { PasswordUtil, SocialNetworkHelper } from '../utils';
+import { AuthService } from './auth.service';
+import { UserHelper } from '../utils/user.helper';
 
 @Injectable()
 export class ProfileService {
     private readonly logger: Logger;
+    private readonly authService: AuthService;
 
     constructor() {
         this.logger = new Logger();
+        this.authService = new AuthService();
     }
 
     public async getProfile(userId: string, tenant: string) {
         try {
-            // Validar ID
-            await MongooseHelper.validateId(userId);
-
-            const user = await User.byTenant(tenant)
-                .findById(userId)
-                .select('-password');
+            const user = await UserHelper.findUserById(User, userId, tenant, {
+                select: [],
+                throwError: true,
+                errorMessage: 'User not found'
+            });
 
             if (!user) {
                 throw new Error('User not found');
@@ -60,5 +62,39 @@ export class ProfileService {
             this.logger.error('Error updating profile:', error);
             throw error;
         }
+    }
+
+    public async changePassword(userId: string, tenant: string, body: any) {
+        try {
+            const { oldPassword, newPassword } = body;
+            console.log(oldPassword, newPassword);
+            const user = await UserHelper.findUserById(User, userId, tenant, {
+                select: ['+password']
+            });
+
+            if (!user) {
+                throw new Error('User not found');
+            }
+            console.log(user);
+
+            const isMatch = await this.authService.checkPassword(oldPassword, user);
+
+            if (!isMatch) {
+                throw new Error('Invalid password');
+            }
+            return this.changePasswordInDatabase(userId, tenant, newPassword);
+        } catch (error) {
+            this.logger.error('Error validating id:', error);
+            throw error;
+        }
+    }
+    private async changePasswordInDatabase(userId: string, tenant: string, newPassword: string) {
+        const hashedPassword = await PasswordUtil.hashPassword(newPassword);
+        return new Promise((resolve, reject) => {
+            User.byTenant(tenant)
+                .findByIdAndUpdate(userId, { password: hashedPassword }, { new: true })
+                .then(user => resolve(user))
+                .catch(error => reject(error));
+        }); 
     }
 }
