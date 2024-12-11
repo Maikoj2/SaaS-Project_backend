@@ -1,8 +1,8 @@
 import { Injectable } from '@decorators/di';
 import { AuthError } from '../errors/AuthError';
 
-import { User } from '../models/mongoose';
-import { AuthResponse, CustomRequest, RegisterDTO } from '../interfaces';
+import { setting, User } from '../models/mongoose';
+
 import { TokenService } from './token.service';
 import { SettingsService } from './settings.service';
 import { compare, genSalt, hash } from 'bcryptjs';
@@ -12,7 +12,12 @@ import { randomBytes } from 'crypto';
 import { Logger } from '../config/logger/WinstonLogger';
 import { EmailService } from './email.service';
 import { PasswordUtil } from '../utils';
-import { UserHelper } from '../utils/user.helper';
+import { AuthResponse, IUserCustomRequest, RegisterDTO } from '../interfaces';
+import { DatabaseHelper } from '../utils/database.helper';
+import Settings from '../models/mongoose/setting/setting';
+import { v4 as uuidv4 } from 'uuid';
+import { referred } from '../models/mongoose';
+
 
 
 interface TokenResponse {
@@ -44,37 +49,36 @@ export class AuthService {
     }
 
     public async registerUser(data: RegisterDTO): Promise<AuthResponse> {
-        const { tenant, email, name, password } = data;
-
-        // Validar datos requeridos
-        if (!email || !name || !password || !tenant) {
-            throw new AuthError('All fields are required', 400);
-        }
+        const { tenant, email, name, password, userReferred } = data;
 
         // Verificar tenant existente
-        const existingTenant = await this.settingsService.findByTenant(tenant);
-
+        const existingTenant = await DatabaseHelper.exists(Settings, tenant, {});
 
         if (existingTenant) {
             throw new AuthError('Tenant already exists', 422);
         }
-
         // Verificar email existente
-        const existingUser = await UserHelper.findUserByEmail(User, email, tenant, {})
-        console.log('existingUser', existingUser);
+        const existingUser = await DatabaseHelper.exists(User, tenant, { email: email.toLowerCase() });
+
         if (existingUser) {
             throw new AuthError('Email already registered', 422);
         }
-
-        // Crear usuario
-        const user = await this.createUser({
+        // Crear usuario con código de verificación
+        const verificationCode = uuidv4();
+        const user = await DatabaseHelper.create(User, tenant, {
             name,
-            email,
+            email: email.toLowerCase(),
             password,
-            tenant,
-            role: 'admin'
+            verification: verificationCode,
+            verified: false
         });
-
+        await this.emailService.sendVerificationEmail({
+            email: user.email,
+            name: user.name,
+            verificationCode,
+            tenant,
+            locale: data.locale || 'es'
+        });
         // Crear settings
         await this.settingsService.createSettings({
             name,
@@ -82,9 +86,12 @@ export class AuthService {
             ownerId: user._id.toString()
         });
 
+        await this.pluginService.activePlugins(['excelImport', 'pdfReport'], tenant)
         // Generar token y respuesta
-        const token = this.tokenService.generateToken(user._id.toString());
+
         const userInfo = this.formatUserResponse(user);
+        const token = this.tokenService.generateToken(user._id.toString());
+        await this.registerUserReferred(userReferred as string, user, tenant)
         const settings = await this.settingsService.getSettings(tenant);
 
         return {
@@ -95,24 +102,80 @@ export class AuthService {
     }
 
     // public methods
-    public async verifyUser(tenant: string, verificationId: string): Promise<any> {
-        const user = await User.byTenant(tenant)
-            .findOne({ verification: verificationId });
+    public async registerUserReferred(codeRef: string, userTo: any, tenant: string): Promise<void> {
+        if (!codeRef) return;
 
-        if (!user) {
-            throw new AuthError('Invalid verification code', 404);
+        try {
+            const referredUser = await DatabaseHelper.findOne(User, tenant, { referredCode: codeRef });
+            if (!referredUser) {
+                throw new AuthError('Referred user not found', 404);
+            }
+
+            const body = {
+                userTo: userTo._id,
+                userFrom: referredUser._id,
+                amountFrom: 1,
+                amountTo: 1
+            };
+
+            await DatabaseHelper.create(referred, tenant, body);
+        } catch (error) {
+            throw new AuthError('Error registering referred user', 500);
         }
+    };
 
-        user.verified = true;
-        user.verification = undefined;
-        await user.save();
+    public async verifyUser(tenant: string, verificationId: string): Promise<any> {
+        try {
+            console.log('Verifying user:', { tenant, verificationId });
 
-        return {
-            verified: true
-        };
+            // Buscar usuario con el código de verificación
+            const user = await DatabaseHelper.findOne(
+                User,
+                tenant,
+                {
+                    verification: verificationId,
+                    verified: false
+                },
+                {
+                    select: ['_id', 'email', 'verification', 'verified'],
+                    throwError: true,
+                    errorMessage: 'Invalid verification code'
+                }
+            );
+            if (!user) {
+                throw new AuthError('User not found', 404);
+            }
+            // Actualizar usuario como verificado
+            const updatedUser = await DatabaseHelper.update(
+                User,
+                user._id.toString(),
+                tenant,
+                {
+                    verified: true,
+                    verification: ''  // o undefined
+                },
+                {
+                    throwError: true,
+                    errorMessage: 'Error updating user verification status'
+                }
+            );
+
+            console.log('User verified successfully:', updatedUser);
+
+            return {
+                verified: true,
+                message: 'User successfully verified'
+            };
+        } catch (error) {
+            console.error('Verification error:', error);
+            throw new AuthError(
+                error instanceof AuthError ? error.message : 'Error verifying user',
+                error instanceof AuthError ? error.statusCode : 500
+            );
+        }
     }
 
-    public async refreshToken(req: CustomRequest): Promise<TokenResponse> {
+    public async refreshToken(req: IUserCustomRequest): Promise<TokenResponse> {
         const tenant = req.clientAccount;
         const refreshToken = req.headers.authorization?.replace('Bearer ', '').trim();
 
@@ -185,13 +248,7 @@ export class AuthService {
     }
 
     public async loginUser(data: { email: string; password: string; tenant: string }): Promise<AuthResponse> {
-
-
-        const user = await UserHelper.findUserByEmail(User, data.email, data.tenant, {
-            select: ['+password'],
-            throwError: false,
-            errorMessage: 'Invalid credentials'
-        });
+        const user = await DatabaseHelper.findOne(User, data.tenant, { email: data.email.toLowerCase() });
         if (!user) {
             throw new AuthError('Invalid credentials', 401);
         }

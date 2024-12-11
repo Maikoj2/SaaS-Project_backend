@@ -61,3 +61,10 @@ export const requiredEmail = [
         .withMessage('EMAIL_IS_NOT_VALID')
         .normalizeEmail(),
 ];
+
+export const stepper =  [
+    check('stepper')
+    .exists()
+]
+
+

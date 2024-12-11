@@ -1,6 +1,7 @@
 import { Injectable } from '@decorators/di';
 import { setting } from '../models/mongoose';
 import { Logger } from '../config/logger/WinstonLogger';
+import { DatabaseHelper } from '../utils/database.helper';
 
 @Injectable()
 export class SettingsService {
@@ -15,12 +16,12 @@ export class SettingsService {
     }
 
     public async createSettings(data: { name: string; tenant: string; ownerId: string }) {
-        const model = setting.byTenant(data.tenant);
-        const settings = new model({
+        return await DatabaseHelper.create(setting, data.tenant, {
             name: data.name,
+            currency: null,
+            logo: null,
             owner: data.ownerId
         });
-        return await settings.save();
     }
 
     public async getSettings(tenant: string) {

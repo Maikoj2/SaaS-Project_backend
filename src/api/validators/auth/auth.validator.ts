@@ -9,10 +9,16 @@ export const authValidation = {
         validate
     ],
 
+    verify: [
+        ...validateField('id', true),
+        validate
+    ],
+
     register: [
         ...validateField('name', true),
         ...requiredEmail,
         ...password('password', false),
+        ...validateField('userReferred', false),
         validate
     ],
 

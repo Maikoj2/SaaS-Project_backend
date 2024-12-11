@@ -4,7 +4,7 @@ import { User } from '../models/mongoose/user';
 import { MongooseHelper } from '../utils/mongoose.helper';
 import { PasswordUtil, SocialNetworkHelper } from '../utils';
 import { AuthService } from './auth.service';
-import { UserHelper } from '../utils/user.helper';
+import { DatabaseHelper } from '../utils/database.helper';
 
 @Injectable()
 export class ProfileService {
@@ -18,7 +18,7 @@ export class ProfileService {
 
     public async getProfile(userId: string, tenant: string) {
         try {
-            const user = await UserHelper.findUserById(User, userId, tenant, {
+            const user = await DatabaseHelper.findById(User, userId, tenant, {
                 select: [],
                 throwError: true,
                 errorMessage: 'User not found'
@@ -37,9 +37,6 @@ export class ProfileService {
 
     public async updateProfile(userId: string, updateData: any, tenant: string) {
         try {
-            // validate id
-            await MongooseHelper.validateId(userId);
-
             const processedData = SocialNetworkHelper.processSocialNetworks(updateData);
 
             const updatedUser = await User.byTenant(tenant)
@@ -67,8 +64,7 @@ export class ProfileService {
     public async changePassword(userId: string, tenant: string, body: any) {
         try {
             const { oldPassword, newPassword } = body;
-            console.log(oldPassword, newPassword);
-            const user = await UserHelper.findUserById(User, userId, tenant, {
+            const user = await DatabaseHelper.findById(User, userId, tenant, {
                 select: ['+password']
             });
 
@@ -85,6 +81,19 @@ export class ProfileService {
             return this.changePasswordInDatabase(userId, tenant, newPassword);
         } catch (error) {
             this.logger.error('Error validating id:', error);
+            throw error;
+        }
+    }
+
+    public async updateStepper(userId: string, stepper: string) {
+        try {
+            // const user = await UserHelper.findUserById(User, userId, tenant, {
+            //     select: [],
+            //     throwError: true,
+            //     errorMessage: 'User not found'
+            // });
+        } catch (error) {
+            this.logger.error('Error updating stepper:', error);
             throw error;
         }
     }

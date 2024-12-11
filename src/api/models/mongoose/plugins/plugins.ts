@@ -1,16 +1,18 @@
-import { Schema, model, Document, Model } from 'mongoose';
+import { Schema, model, Model } from 'mongoose';
 import mongoosePaginate from 'mongoose-paginate-v2';
 import mongoTenant from 'mongo-tenant';
 import mongooseDelete from 'mongoose-delete';
+import { ITenantDocument } from '../../../interfaces';
 
 export interface IPluginFeatures {
     [key: string]: any;
 }
-interface ITenantModel<T> extends Model<T> {
+interface IPluginModel<T> extends Model<IPluginDocument> {
+    paginate: any;
     byTenant(tenant: string): this;
 }
 
-export interface IPlugin extends Document {
+export interface IPluginDocument extends ITenantDocument {
     plugin: {
         path: string;
         name: string;
@@ -27,7 +29,7 @@ export interface IPlugin extends Document {
     updatedAt: Date;
 }
 
-const PluginsSchema = new Schema<IPlugin>(
+const PluginsSchema = new Schema<IPluginDocument>(
     {
         name: {
             type: String,
@@ -70,4 +72,4 @@ PluginsSchema.plugin(mongoosePaginate);
 PluginsSchema.plugin(mongoTenant);
 PluginsSchema.plugin(mongooseDelete, { overrideMethods: 'all' });
 
-export const Plugin = model<IPlugin, ITenantModel<IPlugin>>('Plugins', PluginsSchema);
+export const Plugin = model<IPluginDocument, IPluginModel<IPluginDocument>>('Plugins', PluginsSchema);

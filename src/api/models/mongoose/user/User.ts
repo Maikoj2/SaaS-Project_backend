@@ -1,17 +1,41 @@
-import { CallbackWithoutResultAndOptionalError, model, Schema, Model} from "mongoose";
+import { CallbackWithoutResultAndOptionalError, model, Schema } from "mongoose";
 import { customAlphabet } from "nanoid";
-import { hash, genSalt, compare } from "bcryptjs";
+import { hash, genSalt } from "bcryptjs";
 import mongoosePaginate from "mongoose-paginate-v2";
 import mongoTenant from "mongo-tenant";
 import mongoose_delete from "mongoose-delete";
-import { IUser, IUserMethods } from "../../../interfaces/IUser";
 import { PasswordUtil } from "../../../utils";
+import { ITenantDocument, ITenantModel } from '../../../interfaces/model.interface';
 
+export interface IUserDocument extends ITenantDocument {
+    name: string;
+    lastName?: string;
+    nie?: string;
+    stepper: any[];
+    email: string;
+    password: string;
+    role: 'admin' | 'organizer' | 'referee' | 'team_member' | 'viewer';
+    verification?: string;
+    verified: boolean;
+    tag: any[];
+    avatar?: string;
+    description?: string;
+    nameBusiness?: string;
+    phone?: string;
+    address?: object;
+    loginAttempts: number;
+    blockExpires: Date;
+    socialNetwork: any[];
+    referredCode: string;
+    dummy: boolean;
+    resetPasswordToken?: string;
+    resetPasswordExpires?: Date;
+    comparePassword(passwordAttempt: string): Promise<boolean>;
+}
 
-export interface IUserDocument extends IUser, Document {}
-export interface IUserModel extends Model<IUserDocument, {}, IUserMethods> {
-    byTenant(tenant: string): IUserModel;
-    save(): Promise<IUserDocument>;
+export interface IUserModel extends ITenantModel<IUserDocument> {
+    paginate: any;
+    byTenant(tenant: string): ITenantModel<IUserDocument>;
 }
 
 const UserSchema = new Schema(
@@ -82,7 +106,7 @@ const GenSalt = (user: any, SALT_FACTOR: number, next: CallbackWithoutResultAndO
     })
 }
 
-UserSchema.methods.comparePassword = function (passwordAttempt: any, cb: any) {
+UserSchema.methods.comparePassword = function(passwordAttempt: string): Promise<boolean> {
     return PasswordUtil.comparePassword(passwordAttempt, this.password);
 }
 

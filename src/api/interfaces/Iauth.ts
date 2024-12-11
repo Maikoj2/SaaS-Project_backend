@@ -13,6 +13,8 @@ export interface RegisterDTO {
     email: string;
     password: string;
     tenant: string;
+    userReferred?: string;
+    locale?: string;
 }
 
 export interface AuthResponse {

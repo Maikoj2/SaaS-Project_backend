@@ -7,6 +7,7 @@ import { handleAuthError, requireAuth } from '../../config';
 import { ProfileRoute } from '../../models/apiRoutes';
 import { changePasswordValidation, profileValidation } from '../../validators';
 import trimRequest from 'trim-request';
+import { stepperValidation } from '../../validators/user/profile.validate';
 
 const app: Express = express();
 const profileController = new ProfileController();
@@ -68,5 +69,13 @@ app.post(ProfileRoute.CHANGE_PASSWORD,[
     trimRequest.all,
     changePasswordValidation.changePassword
 ], profileController.changePassword as RequestHandler )
+
+app.patch(ProfileRoute.STEPPER, [
+    auth as RequestHandler,
+    requireAuth,
+    handleAuthError,
+    trimRequest.all,
+    stepperValidation.stepper 
+], profileController.updateStepper as RequestHandler)
 
 export default app;

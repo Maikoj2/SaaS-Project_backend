@@ -2,9 +2,9 @@ import { Response } from 'express';
 import { Logger } from '../../config';
 import { ApiResponse } from '../../responses/apiResponse';
 import { ProfileService } from '../../services';
-import { CustomRequest } from '../../interfaces';
 import { matchedData } from 'express-validator';
 import { MongooseHelper } from '../../utils';
+import { IUserCustomRequest } from '../../interfaces';
 
 export class ProfileController {
     private readonly logger: Logger;
@@ -16,7 +16,7 @@ export class ProfileController {
         this.profileService = new ProfileService();
     }
 
-    public getProfile = async (req: CustomRequest, res: Response): Promise<void> => {
+    public getProfile = async (req: IUserCustomRequest, res: Response): Promise<void> => {
         try {
             const userId = req.id as string;
             const tenant = req.clientAccount as string;
@@ -36,11 +36,13 @@ export class ProfileController {
         }
     }
 
-    public updateProfile = async (req: CustomRequest, res: Response): Promise<void> => {
+    public updateProfile = async (req: IUserCustomRequest, res: Response): Promise<void> => {
         try {
             const userId = req.id as string;
             const tenant = req.clientAccount as string;
             const updateData = req.body;  // data to update
+            // Validar ID
+            await MongooseHelper.validateId(userId);
             
             // validate that there is data to update
             if (!updateData || Object.keys(updateData).length === 0) {
@@ -67,7 +69,7 @@ export class ProfileController {
         }
     }
 
-    public changePassword = async (req: CustomRequest, res: Response): Promise<void> => {
+    public changePassword = async (req: IUserCustomRequest, res: Response): Promise<void> => {
         try {
             const userId = req.id as string;
             const tenant = req.clientAccount as string;
@@ -84,6 +86,26 @@ export class ProfileController {
             this.logger.error('Error changing password:', error);
             res.status(500).json(
                 ApiResponse.error('Error changing password')
+            );
+        }
+    }
+
+    public updateStepper = async (req: IUserCustomRequest, res: Response): Promise<void> => {
+        try {
+            const userId = req.id as string;
+            const tenant = req.clientAccount as string;
+            // Validar ID
+            await MongooseHelper.validateId(userId);
+
+            // const stepper = await this.profileService.updateStepper(userId, req.body);
+
+            // res.status(200).json(
+            //     ApiResponse.success(stepper, 'Stepper updated successfully')
+            // );
+        } catch (error) {
+            this.logger.error('Error updating stepper:', error);
+            res.status(500).json(
+                ApiResponse.error('Error updating stepper')
             );
         }
     }

@@ -18,6 +18,7 @@ app.post(
     [
         origin.checkDomain as RequestHandler,
         origin.checkTenant as RequestHandler,
+        ...authValidation.verify as ValidationChain[],
         trimRequest.all,
     ],
     authController.verify as RequestHandler

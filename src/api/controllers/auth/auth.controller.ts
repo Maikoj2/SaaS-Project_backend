@@ -6,8 +6,9 @@ import { Logger } from '../../config/logger/WinstonLogger';
 import { AuthError } from '../../errors/AuthError';
 
 import { ApiResponse } from '../../responses';
-import { CustomRequest } from '../../interfaces';
+
 import { SettingsService } from '../../services';
+import { IUserCustomRequest } from '../../interfaces';
 
 
 export class AuthController {
@@ -21,7 +22,7 @@ export class AuthController {
         this.logger = new Logger();
     }
 
-    public register = async (req: CustomRequest, res: Response): Promise<void> => {
+    public register = async (req: IUserCustomRequest, res: Response): Promise<void> => {
         try {
             const registerData = {
                 name: req.body.name,
@@ -29,6 +30,7 @@ export class AuthController {
                 password: req.body.password,
                 tenant: req.clientAccount as string
             };
+            
 
             const result = await this.authService.registerUser(registerData);
 
@@ -50,7 +52,7 @@ export class AuthController {
         }
     };
 
-    public login = async (req: CustomRequest, res: Response): Promise<void> => {
+    public login = async (req: IUserCustomRequest, res: Response): Promise<void> => {
         try {
             const tenant = req.clientAccount;
             this.validateField(tenant, 'Tenant no encontrado')
@@ -83,13 +85,13 @@ export class AuthController {
         }
     };
 
-    public verify = async (req: CustomRequest, res: Response): Promise<void> => {
+    public verify = async (req: IUserCustomRequest, res: Response): Promise<void> => {
         try {
             this.logger.info('Starting user verification', {
                 verificationId: req.body.id,
                 tenant: req.clientAccount
             });
-
+            
             const result = await this.authService.verifyUser(
                 req.clientAccount as string,
                 req.body.id
@@ -113,7 +115,7 @@ export class AuthController {
         }
     };
 
-    public checkExist = async (req: CustomRequest, res: Response): Promise<void> => {
+    public checkExist = async (req: IUserCustomRequest, res: Response): Promise<void> => {
         try {
             const tenant = req.clientAccount as string;
             const settings = await this.settingsService.findByTenant(tenant);
@@ -129,7 +131,7 @@ export class AuthController {
         }
     };
 
-    public verifyToken = async (req: CustomRequest, res: Response): Promise<void> => {
+    public verifyToken = async (req: IUserCustomRequest, res: Response): Promise<void> => {
         try {
             const result = await this.authService.refreshToken(req);
 
@@ -152,7 +154,7 @@ export class AuthController {
             );
         }
     };
-    public refreshToken = async (req: CustomRequest, res: Response): Promise<void> => {
+    public refreshToken = async (req: IUserCustomRequest, res: Response): Promise<void> => {
         try {
             const result = await this.authService.refreshToken(req);
 
@@ -173,7 +175,7 @@ export class AuthController {
         }
     };
 
-    public forgotPassword = async (req: CustomRequest, res: Response): Promise<void> => {
+    public forgotPassword = async (req: IUserCustomRequest, res: Response): Promise<void> => {
         try {
             const tenant = req.clientAccount;
             const locale = req.getLocale?.() || 'es';
@@ -194,7 +196,7 @@ export class AuthController {
         }
     };
 
-    public resetPassword = async (req: CustomRequest, res: Response): Promise<void> => {
+    public resetPassword = async (req: IUserCustomRequest, res: Response): Promise<void> => {
         try {
             const tenant = req.clientAccount as string;
             const {  newPassword } = req.body;

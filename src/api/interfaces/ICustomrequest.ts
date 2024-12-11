@@ -1,18 +1,19 @@
 import { Request } from "express";
-import { IUser } from "./IUser";
+import { IUserDocument } from "../models/mongoose/user/User";
 
-export interface CustomRequest extends Request {
-    user?: IUser;
-    clientAccount?: string | null;
-    id?: string | null;
-    _id?: string | null;
-    role?: string | null;
-    email?: string | null;
-    name?: string | null;
-    password?: string | null;
-    userReferred?: string | null;
-    tenant?: string | null;
-    parentAccount?: string | null;
+export interface IUserCustomRequest extends Request {
+    user?: IUserDocument;
+    clientAccount?: string;
+    id?: string;
+    _id?: string;
+    role?: 'admin' | 'organizer' | 'referee' | 'team_member' | 'viewer';
+    email?: string;
+    name?: string;
+    password?: string;
+    userReferred?: string;
+    tenant?: string;
+    parentAccount?: string;
     getLocale?: () => string;
-    token?: string | null;
+    token?: string;
+    stepper?: string[];
 }

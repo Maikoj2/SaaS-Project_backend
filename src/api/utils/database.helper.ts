@@ -1,0 +1,177 @@
+import { AuthError } from '../errors/AuthError';
+import { Model, Types, model } from 'mongoose';
+import { ITenantDocument, ITenantModel } from '../interfaces/model.interface';
+
+interface FindOptions {
+    select?: string[];
+    throwError?: boolean;
+    errorMessage?: string;
+}
+
+interface UpdateOptions extends FindOptions {
+    runValidators?: boolean;
+}
+
+export class DatabaseHelper {
+
+    static async find<T extends ITenantDocument>(
+        model: Model<T>,
+        query: Record<string, any>,
+        options: FindOptions = {}
+    ): Promise<T[]>{
+        const {
+            select = [],
+            throwError = false,
+            errorMessage = 'Documents not found'
+        } = options;
+    
+        try {
+            const docQuery = model.find(query);
+            
+            if (select.length > 0) {
+                docQuery.select(select);
+            }
+    
+            const docs = await docQuery;
+            
+            if (!docs.length && throwError) {
+                throw new AuthError(errorMessage, 404);
+            }
+    
+            return docs;
+        } catch (error) {
+            if (error instanceof AuthError) throw error;
+            throw new AuthError('Database error', 500);
+        }
+    }
+
+    static async findById<T extends ITenantDocument>(
+        model: ITenantModel<T>,
+        id: string,
+        tenant: string,
+        options: FindOptions = {}
+    ): Promise<T | null> {
+        if (!Types.ObjectId.isValid(id)) {
+            throw new AuthError('Invalid ID format', 400);
+        }
+        return this.findOne(model, tenant, { _id: new Types.ObjectId(id) }, options);
+    }
+
+    static async findOne<T extends ITenantDocument>(
+        model: ITenantModel<T>,
+        tenant: string,
+        query: Record<string, any>,
+        options: FindOptions = {}
+    ): Promise<T | null> {
+        const {
+            select = [],
+            throwError = false,
+            errorMessage = 'Document not found'
+        } = options;
+
+        try {
+            const docQuery = model.byTenant(tenant).findOne(query);
+            if (select.length > 0) docQuery.select(select);
+            
+            const doc = await docQuery;
+            if (!doc && throwError) throw new AuthError(errorMessage, 404);
+            
+            return doc;
+        } catch (error) {
+            if (error instanceof AuthError) throw error;
+            throw new AuthError('Database error', 500);
+        }
+    }
+
+    static async update<T extends ITenantDocument>(
+        model: ITenantModel<T>,
+        id: string,
+        tenant: string,
+        updateData: Partial<T>,
+        options: UpdateOptions = {}
+    ): Promise<T | null> {
+        const {
+            select = [],
+            throwError = true,
+            errorMessage = 'Document not found',
+            runValidators = true
+        } = options;
+
+        try {
+            const doc = await model.byTenant(tenant)
+                .findByIdAndUpdate(
+                    id,
+                    updateData,
+                    {
+                        new: true,
+                        runValidators,
+                        select: select.length > 0 ? select : undefined
+                    }
+                );
+
+            if (!doc && throwError) throw new AuthError(errorMessage, 404);
+            return doc;
+        } catch (error) {
+            if (error instanceof AuthError) throw error;
+            throw new AuthError('Database error', 500);
+        }
+    }
+
+    static async create<T extends ITenantDocument>(
+        model: ITenantModel<T>,
+        tenant: string,
+        data: Partial<T>
+    ): Promise<T> {
+        try {
+            return await model.byTenant(tenant).create(data);
+        } catch (error) {
+            throw new AuthError('Error creating document', 500);
+        }
+    }
+
+    static async delete<T extends ITenantDocument>(
+        model: ITenantModel<T>,
+        id: string,
+        tenant: string,
+        options: FindOptions = {}
+    ): Promise<T | null> {
+        const { throwError = true, errorMessage = 'Document not found' } = options;
+
+        try {
+            const doc = await model.byTenant(tenant).findByIdAndDelete(id);
+            if (!doc && throwError) throw new AuthError(errorMessage, 404);
+            return doc;
+        } catch (error) {
+            if (error instanceof AuthError) throw error;
+            throw new AuthError('Database error', 500);
+        }
+    }
+
+    static async exists<T extends ITenantDocument>(
+        model: ITenantModel<T>,
+        tenant: string,
+        query: Record<string, any>
+    ): Promise<boolean> {
+        try {
+            const count = await model.byTenant(tenant).countDocuments(query);
+            return count > 0;
+        } catch (error) {
+            throw new AuthError('Database error', 500);
+        }
+    }
+
+    static async findOneAndUpdate<T extends ITenantDocument>(
+        model: ITenantModel<T>,
+        tenant: string,
+        query: Record<string, any>,
+        update: Record<string, any>,
+        options: Record<string, any> = {}
+    ): Promise<T | null> {
+        try {
+            return await model.byTenant(tenant)
+                .findOneAndUpdate(query, update, options);
+        } catch (error) {
+            throw new AuthError('Database error', 500);
+        }
+    }
+} 

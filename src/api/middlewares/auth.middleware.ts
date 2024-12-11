@@ -1,11 +1,11 @@
 import { Response, NextFunction } from 'express';
-import { CustomRequest } from '../interfaces';
+import { IUserCustomRequest } from '../interfaces';
 import { AuthError } from '../errors/AuthError';
 import { TokenService } from '../services/token.service';
 
 const tokenService = new TokenService();
 
-export const auth = async (req: CustomRequest, res: Response, next: NextFunction) => {
+export const auth = async (req: IUserCustomRequest, res: Response, next: NextFunction) => {
     try {
         const token = req.headers.authorization?.replace('Bearer ', '');
         

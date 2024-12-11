@@ -1,6 +1,6 @@
 import { validate } from "../../middlewares";
 import { SocialUrlValidator } from "../custom";
-import { optionalSocialUrl, password, validateField } from "../expressValidatorHelper";
+import { optionalSocialUrl, password, stepper, validateField } from "../expressValidatorHelper";
 
 // Validaciones del perfil
 export const profileValidation = {
@@ -22,6 +22,13 @@ export const changePasswordValidation = {
     changePassword: [
         ...password('newPassword', true),
         ...password('oldPassword', false),
+        validate,
+    ]
+}
+
+export const stepperValidation = {
+    stepper: [
+        ...stepper,
         validate,
     ]
 }

@@ -3,7 +3,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Restablecimiento de Contraseña</title>
+    <title>Verifica tu email</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -61,20 +61,20 @@
 <body>
     <div class="email-container">
         <div class="header">
-            <h1>Restablecimiento de Contraseña</h1>
+            <h1>Verifica tu Email</h1>
         </div>
         <div class="content">
-            <p>Hola <strong>${data.name}</strong>,</p>
-            <p>Has solicitado restablecer tu contraseña.</p>
-            <p>Haz clic en el siguiente botón para continuar:</p>
+            <p>Hola <strong>{{name}}</strong>,</p>
+            <p>Gracias por registrarte en <strong>{{companyName}}</strong>. Para completar tu registro, por favor verifica tu email haciendo clic en el siguiente botón:</p>
             <p style="text-align: center;">
-                <a href="${resetLink}" target="_blank">Restablecer Contraseña</a>
+                <a href="{{verificationUrl}}">Verificar Email</a>
             </p>
-            <p>Este enlace expirará en 1 hora.</p>
-            <p>Si no solicitaste este cambio, puedes ignorar este mensaje.</p>
+            <p>Si no puedes hacer clic en el botón, copia y pega este enlace en tu navegador:</p>
+            <p style="word-break: break-word; color: #4CAF50;"><strong>{{verificationUrl}}</strong></p>
+            <p>Si no has creado una cuenta, puedes ignorar este mensaje.</p>
         </div>
         <div class="footer">
-            <p>&copy; 2024 Tu Empresa. Todos los derechos reservados.</p>
+            <p>&copy; {{currentYear}} {{companyName}}. Todos los derechos reservados.</p>
         </div>
     </div>
 </body>

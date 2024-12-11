@@ -4,6 +4,7 @@ import mongoTenant from 'mongo-tenant';
 import mongoosePaginate from 'mongoose-paginate-v2';
 import { readFileSync } from 'fs';
 import path from 'path';
+import { ITenantDocument } from '../../../interfaces';
 
 // Enums
 export enum Language {
@@ -29,7 +30,7 @@ export interface IPlan {
     createdAt: Date;
 }
 
-export interface ISettings extends Document {
+export interface ISettingsDocument extends ITenantDocument {
     name: string | null;
     owner: string;
     currencySymbol: string | null;
@@ -47,8 +48,9 @@ export interface ISettings extends Document {
 }
 
 // Agregar después de las interfaces
-interface SettingsModel extends Model<ISettings> {
-    byTenant(tenant: string): Model<ISettings>;
+export interface ISettingsModel extends Model<ISettingsDocument> {
+    paginate: any;
+    byTenant(tenant: string): Model<ISettingsDocument>;
 }
 
 // Schemas
@@ -114,7 +116,7 @@ const getBasicPlan = (): IPlan => ({
 });
 
 // Main Schema
-const SettingsSchema = new Schema<ISettings>({
+const SettingsSchema = new Schema<ISettingsDocument, ISettingsModel>({
     name: { 
         type: String,
         default: null 
@@ -195,5 +197,5 @@ SettingsSchema.methods.toJSON = function() {
 };
 
 // Export
-export const Settings = model<ISettings, SettingsModel>('Settings', SettingsSchema);
+export const Settings = model<ISettingsDocument, ISettingsModel>('Settings', SettingsSchema);
 export default Settings;

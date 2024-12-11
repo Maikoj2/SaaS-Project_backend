@@ -1,7 +1,9 @@
 import { Injectable } from '@decorators/di';
 import { Logger } from '../config/logger/WinstonLogger';
-import { Plugin } from '../models/mongoose';
+import { Plugin, pluginSetting } from '../models/mongoose';
 import { AuthError } from '../errors/AuthError';
+import { DatabaseHelper } from '../utils/database.helper';
+import { Types } from 'mongoose';
 
 @Injectable()
 export class PluginService {
@@ -27,6 +29,45 @@ export class PluginService {
         } catch (error) {
             this.logger.error('Error obteniendo plugins:', error);
             throw new AuthError('Error al obtener plugins', 422);
+        }
+    }
+
+    public async activePlugins(plugins: string[], tenant: string): Promise<void> {
+        try {
+            // Buscar plugins por nombre
+            const list = await DatabaseHelper.find(Plugin,{
+                name: { $in: plugins }
+            }) || [];
+
+            // Activar cada plugin
+            await Promise.all(list.map(async (plugin:any) => {
+                await this.pluginSetting(plugin, tenant);
+            }));
+
+            console.log('Plugins activated:', list);
+        } catch (error) {
+            throw new AuthError('Error activating plugins', 500);
+        }
+    }
+    private async pluginSetting(plugin: any, tenant: string): Promise<void> {
+        try {
+            if (!plugin || !tenant) {
+                throw new AuthError('Plugin or tenant not provided', 400);
+            }
+    
+            await DatabaseHelper.findOneAndUpdate(
+                pluginSetting,
+                tenant,
+                { 'plugin._id': new Types.ObjectId(plugin._id) },
+                { plugin },
+                {
+                    upsert: true,
+                    new: true,
+                    setDefaultsOnInsert: true
+                }
+            );
+        } catch (error) {
+            throw new AuthError(`Error setting plugin ${plugin?.name}`, 500);
         }
     }
 } 

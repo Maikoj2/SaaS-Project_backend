@@ -1,7 +1,8 @@
-import { NextFunction, Request, Response } from 'express';
+import { NextFunction, Response } from 'express';
 import { parse } from 'psl';
-import { CustomRequest } from '../../interfaces';
+
 import { Logger } from '../../config/logger';
+import { IUserCustomRequest } from '../../interfaces';
 
 const getExpeditiousCache = require('express-expeditious');
 const redisEngine = require('expeditious-engine-redis');
@@ -18,7 +19,7 @@ const parseDomain = (data: RegExpExecArray) => {
     }
 }
 
-const checkDomain = async (req: CustomRequest, res: Response, next: NextFunction) => {
+const checkDomain = async (req: IUserCustomRequest, res: Response, next: NextFunction) => {
     try {
         const origin = req.get('origin');
         
@@ -30,7 +31,7 @@ const checkDomain = async (req: CustomRequest, res: Response, next: NextFunction
         const clean = rawDomain ? parse(rawDomain) : null;
 
         (clean && 'subdomain' in clean) ?
-            req.clientAccount = clean.subdomain || null : req.clientAccount = null;
+            req.clientAccount = clean.subdomain || undefined : req.clientAccount = undefined;
             
         logger.debug('Domain check completed', { 
             origin, 
@@ -39,12 +40,12 @@ const checkDomain = async (req: CustomRequest, res: Response, next: NextFunction
         next();
     } catch (error) {
         logger.error('Error processing clientAccount:', error);
-        req.clientAccount = null;
+        req.clientAccount = undefined;
         next();
     }
 }
 
-const checkTenant = async (req: CustomRequest, res: Response, next: NextFunction) => {
+const checkTenant = async (req: IUserCustomRequest, res: Response, next: NextFunction) => {
     try {
         if (process.env.USE_REDIS === 'true') {
             if (!cache) {

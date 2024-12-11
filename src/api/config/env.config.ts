@@ -7,6 +7,7 @@ export const env = cleanEnv(process.env, {
     // Server
     PORT: str({ default: '8000' }),
     NODE_ENV: str({ choices: ['development', 'production', 'test'] }),
+    
 
     // Database
     DB_URI: str(),
@@ -28,5 +29,16 @@ export const env = cleanEnv(process.env, {
     API_PREFIX: str({ default: '/api/v1' }),
 
     // Crypto
-    CRYPTO_SECRET: str()
+    CRYPTO_SECRET: str(),
+
+    // Email
+    SMTP_HOST: str(),
+    SMTP_PORT: str(),
+    SMTP_SECURE: str(),
+    SMTP_USER: str(),
+    SMTP_PASS: str(),
+    EMAIL_FROM_NAME: str(),
+    EMAIL_FROM_ADDRESS: str(),
+    COMPANY_NAME: str(),
+    FRONTEND_URL: str()
 }); 

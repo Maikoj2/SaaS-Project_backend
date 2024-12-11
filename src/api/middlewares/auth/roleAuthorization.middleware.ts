@@ -1,12 +1,12 @@
 import { Response, NextFunction } from 'express';
-import { CustomRequest } from '../../interfaces';
+import { IUserCustomRequest } from '../../interfaces';
 import { Logger } from '../../config/logger/WinstonLogger';
 import { ApiResponse } from '../../responses';
 
 export const roleAuthorization = (allowedRoles: string[]) => {
     const logger = new Logger();
     
-    return async (req: CustomRequest, res: Response, next: NextFunction) => {
+    return async (req: IUserCustomRequest, res: Response, next: NextFunction) => {
         try {
             const userRole = req.user?.role;
 
