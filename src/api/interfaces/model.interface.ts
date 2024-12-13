@@ -1,4 +1,4 @@
-import { Model, Document, Types } from 'mongoose';
+import { Model, Document, Types, PaginateModel, PaginateResult } from 'mongoose';
 
 // Interfaz base para documentos
 export interface IBaseDocument extends Document {
@@ -14,8 +14,13 @@ export interface ITenantDocument extends IBaseDocument {
 }
 
 // Interfaz para modelos con método byTenant
-export interface ITenantModel<T extends ITenantDocument> extends Model<T> {
-    byTenant(tenant: string): Model<T>;
+export interface ITenantModel<T extends ITenantDocument> extends Model<T>, PaginateModel<T> {
+    byTenant(tenant: string): PaginateModel<T>;
+    paginate(
+        query?: any,
+        options?: any,
+        callback?: (err: any, result: PaginateResult<T>) => void
+    ): Promise<PaginateResult<T>>;
 }
 
 // Opciones de búsqueda genéricas
@@ -28,4 +33,11 @@ export interface FindOptions {
 //
 export interface UpdateOptions extends FindOptions {
     runValidators?: boolean;
+}
+
+export interface PaginationOptions {
+    page?: number;
+    limit?: number;
+    sort?: Record<string, 1 | -1>;
+    select?: string[];
 }

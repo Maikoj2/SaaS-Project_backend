@@ -1,7 +1,7 @@
 import { Response } from 'express';
 import { Logger } from '../../config';
 import { ApiResponse } from '../../responses/apiResponse';
-import { ProfileService } from '../../services';
+import { ProfileService } from '../../services/profile/profile.service';
 import { matchedData } from 'express-validator';
 import { MongooseHelper } from '../../utils';
 import { IUserCustomRequest } from '../../interfaces';

@@ -1,8 +1,8 @@
 import { Injectable } from '@decorators/di';
-import { Logger } from '../config/logger/WinstonLogger';
-import { Plugin, pluginSetting } from '../models/mongoose';
-import { AuthError } from '../errors/AuthError';
-import { DatabaseHelper } from '../utils/database.helper';
+import { Logger } from '../../config/logger/WinstonLogger';
+import { Plugin, pluginSetting } from '../../models/mongoose';
+import { AuthError } from '../../errors/AuthError';
+import { DatabaseHelper } from '../../utils/database.helper';
 import { Types } from 'mongoose';
 
 @Injectable()
@@ -24,7 +24,7 @@ export class PluginService {
             }
 
             // Mapear solo los paths de los plugins
-            return plugins.map(plugin => plugin.plugin.path);
+            return plugins.map((plugin:any) => plugin.plugin.path);
 
         } catch (error) {
             this.logger.error('Error obteniendo plugins:', error);

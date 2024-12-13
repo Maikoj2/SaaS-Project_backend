@@ -1,6 +1,6 @@
 
 import { validate } from '../../middlewares';
-import { password, requiredEmail, validateField } from '../expressValidatorHelper';
+import { paramsValidator, password, requiredEmail, validateField } from '../expressValidatorHelper';
 
 export const authValidation = {
     login: [
@@ -10,7 +10,8 @@ export const authValidation = {
     ],
 
     verify: [
-        ...validateField('id', true),
+        ...paramsValidator('tenant'),
+        ...paramsValidator('verificationCode'),
         validate
     ],
 

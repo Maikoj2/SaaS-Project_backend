@@ -1,8 +1,8 @@
 import { NextFunction, Request, Response } from "express";
 import { Logger } from "../../config";
 import { ApiResponse } from "../../responses/apiResponse";
-import { FacebookService } from "../../services/facebook.service";
 import { matchedData } from "express-validator";
+import { FacebookService } from "../../services/email/facebook.service";
 
 
 

@@ -1,6 +1,7 @@
 import { AuthError } from '../errors/AuthError';
-import { Model, Types, model } from 'mongoose';
+import { Model, Types } from 'mongoose';
 import { ITenantDocument, ITenantModel } from '../interfaces/model.interface';
+import { PaginationOptions } from '../interfaces';
 
 interface FindOptions {
     select?: string[];
@@ -172,6 +173,51 @@ export class DatabaseHelper {
                 .findOneAndUpdate(query, update, options);
         } catch (error) {
             throw new AuthError('Database error', 500);
+        }
+    }
+
+    static async getItems<T extends ITenantDocument>(
+        model: ITenantModel<T>,
+        tenant: string,
+        query: Record<string, any>,
+        options: PaginationOptions = {}
+    ): Promise<{
+        docs: T[];
+        totalDocs: number;
+        limit: number;
+        page: number;
+        totalPages: number;
+    }> {
+        try {
+            const {
+                page = 1,
+                limit = 10,
+                sort = { createdAt: -1 },
+                select = []
+            } = options;
+
+            const paginateOptions = {
+                page,
+                limit,
+                sort,
+                select: select.join(' '),
+                lean: true
+            };
+
+            const result = await model.byTenant(tenant).paginate(query, paginateOptions);
+            console.log('Result:', result);
+            return {
+                docs: result.docs,
+                totalDocs: result.totalDocs || 0,
+                limit: result.limit || limit,
+                page: result.page || page,
+                totalPages: result.totalPages || 0
+            };
+        } catch (error) {
+            throw new AuthError(
+                error instanceof Error ? error.message : 'Error getting items',
+                422
+            );
         }
     }
 } 

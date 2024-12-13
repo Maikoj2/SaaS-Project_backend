@@ -1,22 +1,25 @@
 import { Injectable } from '@decorators/di';
-import { AuthError } from '../errors/AuthError';
+import { AuthError } from '../../errors/AuthError';
 
-import { setting, User } from '../models/mongoose';
+import { User } from '../../models/mongoose';
 
-import { TokenService } from './token.service';
-import { SettingsService } from './settings.service';
-import { compare, genSalt, hash } from 'bcryptjs';
-import { authConfig } from '../config';
-import { PluginService } from './plugin.service';
+
+import { compare, hash } from 'bcryptjs';
+import { authConfig } from '../../config';
+
 import { randomBytes } from 'crypto';
-import { Logger } from '../config/logger/WinstonLogger';
-import { EmailService } from './email.service';
-import { PasswordUtil } from '../utils';
-import { AuthResponse, IUserCustomRequest, RegisterDTO } from '../interfaces';
-import { DatabaseHelper } from '../utils/database.helper';
-import Settings from '../models/mongoose/setting/setting';
+import { Logger } from '../../config/logger/WinstonLogger';
+
+import { PasswordUtil } from '../../utils';
+import { AuthResponse, IUserCustomRequest, RegisterDTO } from '../../interfaces';
+import { DatabaseHelper } from '../../utils/database.helper';
+import Settings from '../../models/mongoose/setting/setting';
 import { v4 as uuidv4 } from 'uuid';
-import { referred } from '../models/mongoose';
+import { referred } from '../../models/mongoose';
+import { EmailService } from '../email/email.service';
+import { TokenService } from './token.service';
+import { PluginService } from '../plugin/plugin.service';
+import { SettingsService } from '../setting/settings.service';
 
 
 
@@ -63,19 +66,21 @@ export class AuthService {
         if (existingUser) {
             throw new AuthError('Email already registered', 422);
         }
+        // Encriptar la contraseña usando PasswordUtil
+        const hashedPassword = await PasswordUtil.hashPassword(password);
         // Crear usuario con código de verificación
         const verificationCode = uuidv4();
         const user = await DatabaseHelper.create(User, tenant, {
             name,
             email: email.toLowerCase(),
-            password,
+            password: hashedPassword,
             verification: verificationCode,
             verified: false
         });
         await this.emailService.sendVerificationEmail({
             email: user.email,
             name: user.name,
-            verificationCode,
+            verificationCode: verificationCode,
             tenant,
             locale: data.locale || 'es'
         });
@@ -86,7 +91,7 @@ export class AuthService {
             ownerId: user._id.toString()
         });
 
-        await this.pluginService.activePlugins(['excelImport', 'pdfReport'], tenant)
+        await this.pluginService.activePlugins(['excelImport', 'pdfReport', 'liveResults', 'socialSharing'], tenant)
         // Generar token y respuesta
 
         const userInfo = this.formatUserResponse(user);
@@ -126,7 +131,11 @@ export class AuthService {
 
     public async verifyUser(tenant: string, verificationId: string): Promise<any> {
         try {
-            console.log('Verifying user:', { tenant, verificationId });
+
+            this.logger.info('Verifying user:', {
+                tenant,
+                verificationId
+            });
 
             // Buscar usuario con el código de verificación
             const user = await DatabaseHelper.findOne(
@@ -139,7 +148,7 @@ export class AuthService {
                 {
                     select: ['_id', 'email', 'verification', 'verified'],
                     throwError: true,
-                    errorMessage: 'Invalid verification code'
+                    errorMessage: 'Código de verificación inválido'
                 }
             );
             if (!user) {
@@ -210,8 +219,7 @@ export class AuthService {
     public async forgotPassword(email: string, tenant: string, locale: string): Promise<{ message: string }> {
         try {
             // Buscar usuario
-            const user = await User.byTenant(tenant)
-                .findOne({ email });
+            const user = await DatabaseHelper.findOne(User, tenant, { email: email.toLowerCase() });
 
             if (!user) {
                 throw new AuthError('User not found', 404);
@@ -248,23 +256,18 @@ export class AuthService {
     }
 
     public async loginUser(data: { email: string; password: string; tenant: string }): Promise<AuthResponse> {
-        const user = await DatabaseHelper.findOne(User, data.tenant, { email: data.email.toLowerCase() });
+        const user = await DatabaseHelper.findOne(User, data.tenant, { email: data.email.toLowerCase() }, {
+            select: ['+password'],
+            throwError: false,
+            errorMessage: 'Usuario no encontrado'
+        });
         if (!user) {
             throw new AuthError('Invalid credentials', 401);
         }
-
         // Verificar si el usuario está bloqueado
         await this.checkLoginAttemptsAndBlockExpires(user);
-
-        // 2. Loggear información
-        this.logger.info('Login attempt:', {
-            email: data.email,
-            storedHash: user.password.substring(0, 10) + '...',
-            passwordAttempt: data.password
-        });
         // Verificar contraseña
-        const isPasswordMatch = await this.checkPassword(data.password, user);
-
+        const isPasswordMatch = await PasswordUtil.comparePassword(data.password, user.password);
         this.logger.info('Resultado de comparación:', {
             isPasswordMatch,
             passwordLength: data.password.length,
@@ -338,11 +341,6 @@ export class AuthService {
         }
     }
 
-    public async checkPassword(password: string, user: any): Promise<boolean> {
-        console.log(password, user);
-        return await compare(password, user.password);
-    }
-
     private async passwordsDoNotMatch(user: any) {
         // Asegúrate de que loginAttempts sea un número
         if (typeof user.loginAttempts !== 'number') {
@@ -357,13 +355,6 @@ export class AuthService {
             throw new AuthError('User temporarily blocked', 409);
         }
     }
-
-    private async createUser(userData: any) {
-        const model = User.byTenant(userData.tenant);
-        const user = new model(userData);
-        return await user.save();
-    }
-
     private formatUserResponse(user: any) {
         return {
             _id: user._id,
@@ -371,16 +362,6 @@ export class AuthService {
             email: user.email,
             role: user.role,
             verified: user.verified,
-            // ... other necessary fields
         };
-    }
-
-    private async findUserByEmail(email: string, tenant: string) {
-        if (!email) {
-            throw new AuthError('Email is required', 400);
-        }
-
-        return await User.byTenant(tenant)
-            .findOne({ email: email.toLowerCase() });
     }
 } 

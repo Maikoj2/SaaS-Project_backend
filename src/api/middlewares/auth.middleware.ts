@@ -1,7 +1,7 @@
 import { Response, NextFunction } from 'express';
 import { IUserCustomRequest } from '../interfaces';
 import { AuthError } from '../errors/AuthError';
-import { TokenService } from '../services/token.service';
+import { TokenService } from '../services/auth/token.service';
 
 const tokenService = new TokenService();
 

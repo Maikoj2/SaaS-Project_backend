@@ -1,7 +1,8 @@
 import { Injectable } from '@decorators/di';
-import { setting } from '../models/mongoose';
-import { Logger } from '../config/logger/WinstonLogger';
-import { DatabaseHelper } from '../utils/database.helper';
+import { setting } from '../../models/mongoose';
+import { Logger } from '../../config/logger/WinstonLogger';
+import { DatabaseHelper } from '../../utils/database.helper';
+
 
 @Injectable()
 export class SettingsService {

@@ -1,4 +1,4 @@
-import { check, CustomValidator } from "express-validator";
+import { check, CustomValidator, param } from "express-validator";
 import { PasswordValidator } from "../auth";
 
 export const validateField = (field: string, optional: boolean) => {
@@ -62,9 +62,18 @@ export const requiredEmail = [
         .normalizeEmail(),
 ];
 
-export const stepper =  [
+export const paramsValidator = (field: string) => [
+    param(field)
+        .trim()
+        .notEmpty()
+        .withMessage('MISSING')
+        .isString()
+        .withMessage('INVALID_TYPE'),
+]
+
+export const stepper = [
     check('stepper')
-    .exists()
+        .exists()
 ]
 
 

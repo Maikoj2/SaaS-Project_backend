@@ -1,7 +1,7 @@
 import { Injectable } from '@decorators/di';
 import passport from 'passport';
 import { Request, Response } from 'express';
-import { Logger } from '../config';
+import { Logger } from '../../config/logger/WinstonLogger';
 
 @Injectable()
 export class FacebookService {

@@ -1,6 +1,6 @@
 import { Injectable } from '@decorators/di';
-import { Logger } from '../config/logger/WinstonLogger';
-import { AuthError } from '../errors';
+import { Logger } from '../../config/logger/WinstonLogger';
+import { AuthError } from '../../errors/AuthError';
 // import nodemailer from 'nodemailer'; // dependent to send emails
 
 interface ResetPasswordData {
@@ -58,7 +58,7 @@ export class EmailService {
     async sendVerificationEmail(data: VerificationEmailData): Promise<void> {
         try {
             const { email, name, verificationCode, tenant, locale = 'es' } = data;
-            const verificationUrl = `${process.env.FRONTEND_URL}/verify?code=${verificationCode}&tenant=${tenant}`;
+            const verificationLink = `https://your-frontend-url.com/verify/${tenant}/${verificationCode}`;
 
             // // Leer la plantilla HTML
             // const templatePath = join(__dirname, `../templates/verification-${locale}.html`);
@@ -88,7 +88,7 @@ export class EmailService {
                 to: email,
                 locale,
                 tenant,
-                verificationLink: verificationUrl
+                verificationLink: verificationLink
             });
             
         } catch (error) {

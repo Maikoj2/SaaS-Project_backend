@@ -1,10 +1,9 @@
 import { Injectable } from '@decorators/di';
-import { Logger } from '../config';
-import { User } from '../models/mongoose/user';
-import { MongooseHelper } from '../utils/mongoose.helper';
-import { PasswordUtil, SocialNetworkHelper } from '../utils';
-import { AuthService } from './auth.service';
-import { DatabaseHelper } from '../utils/database.helper';
+import { Logger } from '../../config';
+import { User } from '../../models';    
+import { PasswordUtil, SocialNetworkHelper } from '../../utils';
+import { AuthService } from '../auth/auth.service';
+import { DatabaseHelper } from '../../utils/database.helper';
 
 @Injectable()
 export class ProfileService {
@@ -18,17 +17,17 @@ export class ProfileService {
 
     public async getProfile(userId: string, tenant: string) {
         try {
-            const user = await DatabaseHelper.findById(User, userId, tenant, {
+            const profile = await DatabaseHelper.findById(User, userId, tenant, {
                 select: [],
                 throwError: true,
                 errorMessage: 'User not found'
             });
 
-            if (!user) {
+            if (!profile) {
                 throw new Error('User not found');
             }
 
-            return user;
+            return profile;
         } catch (error) {
             this.logger.error('Error in getProfile:', error);
             throw error;
@@ -73,7 +72,7 @@ export class ProfileService {
             }
             console.log(user);
 
-            const isMatch = await this.authService.checkPassword(oldPassword, user);
+            const isMatch = await PasswordUtil.comparePassword(oldPassword, user.password);
 
             if (!isMatch) {
                 throw new Error('Invalid password');

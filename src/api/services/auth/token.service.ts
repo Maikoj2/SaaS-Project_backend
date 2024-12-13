@@ -1,9 +1,9 @@
 import jwt from 'jsonwebtoken';
-import { env } from '../config/env.config';
+import { env } from '../../config/env.config';
 
-import { AuthError } from '../errors/AuthError';
+import { AuthError } from '../../errors/AuthError';
 import { Injectable } from '@decorators/di';
-import { decrypt, encrypt } from '../utils';
+import { decrypt, encrypt } from '../../utils';
 
 interface TokenPayload {
     userId: string;

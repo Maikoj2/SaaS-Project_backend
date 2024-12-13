@@ -58,7 +58,7 @@ const UserSchema = new Schema(
         role: {
             type: String,
             enum: ['admin', 'organizer', 'referee', 'team_member', 'viewer'],
-            default: 'viewer'
+            default: 'admin'
         },
         verification: { type: String },
         verified: { type: Boolean, default: false },

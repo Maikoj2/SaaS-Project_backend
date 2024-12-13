@@ -52,7 +52,7 @@ app.patch(ProfileRoute.PROFILE,
     ],
     profileController.updateProfile as RequestHandler
 )
-
+// change the password of the user
 app.post(ProfileRoute.CHANGE_PASSWORD,[
     origin.checkDomain as RequestHandler,
     origin.checkTenant as RequestHandler,
@@ -69,7 +69,7 @@ app.post(ProfileRoute.CHANGE_PASSWORD,[
     trimRequest.all,
     changePasswordValidation.changePassword
 ], profileController.changePassword as RequestHandler )
-
+// update the stepper of the user
 app.patch(ProfileRoute.STEPPER, [
     auth as RequestHandler,
     requireAuth,

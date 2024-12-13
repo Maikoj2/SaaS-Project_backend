@@ -1,5 +1,5 @@
 export enum AuthRoute {
-    VERIFY = '/verify',
+    VERIFY = '/verify/:tenant/:verificationCode',
     REGISTER = '/register',
     LOGIN = '/login',
     FORGOT = '/forgot-password',

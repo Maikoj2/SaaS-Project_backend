@@ -1,14 +1,15 @@
 import { Response } from 'express';
 import { matchedData } from 'express-validator';
-import { AuthService } from '../../services/auth.service';
+import { AuthService } from '../../services/auth/auth.service';
 import { Logger } from '../../config/logger/WinstonLogger';
 
 import { AuthError } from '../../errors/AuthError';
 
 import { ApiResponse } from '../../responses';
 
-import { SettingsService } from '../../services';
+
 import { IUserCustomRequest } from '../../interfaces';
+import { SettingsService } from '../../services/setting/settings.service';
 
 
 export class AuthController {
@@ -87,16 +88,16 @@ export class AuthController {
 
     public verify = async (req: IUserCustomRequest, res: Response): Promise<void> => {
         try {
-            this.logger.info('Starting user verification', {
-                verificationId: req.body.id,
-                tenant: req.clientAccount
+            const { tenant, verificationCode } = req.params;
+            this.logger.info('Verifying user:', {
+                tenant,
+                verificationCode
             });
             
             const result = await this.authService.verifyUser(
-                req.clientAccount as string,
-                req.body.id
+                tenant,
+                verificationCode
             );
-
             res.status(200).json(
                 ApiResponse.success(result, 'User verified successfully')
             );
@@ -180,7 +181,6 @@ export class AuthController {
             const tenant = req.clientAccount;
             const locale = req.getLocale?.() || 'es';
             const { email } = req.body;
-            this.validateField(tenant, 'Tenant is missing')
             const result = await this.authService.forgotPassword(
                 email,
                 tenant as string ,
@@ -207,7 +207,6 @@ export class AuthController {
                 token,
                 newPassword
             });
-            this.validateField(tenant, 'Tenant is missing');
             this.validateField(token, 'Token is missing');
             this.validateField(newPassword, 'New password is missing');
     

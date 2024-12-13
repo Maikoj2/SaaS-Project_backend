@@ -1,10 +1,10 @@
-import { Schema, model, Document, Model } from 'mongoose';
+import { Schema, model, Document, Model, PaginateModel } from 'mongoose';
 import MongooseDelete from 'mongoose-delete';
 import mongoTenant from 'mongo-tenant';
 import mongoosePaginate from 'mongoose-paginate-v2';
 import { readFileSync } from 'fs';
 import path from 'path';
-import { ITenantDocument } from '../../../interfaces';
+import { ITenantDocument, ITenantModel } from '../../../interfaces';
 
 // Enums
 export enum Language {
@@ -48,9 +48,8 @@ export interface ISettingsDocument extends ITenantDocument {
 }
 
 // Agregar después de las interfaces
-export interface ISettingsModel extends Model<ISettingsDocument> {
-    paginate: any;
-    byTenant(tenant: string): Model<ISettingsDocument>;
+export interface ISettingsModel extends Model<ISettingsDocument>, PaginateModel<ISettingsDocument> {
+    byTenant(tenant: string): PaginateModel<ISettingsDocument>;
 }
 
 // Schemas
@@ -197,5 +196,5 @@ SettingsSchema.methods.toJSON = function() {
 };
 
 // Export
-export const Settings = model<ISettingsDocument, ISettingsModel>('Settings', SettingsSchema);
+export const Settings: ITenantModel<ISettingsDocument> = model<ISettingsDocument, ISettingsModel>('Settings', SettingsSchema);
 export default Settings;
