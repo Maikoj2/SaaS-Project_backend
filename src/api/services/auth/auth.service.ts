@@ -20,6 +20,9 @@ import { EmailService } from '../email/email.service';
 import { TokenService } from './token.service';
 import { PluginService } from '../plugin/plugin.service';
 import { SettingsService } from '../setting/settings.service';
+import { RequestHelper } from '../../utils/request.helper';
+import { ForgotPassword, IForgotPasswordDocument } from '../../models/mongoose/forgotPassword.model';
+import { ApiResponse } from '../../responses';
 
 
 
@@ -218,23 +221,82 @@ export class AuthService {
 
     public async forgotPassword(email: string, tenant: string, locale: string): Promise<{ message: string }> {
         try {
-            // Buscar usuario
-            const user = await DatabaseHelper.findOne(User, tenant, { email: email.toLowerCase() });
+            // 1. Buscar usuario
+            const user = await DatabaseHelper.findOne(User, tenant, { 
+                email: email.toLowerCase() 
+            });
 
             if (!user) {
                 throw new AuthError('User not found', 404);
             }
 
-            // Generar token y fecha de expiración
+            // 2. Verificar si ya existe un token válido
+            const existingToken = await DatabaseHelper.findOne(
+                ForgotPassword,
+                tenant,
+                {
+                    email: user.email.toLowerCase(),
+                    used: false,
+                }
+            );
+
+            if (existingToken) {
+                // Opcional: actualizar fecha de expiración del token existente
+                await DatabaseHelper.update(
+                    ForgotPassword,
+                    existingToken._id.toString(),
+                    tenant,
+                    { expiresAt: new Date(Date.now() + 3600000) }
+                );
+
+                // Reenviar email con el token existente
+                await this.emailService.sendResetPasswordEmail(
+                    locale,
+                    {
+                        email: user.email,
+                        name: user.name,
+                        token: existingToken.verification
+                    },
+                    tenant
+                );
+
+                return {
+                    message: 'Recovery email resent'
+                };
+            }
+
+            // 3. Si no existe token válido, crear uno nuevo
             const resetToken = randomBytes(32).toString('hex');
-            const resetTokenExpiry = new Date(Date.now() + 3600000); // 1 hora
+            const resetTokenExpiry = new Date(Date.now() + 3600000);
 
-            // Guardar token encriptado
-            user.resetPasswordToken = await hash(resetToken, 10);
-            user.resetPasswordExpires = resetTokenExpiry;
-            await user.save();
+            // 4. Crear nuevo registro en ForgotPassword
+            await DatabaseHelper.create(
+                ForgotPassword,
+                tenant,
+                {
+                    email: user.email.toLowerCase(),
+                    verification: resetToken,
+                    type: 'PASSWORD_RESET',
+                    used: false,
+                    ipRequest: 'SYSTEM',
+                    browserRequest: 'SYSTEM',
+                    countryRequest: 'SYSTEM',
+                    expiresAt: resetTokenExpiry
+                }
+            );
 
-            // Enviar email
+            // 5. Actualizar usuario
+            await DatabaseHelper.update(
+                User,
+                user._id.toString(),
+                tenant,
+                {
+                    resetPasswordToken: await hash(resetToken, 10),
+                    resetPasswordExpires: resetTokenExpiry
+                }
+            );
+
+            // 6. Enviar email
             await this.emailService.sendResetPasswordEmail(
                 locale,
                 {
@@ -248,10 +310,9 @@ export class AuthService {
             return {
                 message: 'Email recovery sent'
             };
-
         } catch (error) {
             this.logger.error('Error in forgot password:', error);
-            throw error;
+            throw new AuthError('Error in forgot password process', 500);
         }
     }
 
@@ -295,8 +356,11 @@ export class AuthService {
 
     public async resetPassword(token: string, newPassword: string, tenant: string): Promise<{ message: string }> {
         try {
+            const userId = this.tokenService.verifyResetToken(token);
+
             const user = await User.byTenant(tenant)
                 .findOne({
+                    _id: userId,
                     resetPasswordToken: { $exists: true },
                     resetPasswordExpires: { $gt: new Date() }
                 });
@@ -304,7 +368,23 @@ export class AuthService {
             if (!user) {
                 throw new AuthError('Token inválido o expirado', 400);
             }
-
+            // 3. Buscar y actualizar registro en ForgotPassword
+            const forgotPasswordRecord = await DatabaseHelper.findOneAndUpdate(
+                ForgotPassword,
+                tenant,
+                {
+                    verification: token,
+                    used: false,
+                    email: user.email
+                },
+                {
+                    used: true,
+                    usedAt: new Date()
+                }
+            );
+            if (!forgotPasswordRecord) {
+                throw new AuthError('Token of reset password not found or already used', 400);
+            }
             // Usar PasswordUtil para hashear
             const hashedPassword = await PasswordUtil.hashPassword(newPassword);
 
@@ -314,15 +394,36 @@ export class AuthService {
 
             await user.save({ validateBeforeSave: false });
 
-            this.logger.info('Contraseña reseteada:', {
-                userId: user._id,
-                hashedPassword: hashedPassword.substring(0, 10) + '...'
-            });
-
-            return { message: 'Contraseña actualizada exitosamente' };
+            return { message: 'Password updated successfully' };
         } catch (error) {
-            this.logger.error('Error en reset password:', error);
+            this.logger.error('Error in reset password:', error);
             throw error;
+        }
+    }
+
+    public async saveForgotPassword(email: string, tenant: string): Promise<IForgotPasswordDocument> {
+        try {
+            this.logger.info('Attempting to save forgot password:', { email, tenant });
+            const forgotPasswordData = {
+                email: email,
+                verification: uuidv4(),
+                ipRequest: 'N/A', // O implementar lógica para obtener IP
+                browserRequest: 'N/A', // O implementar lógica para obtener browser
+                countryRequest: 'N/A',// O implementar lógica para obtener país
+                used: false
+            };
+            this.logger.info('Creating forgot password record:', forgotPasswordData);
+            const forgotPassword = await DatabaseHelper.create(
+                ForgotPassword,
+                tenant,
+                forgotPasswordData
+            );
+            this.logger.info('Forgot password record created:', { id: forgotPassword._id });
+
+            return forgotPassword;
+        } catch (error) {
+            this.logger.error('Error saving forgot password:', error);
+            throw new AuthError('Error saving forgot password request', 422);
         }
     }
 

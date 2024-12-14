@@ -17,6 +17,14 @@ interface VerificationEmailData {
     locale?: string;
 }
 
+interface RegistrationEmailData {
+    email: string;
+    name: string;
+    locale: string;
+    tenant: string;
+    verificationCode: string;
+}
+
 @Injectable()
 export class EmailService {
     // private transporter: nodemailer.Transporter;
@@ -96,5 +104,45 @@ export class EmailService {
             throw new AuthError('Error sending verification email', 500);
         }
     
+    }
+
+    public async sendRegistrationEmail(data: RegistrationEmailData): Promise<void> {
+        try {
+            this.logger.info('Sending registration email:', {
+                to: data.email,
+                tenant: data.tenant,
+                locale: data.locale
+            });
+
+            // Simular envío de email (reemplazar con tu implementación real)
+            const emailData = {
+                locale: data.locale,
+                tenant: data.tenant,
+                timestamp: new Date().toISOString(),
+                to: data.email,
+                verificationLink: `https://your-frontend-url.com/verify/${data.tenant}/${data.verificationCode}`
+            };
+
+            // Log para desarrollo
+            this.logger.info('Simulando envío de email de registro:', emailData);
+
+            // Aquí implementarías el envío real del email
+            // Ejemplo con nodemailer u otro servicio de email
+            /*
+            await this.emailProvider.send({
+                to: data.email,
+                subject: 'Welcome to Our Platform',
+                template: 'registration',
+                context: {
+                    name: data.name,
+                    verificationLink: emailData.verificationLink
+                }
+            });
+            */
+
+        } catch (error) {
+            this.logger.error('Error sending registration email:', error);
+            throw error;
+        }
     }
 } 

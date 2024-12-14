@@ -1,4 +1,4 @@
-import jwt from 'jsonwebtoken';
+import jwt, { verify } from 'jsonwebtoken';
 import { env } from '../../config/env.config';
 
 import { AuthError } from '../../errors/AuthError';
@@ -88,12 +88,21 @@ export class TokenService {
             const decrypted = decrypt(encryptedToken);
             const tokens = JSON.parse(decrypted);
             
-            return jwt.verify(
+            return verify(
                 tokens.accessToken, 
                 env.JWT_SECRET
             ) as TokenPayload;
         } catch (error) {
             throw new AuthError('Invalid access token', 401);
+        }
+    }
+
+    public verifyResetToken(token: string): string {
+        try {
+            const decoded = verify(token,env.JWT_SECRET) as { userId: string };
+            return decoded.userId;
+        } catch (error) {
+            throw new AuthError('Invalid or expired token', 401);
         }
     }
 } 

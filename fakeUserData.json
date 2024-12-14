@@ -1,0 +1,92 @@
+[
+    {
+      "name": "John",
+      "lastName": "Smith",
+      "email": "john.smith@example.com",
+      "password": "Password123!",
+      "tag": ["developer", "tech"],
+      "avatar": "https://randomuser.me/api/portraits/men/1.jpg",
+      "description": "Senior Software Engineer with 10 years of experience",
+      "nameBusiness": "Tech Solutions Inc",
+      "role": "admin",
+      "phone": "+1234567890",
+      "address": {
+        "street": "123 Main St",
+        "city": "New York",
+        "country": "USA"
+      },
+      "urlTwitter": "https://twitter.com/johnsmith",
+      "urlFacebook": "https://facebook.com/johnsmith",
+      "urlInstagram": "https://instagram.com/johnsmith"
+    },
+    {
+      "name": "Maria",
+      "lastName": "García",
+      "email": "maria.garcia@example.com",
+      "password": "Secure456!",
+      "tag": ["marketing", "social"],
+      "avatar": "https://randomuser.me/api/portraits/women/2.jpg",
+      "description": "Digital Marketing Specialist",
+      "nameBusiness": "Social Media Pro",
+      "role": "organizer",
+      "phone": "+34612345678",
+      "address": {
+        "street": "Calle Mayor 45",
+        "city": "Madrid",
+        "country": "Spain"
+      },
+      "urlInstagram": "https://instagram.com/mariagarcia"
+    },
+    {
+      "name": "David",
+      "lastName": "Johnson",
+      "email": "david.johnson@example.com",
+      "password": "DJohnson789!",
+      "tag": ["sports", "referee"],
+      "avatar": "https://randomuser.me/api/portraits/men/3.jpg",
+      "description": "Professional Sports Referee",
+      "role": "referee",
+      "phone": "+447123456789",
+      "address": {
+        "street": "10 Sports Ave",
+        "city": "London",
+        "country": "UK"
+      },
+      "urlTwitter": "https://twitter.com/davidjreferee"
+    },
+    {
+      "name": "Sophie",
+      "lastName": "Martin",
+      "email": "sophie.martin@example.com",
+      "password": "SophieM2024!",
+      "tag": ["team", "leader"],
+      "avatar": "https://randomuser.me/api/portraits/women/4.jpg",
+      "description": "Team Leader at Sports Club",
+      "nameBusiness": "Victory Team",
+      "role": "team_member",
+      "phone": "+33612345678",
+      "address": {
+        "street": "15 Rue de la Paix",
+        "city": "Paris",
+        "country": "France"
+      },
+      "urlFacebook": "https://facebook.com/sophiemartin"
+    },
+    {
+      "name": "Carlos",
+      "lastName": "Rodriguez",
+      "email": "carlos.rodriguez@example.com",
+      "password": "CRod2024!",
+      "tag": ["viewer", "fan"],
+      "avatar": "https://randomuser.me/api/portraits/men/5.jpg",
+      "description": "Sports Enthusiast",
+      "role": "viewer",
+      "phone": "+525512345678",
+      "address": {
+        "street": "Av. Reforma 234",
+        "city": "Mexico City",
+        "country": "Mexico"
+      },
+      "urlInstagram": "https://instagram.com/carlosrod"
+    }
+  ]

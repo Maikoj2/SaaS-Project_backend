@@ -31,14 +31,18 @@ export const auth = async (req: IUserCustomRequest, res: Response, next: NextFun
                 const newToken = await tokenService.refreshTokens(token);
                 const userId = tokenService.getUserIdFromToken(newToken);
                 
-                res.setHeader('Authorization', `Bearer ${newToken}`);
-                req.id = userId;
-                next();
+                return res.status(200).json({
+                    status: 'warning',
+                    code: 'TOKEN_REFRESHED',
+                    message: 'Your session was about to expire and has been renewed',
+                    newToken: `Bearer ${newToken}`,
+                    shouldRefresh: true
+                });
             } catch (refreshError) {
                 return res.status(401).json({
                     status: 'error',
                     code: 'ACCESS_TOKEN_EXPIRED',
-                    message: 'El token de acceso ha expirado',
+                    message: 'Your access token has expired',
                     shouldRefresh: true
                 });
             }

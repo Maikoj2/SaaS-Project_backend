@@ -1,9 +1,13 @@
-import { Logger } from "../../config";
+
 import { DatabaseHelper } from "../../utils/database.helper";
 
 import { AuthError } from "../../errors/AuthError";
 import { User } from "../../models";
 import { PaginationOptions } from "../../interfaces";
+import { Logger } from "../../config";
+import { USER_SELECT_FIELDS } from "../../constants/user.constants";
+import { PasswordUtil } from "../../utils";
+import { v4 as uuidv4 } from 'uuid';
 
 
 
@@ -14,10 +18,14 @@ export class UserService {
         this.logger = new Logger();
     }
 
-    public async getUsers( tenant: string, options: PaginationOptions){
+    public getUsers = async ( tenant: string, options: PaginationOptions) => {
         try {
             const query = {};
-            const users = await DatabaseHelper.getItems(User, tenant, query, options);
+            const usersOptions = {
+                ...options,
+                select: USER_SELECT_FIELDS
+            };
+            const users = await DatabaseHelper.getItems(User, tenant, query, usersOptions);
             this.logger.info('Users found:', {
                 count: users.totalDocs,
                 page: users.page,
@@ -30,16 +38,15 @@ export class UserService {
         }
     }
 
-    public async getUserById(id: string, tenant: string){
+    public getUserById = async (id: string, tenant: string) => {
         try {
             this.logger.info('Getting user by ID:', { id, tenant });
-
             const user = await DatabaseHelper.findById(
                 User,
                 id,
                 tenant,
                 {
-                    select: ['name', 'email', 'role', 'verified'],
+                    select: USER_SELECT_FIELDS,
                     throwError: true,
                     errorMessage: 'User not found'
                 }
@@ -54,6 +61,44 @@ export class UserService {
             );
         }
     }
+    public async createUser(userData: any, tenant: string) {
+        try {
+            // Generar código de verificación
+            const verificationCode = uuidv4();
+
+            // Preparar datos del usuario
+            const userToCreate = {
+                ...userData,
+                email: userData.email.toLowerCase(),
+                verification: verificationCode,
+                verified: false
+            };
+
+            // Si hay contraseña, encriptarla
+            if (userData.password) {
+                userToCreate.password = await PasswordUtil.hashPassword(userData.password);
+            }
+
+            // Crear usuario
+            const newUser = await DatabaseHelper.create(
+                User,
+                tenant,
+                userToCreate
+            );
+
+            this.logger.info('User created:', {
+                userId: newUser._id,
+                email: newUser.email,
+                role: newUser.role
+            });
+
+            return newUser;
+        } catch (error) {
+            this.logger.error('Error creating user:', error);
+            throw error;
+        }
+    }
+
 
       
 }
