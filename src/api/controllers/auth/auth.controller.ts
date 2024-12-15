@@ -41,15 +41,8 @@ export class AuthController {
 
         } catch (error) {
             this.logger.error('Error en registro:', error);
-            if (error instanceof AuthError) {
-                res.status(error.statusCode).json(
-                    ApiResponse.error(error.message)
-                );
-                return;
-            }
-            res.status(500).json(
-                ApiResponse.error('Error interno del servidor')
-            );
+            res.status(error instanceof AuthError ? error.statusCode : 500)
+                .json(ApiResponse.error(error instanceof AuthError ? error : 'Error registering user'));
         }
     };
 
@@ -74,15 +67,8 @@ export class AuthController {
 
         } catch (error) {
             this.logger.error('Error en login:', error);
-            if (error instanceof AuthError) {
-                res.status(error.statusCode).json(
-                    ApiResponse.error(error.message)
-                );
-                return;
-            }
-            res.status(500).json(
-                ApiResponse.error('Error interno del servidor')
-            );
+            res.status(error instanceof AuthError ? error.statusCode : 500)
+                .json(ApiResponse.error(error instanceof AuthError ? error : 'Error logging in'));
         }
     };
 
@@ -104,15 +90,8 @@ export class AuthController {
 
         } catch (error) {
             this.logger.error('Error in verification:', error);
-            if (error instanceof AuthError) {
-                res.status(error.statusCode).json(
-                    ApiResponse.error(error.message)
-                );
-                return;
-            }
-            res.status(500).json(
-                ApiResponse.error('Internal server error')
-            );
+            res.status(error instanceof AuthError ? error.statusCode : 500)
+                .json(ApiResponse.error(error instanceof AuthError ? error : 'Error verifying user'));
         }
     };
 
@@ -126,9 +105,8 @@ export class AuthController {
             );
         } catch (error) {
             this.logger.error('Error checking settings:', error);
-            res.status(500).json(
-                    ApiResponse.error('Error to check settings')
-            );
+            res.status(error instanceof AuthError ? error.statusCode : 500)
+                .json(ApiResponse.error(error instanceof AuthError ? error : 'Error to check settings'));
         }
     };
 
@@ -143,18 +121,11 @@ export class AuthController {
         } catch (error) {
             this.logger.error('Error refreshing token:', error);
 
-            if (error instanceof AuthError) {
-                res.status(error.statusCode).json(
-                    ApiResponse.error(error.message)
-                );
-                return;
-            }
-
-            res.status(500).json(
-                ApiResponse.error('Error to refresh token')
-            );
+            res.status(error instanceof AuthError ? error.statusCode : 500)
+                .json(ApiResponse.error(error instanceof AuthError ? error : 'Error to refresh token'));
         }
     };
+
     public refreshToken = async (req: IUserCustomRequest, res: Response): Promise<void> => {
         try {
             const result = await this.authService.refreshToken(req);
@@ -184,7 +155,8 @@ export class AuthController {
             const result = await this.authService.forgotPassword(
                 email,
                 tenant as string ,
-                locale
+                locale,
+                req
             );
             
             res.status(200).json(
@@ -192,7 +164,8 @@ export class AuthController {
             );
         } catch (error) {
             this.logger.error('Error in forgot password:', error);
-            ApiResponse.error('Error in forgot password:');
+            res.status(error instanceof AuthError ? error.statusCode : 500)
+                .json(ApiResponse.error(error instanceof AuthError ? error : 'Error in forgot password'));
         }
     };
 
@@ -201,17 +174,17 @@ export class AuthController {
             const tenant = req.clientAccount as string;
             const {  newPassword } = req.body;
         
-            const token = req.query.token as string;
+            const urlId = req.query.urlId as string;
             this.logger.info('Reset password request:', {
                 tenant,
-                token,
+                urlId,
                 newPassword
             });
-            this.validateField(token, 'Token is missing');
+            this.validateField(urlId, 'Token is missing');
             this.validateField(newPassword, 'New password is missing');
     
             const result = await this.authService.resetPassword(
-                token,
+                urlId,
                 newPassword,
                 tenant
             );
@@ -221,7 +194,8 @@ export class AuthController {
             );
         } catch (error) {
             this.logger.error('Error in reset password:', error);
-            ApiResponse.error('Error in reset password:');
+            res.status(error instanceof AuthError ? error.statusCode : 500)
+                .json(ApiResponse.error(error instanceof AuthError ? error : 'Error in reset password'));
         }
     };
 

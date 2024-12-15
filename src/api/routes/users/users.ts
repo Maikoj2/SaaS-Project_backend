@@ -6,9 +6,10 @@ import { handleAuthError } from '../../config/auth/index.js';
 import { roleAuthorization } from '../../middlewares/auth/roleAuthorization.middleware.js';
 import { AuthRole } from '../../models/apiRoutes/auth/authRoutes.js';
 import { origin } from '../../middlewares/index.js';
-import { UserController } from '../../controllers/users/user.controller.js';
+
 import trimRequest from 'trim-request';
 import { userValidation } from '../../validators/user/user.validate.js';
+import { UserController } from '../../controllers/users/user.controller.js';
 
 const userController = new UserController();
 
@@ -26,6 +27,7 @@ app.get(UsersRoute.USERS, [
         AuthRole.ORGANIZER
     ]),
     trimRequest.all,
+    userValidation.getUsers,
 ],
     userController.getUsers as RequestHandler
 );
@@ -60,6 +62,21 @@ app.post(UsersRoute.USERS, [
     userController.createUser as RequestHandler
 );
 
+// Update user
+app.patch(UsersRoute.UPDATE_USER, [
+    origin.checkDomain as RequestHandler,
+    origin.checkTenant as RequestHandler,
+    auth as RequestHandler,
+    requireAuth,
+    handleAuthError,
+    roleAuthorization([
+        AuthRole.ADMIN,
+    ]),
+    trimRequest.all,
+    userValidation.updateUser,
+],
+    userController.updateUser as RequestHandler
+);
 
 
 export default app;

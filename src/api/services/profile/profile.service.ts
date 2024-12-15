@@ -1,7 +1,7 @@
 import { Injectable } from '@decorators/di';
 import { Logger } from '../../config';
 import { User } from '../../models';    
-import { PasswordUtil, SocialNetworkHelper } from '../../utils';
+import { PasswordUtil, DataProcessor } from '../../utils';
 import { AuthService } from '../auth/auth.service';
 import { DatabaseHelper } from '../../utils/database.helper';
 
@@ -36,7 +36,7 @@ export class ProfileService {
 
     public async updateProfile(userId: string, updateData: any, tenant: string) {
         try {
-            const processedData = SocialNetworkHelper.processSocialNetworks(updateData);
+            const processedData = DataProcessor.processAllData(updateData);
 
             const updatedUser = await User.byTenant(tenant)
                 .findByIdAndUpdate(
@@ -50,7 +50,7 @@ export class ProfileService {
                 );
 
             if (!updatedUser) {
-                throw new Error('User not found');
+                throw new Error('Profile not found');
             }
 
             return updatedUser;
@@ -68,7 +68,7 @@ export class ProfileService {
             });
 
             if (!user) {
-                throw new Error('User not found');
+                throw new Error('Profile not found');
             }
             console.log(user);
 

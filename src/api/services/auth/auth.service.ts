@@ -23,6 +23,8 @@ import { SettingsService } from '../setting/settings.service';
 import { RequestHelper } from '../../utils/request.helper';
 import { ForgotPassword, IForgotPasswordDocument } from '../../models/mongoose/forgotPassword.model';
 import { ApiResponse } from '../../responses';
+import { lookup } from 'geoip-lite';
+import moment from 'moment';
 
 
 
@@ -103,7 +105,7 @@ export class AuthService {
         const settings = await this.settingsService.getSettings(tenant);
 
         return {
-            session: token,
+            session: `Bearer ${token}`,
             user: userInfo,
             settings
         };
@@ -219,11 +221,11 @@ export class AuthService {
         };
     }
 
-    public async forgotPassword(email: string, tenant: string, locale: string): Promise<{ message: string }> {
+    public async forgotPassword(email: string, tenant: string, locale: string, req: any): Promise<{ message: string }> {
         try {
             // 1. Buscar usuario
-            const user = await DatabaseHelper.findOne(User, tenant, { 
-                email: email.toLowerCase() 
+            const user = await DatabaseHelper.findOne(User, tenant, {
+                email: email.toLowerCase()
             });
 
             if (!user) {
@@ -255,7 +257,7 @@ export class AuthService {
                     {
                         email: user.email,
                         name: user.name,
-                        token: existingToken.verification
+                        token: existingToken.urlId
                     },
                     tenant
                 );
@@ -266,35 +268,10 @@ export class AuthService {
             }
 
             // 3. Si no existe token válido, crear uno nuevo
-            const resetToken = randomBytes(32).toString('hex');
-            const resetTokenExpiry = new Date(Date.now() + 3600000);
+
 
             // 4. Crear nuevo registro en ForgotPassword
-            await DatabaseHelper.create(
-                ForgotPassword,
-                tenant,
-                {
-                    email: user.email.toLowerCase(),
-                    verification: resetToken,
-                    type: 'PASSWORD_RESET',
-                    used: false,
-                    ipRequest: 'SYSTEM',
-                    browserRequest: 'SYSTEM',
-                    countryRequest: 'SYSTEM',
-                    expiresAt: resetTokenExpiry
-                }
-            );
-
-            // 5. Actualizar usuario
-            await DatabaseHelper.update(
-                User,
-                user._id.toString(),
-                tenant,
-                {
-                    resetPasswordToken: await hash(resetToken, 10),
-                    resetPasswordExpires: resetTokenExpiry
-                }
-            );
+            const forgotPasswordRecord = await this.saveForgotPassword(user.email, tenant, req);
 
             // 6. Enviar email
             await this.emailService.sendResetPasswordEmail(
@@ -302,7 +279,7 @@ export class AuthService {
                 {
                     email: user.email,
                     name: user.name,
-                    token: resetToken
+                    token: forgotPasswordRecord.urlId
                 },
                 tenant
             );
@@ -325,6 +302,24 @@ export class AuthService {
         if (!user) {
             throw new AuthError('Invalid credentials', 401);
         }
+
+        // Verificar si el usuario está verificado
+        if (!user.verified) {
+            // Opcionalmente, podemos reenviar el email de verificación aquí
+            const verificationCode = uuidv4();
+            user.verification = verificationCode;
+            await user.save();
+
+            await this.emailService.sendVerificationEmail({
+                email: user.email,
+                name: user.name,
+                verificationCode: verificationCode,
+                tenant: data.tenant
+            });
+
+            throw new AuthError('Please verify your email before logging in. A new verification email has been sent.', 403);
+        }
+
         // Verificar si el usuario está bloqueado
         await this.checkLoginAttemptsAndBlockExpires(user);
         // Verificar contraseña
@@ -348,51 +343,48 @@ export class AuthService {
         const settings = await this.settingsService.getSettings(data.tenant);
 
         return {
-            session: token,
+            session: `Bearer ${token}`,
             user: userInfo,
             settings
         };
     }
 
-    public async resetPassword(token: string, newPassword: string, tenant: string): Promise<{ message: string }> {
+    public async resetPassword(urlId: string, newPassword: string, tenant: string): Promise<{ message: string }> {
         try {
-            const userId = this.tokenService.verifyResetToken(token);
 
-            const user = await User.byTenant(tenant)
-                .findOne({
-                    _id: userId,
-                    resetPasswordToken: { $exists: true },
-                    resetPasswordExpires: { $gt: new Date() }
-                });
-
-            if (!user) {
-                throw new AuthError('Token inválido o expirado', 400);
-            }
-            // 3. Buscar y actualizar registro en ForgotPassword
-            const forgotPasswordRecord = await DatabaseHelper.findOneAndUpdate(
+            const forgotPasswordRecord = await DatabaseHelper.findOne(
                 ForgotPassword,
                 tenant,
                 {
-                    verification: token,
+                    urlId: urlId,
                     used: false,
-                    email: user.email
-                },
-                {
-                    used: true,
-                    usedAt: new Date()
+                    expiresAt: { $gt: new Date() }
                 }
             );
             if (!forgotPasswordRecord) {
-                throw new AuthError('Token of reset password not found or already used', 400);
+                throw new AuthError('Invalid or expired reset token', 400);
+            }
+            const now = new Date();
+            if (now > forgotPasswordRecord.expiresAt) {
+                this.logger.error('Token expirado');
+                throw new AuthError('El enlace de recuperación ha expirado', 400);
+            }
+            const user = await DatabaseHelper.findOne(User, tenant, {
+                email: forgotPasswordRecord.email
+            });
+
+            if (!user) {
+                throw new AuthError('Token inválido o expirado', 400);
             }
             // Usar PasswordUtil para hashear
             const hashedPassword = await PasswordUtil.hashPassword(newPassword);
 
             user.password = hashedPassword;
-            user.resetPasswordToken = undefined;
-            user.resetPasswordExpires = undefined;
 
             await user.save({ validateBeforeSave: false });
+
+            forgotPasswordRecord.used = true;
+            await forgotPasswordRecord.save();
 
             return { message: 'Password updated successfully' };
         } catch (error) {
@@ -401,25 +393,35 @@ export class AuthService {
         }
     }
 
-    public async saveForgotPassword(email: string, tenant: string): Promise<IForgotPasswordDocument> {
+    public async saveForgotPassword(email: string, tenant: string, req: any): Promise<IForgotPasswordDocument> {
         try {
             this.logger.info('Attempting to save forgot password:', { email, tenant });
+
+            const ip = req.ip || 'N/A';
+            const userAgent = req.headers['user-agent'] || 'Unknown Browser';
+            const geo = lookup(ip);
+            const country = geo?.country || 'Unknown Country';
+
+            const urlId = uuidv4();
+
+            const resetTokenExpiry = new Date(Date.now() + 3600000);
             const forgotPasswordData = {
                 email: email,
-                verification: uuidv4(),
-                ipRequest: 'N/A', // O implementar lógica para obtener IP
-                browserRequest: 'N/A', // O implementar lógica para obtener browser
-                countryRequest: 'N/A',// O implementar lógica para obtener país
-                used: false
+                ipRequest: ip,
+                urlId: urlId,
+                browserRequest: userAgent,
+                countryRequest: country,
+                used: false,
+                expiresAt: resetTokenExpiry,
             };
-            this.logger.info('Creating forgot password record:', forgotPasswordData);
+
             const forgotPassword = await DatabaseHelper.create(
                 ForgotPassword,
                 tenant,
                 forgotPasswordData
             );
-            this.logger.info('Forgot password record created:', { id: forgotPassword._id });
 
+            this.logger.info('Forgot password record created:', { id: forgotPassword._id });
             return forgotPassword;
         } catch (error) {
             this.logger.error('Error saving forgot password:', error);

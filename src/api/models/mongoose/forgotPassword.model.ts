@@ -5,8 +5,8 @@ import { ITenantDocument, ITenantModel } from '../../interfaces/model.interface'
 
 export interface IForgotPasswordDocument extends ITenantDocument {
     email: string;
-    verification: string;
     used: boolean;
+    urlId: string;
     ipRequest: string;
     browserRequest: string;
     countryRequest?: string;
@@ -27,15 +27,13 @@ const ForgotPasswordSchema = new Schema(
             lowercase: true,
             required: true
         },
-        verification: {
-            type: String,
-            required: true
-        },
+
         used: {
             type: Boolean,
             default: false
         },
         // Información de la solicitud
+        urlId: { type: String, required: true }, // ID de la URL generada
         ipRequest: {
             type: String,
             required: true
@@ -46,6 +44,10 @@ const ForgotPasswordSchema = new Schema(
         },
         countryRequest: {
             type: String
+        } ,
+        expiresAt: {
+            type: Date,
+            required: true
         }
     },
     {
@@ -55,5 +57,6 @@ const ForgotPasswordSchema = new Schema(
 );
 
 ForgotPasswordSchema.plugin(mongoTenant);
+ForgotPasswordSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });
 
 export const ForgotPassword = model<IForgotPasswordDocument, IForgotPasswordModel>('ForgotPassword', ForgotPasswordSchema);

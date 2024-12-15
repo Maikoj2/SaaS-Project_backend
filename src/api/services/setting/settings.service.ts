@@ -1,7 +1,8 @@
 import { Injectable } from '@decorators/di';
-import { setting } from '../../models/mongoose';
+
 import { Logger } from '../../config/logger/WinstonLogger';
 import { DatabaseHelper } from '../../utils/database.helper';
+import Settings from '../../models/mongoose/setting/setting';
 
 
 @Injectable()
@@ -13,11 +14,11 @@ export class SettingsService {
     }
 
     public async findByTenant(tenant: string) {
-        return await setting.byTenant(tenant).findOne({});
+        return await Settings.byTenant(tenant).findOne({});
     }
 
     public async createSettings(data: { name: string; tenant: string; ownerId: string }) {
-        return await DatabaseHelper.create(setting, data.tenant, {
+        return await DatabaseHelper.create(Settings, data.tenant, {
             name: data.name,
             currency: null,
             logo: null,
@@ -26,7 +27,7 @@ export class SettingsService {
     }
 
     public async getSettings(tenant: string) {
-        return await setting.byTenant(tenant)
+        return await Settings.byTenant(tenant)
             .findOne({}, 'currency logo name tenantId plugins language');
     }
 } 

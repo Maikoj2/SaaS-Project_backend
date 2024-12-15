@@ -1,3 +1,5 @@
+import { AuthError } from "../errors";
+
 interface IApiResponse<T = any> {
     success: boolean;
     data?: T;
@@ -12,9 +14,24 @@ export const ApiResponse = {
         message
     }),
 
-    error: (message: string, error?: any): IApiResponse => ({
-        success: false,
-        message,
-        error
-    })
+    error: (error: AuthError | string): IApiResponse => {
+        if (error instanceof AuthError) {
+            return {
+                success: false,
+                message: error.message,
+                error: {
+                    statusCode: error.statusCode,
+                    name: error.name
+                }
+            };
+        }
+        return {
+            success: false,
+            message: error,
+            error: {
+                statusCode: 500,
+                name: 'Error'
+            }
+        };
+    }
 };

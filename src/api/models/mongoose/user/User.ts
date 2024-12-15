@@ -22,7 +22,7 @@ export interface IUserDocument extends ITenantDocument {
     description?: string;
     nameBusiness?: string;
     phone?: string;
-    address?: object;
+    address?: IAddress;
     loginAttempts: number;
     blockExpires: Date;
     socialNetwork: any[];
@@ -36,6 +36,14 @@ export interface IUserDocument extends ITenantDocument {
 export interface IUserModel extends ITenantModel<IUserDocument> {
     paginate: any;
     byTenant(tenant: string): ITenantModel<IUserDocument>;
+}
+// Definir la interfaz para la dirección
+export interface IAddress {
+    street?: string;
+    city?: string;
+    country?: string;
+    postalCode?: string;
+    state?: string;
 }
 
 const UserSchema = new Schema(
@@ -67,7 +75,17 @@ const UserSchema = new Schema(
         description: { type: String },
         nameBusiness: { type: String },
         phone: { type: String, required: false },
-        address: { type: Object, required: false },
+        address: {
+            type: {
+                street: { type: String, default: '' },
+                city: { type: String, default: '' },
+                country: { type: String, default: '' },
+                postalCode: { type: String, default: '' },
+                department: { type: String, default: '' }
+            },
+            required: false,
+            _id: false
+        },
         loginAttempts: { type: Number, default: 0, select: false },
         blockExpires: { type: Date, default: Date.now, select: false, nullable: true },
         socialNetwork: { type: Array },

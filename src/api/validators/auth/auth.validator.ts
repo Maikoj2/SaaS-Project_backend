@@ -29,7 +29,7 @@ export const authValidation = {
     ],
 
     resetPassword: [
-        ...validateField('token', true),
+        ...validateField('urlId', true),
         ...password('newPassword', true),
         validate
     ],

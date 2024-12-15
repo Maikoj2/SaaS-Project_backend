@@ -2,6 +2,7 @@ import { AuthError } from '../errors/AuthError';
 import { Model, Types } from 'mongoose';
 import { ITenantDocument, ITenantModel } from '../interfaces/model.interface';
 import { PaginationOptions } from '../interfaces';
+import { Logger } from '../config/logger/WinstonLogger';
 
 interface FindOptions {
     select?: string[];
@@ -10,10 +11,12 @@ interface FindOptions {
 }
 
 interface UpdateOptions extends FindOptions {
+    new?: boolean;
     runValidators?: boolean;
 }
 
 export class DatabaseHelper {
+    private static logger = new Logger();
 
     static async find<T extends ITenantDocument>(
         model: Model<T>,
@@ -71,12 +74,19 @@ export class DatabaseHelper {
         } = options;
 
         try {
+            this.logger.info('Finding document:', { model: model.modelName, tenant, query, select });
+            
             const docQuery = model.byTenant(tenant).findOne(query);
             if (select.length > 0) docQuery.select(select);
             
             const doc = await docQuery;
-            if (!doc && throwError) throw new AuthError(errorMessage, 404);
             
+            if (!doc && throwError) {
+                this.logger.warn('Document not found:', { model: model.modelName, tenant, query });
+                throw new AuthError(errorMessage, 404);
+            }
+            
+            this.logger.info('Document found:', { model: model.modelName, id: doc?._id });
             return doc;
         } catch (error) {
             if (error instanceof AuthError) throw error;
@@ -99,6 +109,13 @@ export class DatabaseHelper {
         } = options;
 
         try {
+            this.logger.info('Updating document:', { 
+                model: model.modelName, 
+                id, 
+                tenant, 
+                updateData 
+            });
+
             const doc = await model.byTenant(tenant)
                 .findByIdAndUpdate(
                     id,
@@ -110,11 +127,34 @@ export class DatabaseHelper {
                     }
                 );
 
-            if (!doc && throwError) throw new AuthError(errorMessage, 404);
+            if (!doc && throwError) {
+                this.logger.warn('Document not found for update:', { 
+                    model: model.modelName, 
+                    id, 
+                    tenant 
+                });
+                throw new AuthError(errorMessage, 404);
+            }
+
+            this.logger.info('Document updated successfully:', { 
+                model: model.modelName, 
+                id: doc?._id 
+            });
+            
             return doc;
         } catch (error) {
+            this.logger.error('Error updating document:', { 
+                error, 
+                model: model.modelName, 
+                id, 
+                tenant 
+            });
+            
             if (error instanceof AuthError) throw error;
-            throw new AuthError('Database error', 500);
+            throw new AuthError(
+                error instanceof Error ? error.message : 'Error updating document',
+                500
+            );
         }
     }
 

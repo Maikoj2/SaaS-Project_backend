@@ -1,12 +1,11 @@
 
 import { DatabaseHelper } from "../../utils/database.helper";
-
 import { AuthError } from "../../errors/AuthError";
 import { User } from "../../models";
 import { PaginationOptions } from "../../interfaces";
 import { Logger } from "../../config";
 import { USER_SELECT_FIELDS } from "../../constants/user.constants";
-import { PasswordUtil } from "../../utils";
+import { PasswordUtil, DataProcessor } from "../../utils";
 import { v4 as uuidv4 } from 'uuid';
 
 
@@ -18,7 +17,7 @@ export class UserService {
         this.logger = new Logger();
     }
 
-    public getUsers = async ( tenant: string, options: PaginationOptions) => {
+    public async getUsers(tenant: string, options: PaginationOptions) {
         try {
             const query = {};
             const usersOptions = {
@@ -26,11 +25,6 @@ export class UserService {
                 select: USER_SELECT_FIELDS
             };
             const users = await DatabaseHelper.getItems(User, tenant, query, usersOptions);
-            this.logger.info('Users found:', {
-                count: users.totalDocs,
-                page: users.page,
-                totalPages: users.totalPages
-            });
             return users;
         } catch (error) {
             this.logger.error('Error getting users:', error);
@@ -38,7 +32,7 @@ export class UserService {
         }
     }
 
-    public getUserById = async (id: string, tenant: string) => {
+    public async getUserById(id: string, tenant: string) {
         try {
             this.logger.info('Getting user by ID:', { id, tenant });
             const user = await DatabaseHelper.findById(
@@ -48,27 +42,28 @@ export class UserService {
                 {
                     select: USER_SELECT_FIELDS,
                     throwError: true,
-                    errorMessage: 'User not found'
+                    errorMessage: `User: ${id} not found`
                 }
             );
 
             return user;
         } catch (error) {
             this.logger.error('Error getting user by ID:', error);
-            throw new AuthError(
-                error instanceof AuthError ? error.message : 'Error getting user',
-                error instanceof AuthError ? error.statusCode : 500
-            );
+            throw error;
         }
     }
+
     public async createUser(userData: any, tenant: string) {
         try {
             // Generar código de verificación
             const verificationCode = uuidv4();
-
-            // Preparar datos del usuario
+            console.log('Datos recibidos:', userData);
+            
+            const processedData = DataProcessor.processAllData(userData);
+            console.log('Processed data:', processedData);
+        
             const userToCreate = {
-                ...userData,
+                ...processedData,
                 email: userData.email.toLowerCase(),
                 verification: verificationCode,
                 verified: false
@@ -95,6 +90,30 @@ export class UserService {
             return newUser;
         } catch (error) {
             this.logger.error('Error creating user:', error);
+            throw error;
+        }
+    }
+
+    public async updateUser(id: string, tenant: string, userData: any) {
+        
+        try {
+            const existingUser = await DatabaseHelper.findById(User, id, tenant, {
+                throwError: true,
+                errorMessage: `Usuario ${id} no encontrado`
+            });
+    
+            if (!existingUser) {
+                throw new AuthError('Usuario no encontrado', 404);
+            }
+    
+            const processedData = DataProcessor.processSocialNetworks(userData);
+            const updatedUser = await DatabaseHelper.update(User, id, tenant, processedData, {
+                new: true,
+                runValidators: true,
+            });
+            return updatedUser;
+        } catch (error) {
+            this.logger.error('Error updating user:', error);
             throw error;
         }
     }

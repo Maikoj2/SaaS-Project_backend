@@ -2,17 +2,14 @@ import { Request, Response } from 'express';
 import { UserService } from "../../services/user/user.service";
 import { IUserCustomRequest } from '../../interfaces';
 import { ApiResponse } from '../../responses';
-import { Logger } from '../../config';
+import { Logger } from '../../config/logger/WinstonLogger';
 import { MongooseHelper } from '../../utils';
 import { matchedData } from 'express-validator';
 import { EmailService } from '../../services/email/email.service';
 import { AuthService } from '../../services/auth/auth.service';
 import { DatabaseHelper } from '../../utils/database.helper';
 import { User } from '../../models';
-
-
-
-
+import { AuthError } from '../../errors';
 
 export class UserController {
     private readonly userService: UserService;
@@ -20,12 +17,20 @@ export class UserController {
     private readonly emailService: EmailService;
     private readonly authService: AuthService;
 
+    
+
+    constructor() {
+        this.userService = new UserService();
+        this.logger = new Logger();
+        this.emailService = new EmailService();
+        this.authService = new AuthService();
+    }
+
     public createUser = async (req: IUserCustomRequest, res: Response): Promise<void> => {
         try {
             const tenant = req.clientAccount as string;
             const locale = req.getLocale?.() || 'es';
-            const rawReq = req;
-            
+
             // Obtener datos validados
             const validatedData = matchedData(req);
 
@@ -39,7 +44,8 @@ export class UserController {
                 // Generar token para reseteo de contraseña
                 const forgotPasswordData = await this.authService.saveForgotPassword(
                     newUser.email,
-                    tenant
+                    tenant,
+                    req
                 );
                 this.logger.info('Forgot password record created:', forgotPasswordData);
 
@@ -65,31 +71,23 @@ export class UserController {
 
         } catch (error) {
             this.logger.error('Error creating user:', error);
-            res.status(500).json(
-                ApiResponse.error('Error creating user')
-            );
+            res.status(error instanceof AuthError ? error.statusCode : 500)
+                .json(ApiResponse.error(error instanceof AuthError ? error : 'Error creating user'));
         }
     };
 
-    constructor() {
-        this.userService = new UserService();
-        this.logger = new Logger();
-        this.emailService = new EmailService();
-        this.authService = new AuthService();
-    }
     public getUsers = async (req: IUserCustomRequest, res: Response): Promise<void> => {
         try {
             const tenant = req.clientAccount as string;
-            const options = this.listInitOptions(req);            
-            const user = await this.userService.getUsers( tenant, options);
-        
+            const options = this.listInitOptions(req);
+            const user = await this.userService.getUsers(tenant, options);
+
             res.status(200).json(
                 ApiResponse.success(user, 'Users retrieved successfully')
             );
         } catch (error) {
-            res.status(500).json(
-                ApiResponse.error('Error retrieving users')
-            );
+            res.status(error instanceof AuthError ? error.statusCode : 500)
+                .json(ApiResponse.error(error instanceof AuthError ? error : 'Error fetching users'));
         }
     }
 
@@ -102,7 +100,8 @@ export class UserController {
             const user = await this.userService.getUserById(id, tenant);
             res.status(200).json(ApiResponse.success(user, 'User fetched successfully'));
         } catch (error) {
-            res.status(500).json(ApiResponse.error('Error fetching user'));
+            res.status(error instanceof AuthError ? error.statusCode : 500)
+                .json(ApiResponse.error(error instanceof AuthError ? error : 'Error fetching user'));
         }
     }
 
@@ -120,7 +119,56 @@ export class UserController {
                 ApiResponse.success(user, 'User fetched successfully')
             );
         } catch (error) {
-            ApiResponse.error('Error fetching user')
+            res.status(error instanceof AuthError ? error.statusCode : 500)
+                .json(ApiResponse.error(error instanceof AuthError ? error : 'Error fetching user'));
+        }
+    }
+
+    public  updateUser = async (req: IUserCustomRequest, res: Response): Promise<void> => {
+        try {
+            const userId = req.params.id;
+            const tenant = req.clientAccount as string;
+            const updateData = req.body;
+    
+            // Eliminar la condición incorrecta que estaba antes
+            if (!userId) {
+                this.logger.error('ID de usuario no proporcionado');
+                throw new AuthError('ID de usuario requerido', 400);
+            }
+    
+            this.logger.info('Iniciando proceso de actualización', {
+                userId,
+                tenant,
+                updateFields: Object.keys(updateData)
+            });
+    
+            // Llamar al servicio
+            const updatedUser = await this.userService.updateUser(
+                userId, 
+                tenant, 
+                updateData
+            );
+    
+            this.logger.info('Actualización completada', {
+                userId,
+                success: true
+            });
+    
+            res.status(200).json(
+                ApiResponse.success(updatedUser, 'Usuario actualizado exitosamente')
+            );
+    
+        } catch (error) {
+            this.logger.error('Error en controlador de actualización', {
+                error: error instanceof Error ? error.message : 'Error desconocido',
+                userId: req.params.id,
+                tenant: req.clientAccount
+            });
+    
+            res.status(error instanceof AuthError ? error.statusCode : 500)
+                .json(ApiResponse.error(
+                    error instanceof Error ? error.message : 'Error al actualizar usuario'
+                ));
         }
     }
 
@@ -130,7 +178,7 @@ export class UserController {
         const sortBy = this.buildSort(sort, order);
         const page = parseInt(req.query.page?.toString() || '1', 10);
         const limit = parseInt(req.query.limit?.toString() || '15', 10);
-        
+
         return {
             sort: sortBy,
             lean: true,
@@ -145,4 +193,5 @@ export class UserController {
     };
 
     
+
 }

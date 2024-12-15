@@ -54,7 +54,7 @@ export class EmailService {
                 to: data.email,
                 locale,
                 tenant,
-                resetLink: `https://your-domain.com/reset-password?token=${data.token}`
+                resetLink: `https://your-domain.com/reset-password?urlId=${data.token}`
             });
             
         } catch (error) {
