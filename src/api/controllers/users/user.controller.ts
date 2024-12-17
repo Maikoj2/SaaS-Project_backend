@@ -1,9 +1,8 @@
-import { Request, Response } from 'express';
+import {  Response } from 'express';
 import { UserService } from "../../services/user/user.service";
 import { IUserCustomRequest } from '../../interfaces';
 import { ApiResponse } from '../../responses';
 import { Logger } from '../../config/logger/WinstonLogger';
-import { MongooseHelper } from '../../utils';
 import { matchedData } from 'express-validator';
 import { EmailService } from '../../services/email/email.service';
 import { AuthService } from '../../services/auth/auth.service';
@@ -95,10 +94,11 @@ export class UserController {
         try {
             const { id } = req.params;
             const tenant = req.clientAccount as string;
-            await MongooseHelper.validateId(id);
-            this.logger.info('Getting user by ID:', { id, tenant });
+
             const user = await this.userService.getUserById(id, tenant);
+
             res.status(200).json(ApiResponse.success(user, 'User fetched successfully'));
+
         } catch (error) {
             res.status(error instanceof AuthError ? error.statusCode : 500)
                 .json(ApiResponse.error(error instanceof AuthError ? error : 'Error fetching user'));
@@ -171,7 +171,23 @@ export class UserController {
                 ));
         }
     }
+    
+    public deleteUser = async (req: IUserCustomRequest, res: Response): Promise<void> => {
+        try {
+            const { id } = req.params;
+            const tenant = req.clientAccount as string;
 
+            const deletedUser = await this.userService.deleteUser(id, tenant);
+
+            res.status(200).json(ApiResponse.success(deletedUser, 'User deleted successfully'));
+        } catch (error) {
+            res.status(error instanceof AuthError ? error.statusCode : 500)
+                .json(ApiResponse.error(error instanceof AuthError ? error : 'Error deleting user'));
+        }
+    }
+
+
+    // private methods
     private listInitOptions = (req: IUserCustomRequest) => {
         const order = parseInt(req.query.order?.toString() || '-1', 10);
         const sort = req.query.sort?.toString() || 'createdAt';

@@ -1,12 +1,12 @@
 import { validate } from "../../middlewares";
 import { SocialUrlValidator } from "../custom";
-import { optionalSocialUrl, password, requiredEmail, validateField } from "../expressValidatorHelper";
+import { optionalSocialUrl, paramsValidator, password, requiredEmail, validateField } from "../expressValidatorHelper";
 import { query } from 'express-validator';
 
 
 export const userValidation = {
     getUserById: [
-        ...validateField("id", true),
+        ...paramsValidator("id"),
         validate,
     ],
     createUser: [
@@ -34,6 +34,7 @@ export const userValidation = {
         validate,
     ],
     updateUser: [
+        ...paramsValidator("id", true),
         validateField("name", false),
         validateField("lastName", false),
         validateField("avatar", false),
@@ -74,6 +75,11 @@ export const userValidation = {
             .withMessage('Order must be 1 or -1'),
 
         validate
+    ],
+
+    deleteUser: [
+        ...paramsValidator("id", true),
+        validate,
     ],
 };
 

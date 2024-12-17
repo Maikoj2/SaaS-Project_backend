@@ -5,6 +5,7 @@ import { PaginationOptions } from '../interfaces';
 import { Logger } from '../config/logger/WinstonLogger';
 
 interface FindOptions {
+    deleted?: boolean;
     select?: string[];
     throwError?: boolean;
     errorMessage?: string;
@@ -25,6 +26,7 @@ export class DatabaseHelper {
     ): Promise<T[]>{
         const {
             select = [],
+            deleted = false,
             throwError = false,
             errorMessage = 'Documents not found'
         } = options;
@@ -55,10 +57,7 @@ export class DatabaseHelper {
         tenant: string,
         options: FindOptions = {}
     ): Promise<T | null> {
-        if (!Types.ObjectId.isValid(id)) {
-            throw new AuthError('Invalid ID format', 400);
-        }
-        return this.findOne(model, tenant, { _id: new Types.ObjectId(id) }, options);
+        return this.findOne(model, tenant, { _id: new Types.ObjectId(id), deleted: options.deleted }, options);
     }
 
     static async findOne<T extends ITenantDocument>(
@@ -74,7 +73,6 @@ export class DatabaseHelper {
         } = options;
 
         try {
-            this.logger.info('Finding document:', { model: model.modelName, tenant, query, select });
             
             const docQuery = model.byTenant(tenant).findOne(query);
             if (select.length > 0) docQuery.select(select);
@@ -109,13 +107,7 @@ export class DatabaseHelper {
         } = options;
 
         try {
-            this.logger.info('Updating document:', { 
-                model: model.modelName, 
-                id, 
-                tenant, 
-                updateData 
-            });
-
+    
             const doc = await model.byTenant(tenant)
                 .findByIdAndUpdate(
                     id,
@@ -135,11 +127,6 @@ export class DatabaseHelper {
                 });
                 throw new AuthError(errorMessage, 404);
             }
-
-            this.logger.info('Document updated successfully:', { 
-                model: model.modelName, 
-                id: doc?._id 
-            });
             
             return doc;
         } catch (error) {

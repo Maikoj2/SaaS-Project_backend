@@ -41,7 +41,8 @@ app.get(UsersRoute.GET_USER_BY_ID, [
     handleAuthError,
     roleAuthorization([
         AuthRole.ADMIN,
-        AuthRole.ORGANIZER
+        AuthRole.ORGANIZER,
+        AuthRole.TEAM_MEMBER
     ]),
     trimRequest.all,
     userValidation.getUserById,
@@ -78,5 +79,20 @@ app.patch(UsersRoute.UPDATE_USER, [
     userController.updateUser as RequestHandler
 );
 
+// Delete user
+app.delete(UsersRoute.DELETE_USER, [
+    origin.checkDomain as RequestHandler,
+    origin.checkTenant as RequestHandler,
+    auth as RequestHandler,
+    requireAuth,
+    roleAuthorization([
+        AuthRole.ADMIN,
+    ]),
+    handleAuthError,
+    trimRequest.all,
+    userValidation.deleteUser,
+],
+    userController.deleteUser as RequestHandler
+);
 
 export default app;

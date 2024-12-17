@@ -19,7 +19,7 @@ export class UserService {
 
     public async getUsers(tenant: string, options: PaginationOptions) {
         try {
-            const query = {};
+            const query = {deleted: false};
             const usersOptions = {
                 ...options,
                 select: USER_SELECT_FIELDS
@@ -34,12 +34,13 @@ export class UserService {
 
     public async getUserById(id: string, tenant: string) {
         try {
-            this.logger.info('Getting user by ID:', { id, tenant });
+            
             const user = await DatabaseHelper.findById(
                 User,
                 id,
                 tenant,
                 {
+                    deleted: false,
                     select: USER_SELECT_FIELDS,
                     throwError: true,
                     errorMessage: `User: ${id} not found`
@@ -57,10 +58,8 @@ export class UserService {
         try {
             // Generar código de verificación
             const verificationCode = uuidv4();
-            console.log('Datos recibidos:', userData);
             
             const processedData = DataProcessor.processAllData(userData);
-            console.log('Processed data:', processedData);
         
             const userToCreate = {
                 ...processedData,
@@ -81,12 +80,6 @@ export class UserService {
                 userToCreate
             );
 
-            this.logger.info('User created:', {
-                userId: newUser._id,
-                email: newUser.email,
-                role: newUser.role
-            });
-
             return newUser;
         } catch (error) {
             this.logger.error('Error creating user:', error);
@@ -99,21 +92,36 @@ export class UserService {
         try {
             const existingUser = await DatabaseHelper.findById(User, id, tenant, {
                 throwError: true,
-                errorMessage: `Usuario ${id} no encontrado`
+                errorMessage: `user ${id} not found`
             });
     
             if (!existingUser) {
-                throw new AuthError('Usuario no encontrado', 404);
+                throw new AuthError('user not found', 404);
             }
     
             const processedData = DataProcessor.processSocialNetworks(userData);
-            const updatedUser = await DatabaseHelper.update(User, id, tenant, processedData, {
-                new: true,
-                runValidators: true,
-            });
-            return updatedUser;
+            return await DatabaseHelper.update(User, id, tenant, processedData);
         } catch (error) {
             this.logger.error('Error updating user:', error);
+            throw error;
+        }
+    }
+
+    public async deleteUser(id: string, tenant: string) {
+        try {
+            const existingUser = await DatabaseHelper.findById(User, id, tenant, {
+                throwError: true,
+                errorMessage: `user ${id} not found`
+            });
+
+            if (!existingUser) {
+                throw new AuthError('user not found', 404);
+            }
+            
+            const deletedUser = await DatabaseHelper.update(User, id, tenant, {deleted: true});
+            return deletedUser;
+        } catch (error) {
+            this.logger.error('Error deleting user:', error);
             throw error;
         }
     }

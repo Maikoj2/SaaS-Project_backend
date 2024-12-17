@@ -1,5 +1,6 @@
 import { check, CustomValidator, param } from "express-validator";
 import { PasswordValidator } from "../auth";
+import { MongooseHelper } from "../../utils/mongoose.helper";
 
 export const validateField = (field: string, optional: boolean) => {
     if (!optional) {
@@ -62,13 +63,19 @@ export const requiredEmail = [
         .normalizeEmail(),
 ];
 
-export const paramsValidator = (field: string) => [
+export const paramsValidator = (field: string, isId: boolean = false) => [
     param(field)
         .trim()
         .notEmpty()
         .withMessage('MISSING')
         .isString()
-        .withMessage('INVALID_TYPE'),
+        .withMessage('INVALID_TYPE')
+        .custom(async (value: string) => {
+            if (isId) {
+                return await MongooseHelper.validateId(value);
+            }
+            return true;
+        })
 ]
 
 export const stepper = [

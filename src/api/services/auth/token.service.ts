@@ -12,8 +12,8 @@ interface TokenPayload {
 
 @Injectable()
 export class TokenService {
-    private readonly ACCESS_TOKEN_EXPIRY = '15m';
-    private readonly REFRESH_TOKEN_EXPIRY = '7d';
+    private readonly ACCESS_TOKEN_EXPIRY = env.JWT_EXPIRATION_IN_MINUTES;
+    private readonly REFRESH_TOKEN_EXPIRY = env.JWT_REFRESH_SECRET;
 
     public generateToken(userId: string): string {
         const tokens = this.generateTokens(userId);

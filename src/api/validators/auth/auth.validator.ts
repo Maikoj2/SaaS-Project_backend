@@ -10,7 +10,7 @@ export const authValidation = {
     ],
 
     verify: [
-        ...paramsValidator('tenant'),
+        ...paramsValidator('tenant',),
         ...paramsValidator('verificationCode'),
         validate
     ],

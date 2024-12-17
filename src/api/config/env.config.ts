@@ -18,7 +18,7 @@ export const env = cleanEnv(process.env, {
 
     // JWT
     JWT_SECRET: str(),
-    JWT_EXPIRATION_IN_MINUTES: str({ default: '60' }),
+    JWT_EXPIRATION_IN_MINUTES: str({ default: '90' }),
     JWT_REFRESH_SECRET: str(),
 
     // Auth
