@@ -29,9 +29,7 @@ export class RouteLoader {
             // Registrar la ruta
             this.router.use(`/${routeName}`, route);
             
-            this.logger.info(`Ruta cargada: /${routeName}`, {
-                file: routePath
-            });
+            this.logger.info(`Ruta cargada: /${routeName}`);
         } catch (error) {
             const errorMessage = error instanceof Error ? error.message : 'Error desconocido';
             this.logger.error(`Error cargando ruta: ${file}`, {

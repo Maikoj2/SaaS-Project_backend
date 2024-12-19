@@ -25,6 +25,8 @@ import { ForgotPassword, IForgotPasswordDocument } from '../../models/mongoose/f
 import { ApiResponse } from '../../responses';
 import { lookup } from 'geoip-lite';
 import moment from 'moment';
+import { gameFormats } from '../../seeds/gameFormats.seed';
+import GameFormat from '../../models/mongoose/championschip/gameFormat';
 
 
 
@@ -95,7 +97,7 @@ export class AuthService {
             tenant,
             ownerId: user._id.toString()
         });
-
+        await this.seedGameFormats(tenant);
         await this.pluginService.activePlugins(['excelImport', 'pdfReport', 'liveResults', 'socialSharing'], tenant)
         // Generar token y respuesta
 
@@ -466,5 +468,23 @@ export class AuthService {
             role: user.role,
             verified: user.verified,
         };
+    }
+
+    private seedGameFormats = async (tenant: string) => {
+        try {
+            for (const format of gameFormats) {
+                
+                await DatabaseHelper.findOneAndUpdate(
+                    GameFormat,
+                    tenant,
+                    { formatType: format.formatType },
+                    format,
+                    { upsert: true, new: true }
+                );
+            }
+            this.logger.info('Game formats seeded successfully');
+        } catch (error) {
+            this.logger.error('Error seeding game formats:', error);
+        }
     }
 } 

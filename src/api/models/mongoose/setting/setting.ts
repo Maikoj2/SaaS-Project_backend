@@ -172,7 +172,8 @@ const SettingsSchema = new Schema<ISettingsDocument, ISettingsModel>({
     planDate: { 
         type: PlanSchema,
         default: getBasicPlan() 
-    }
+    },
+    deletedAt: { type: Date, default: null }
 }, {
     timestamps: true,
     versionKey: false
@@ -181,7 +182,7 @@ const SettingsSchema = new Schema<ISettingsDocument, ISettingsModel>({
 // Plugins
 SettingsSchema.plugin(mongoTenant);
 SettingsSchema.plugin(mongoosePaginate);
-SettingsSchema.plugin(MongooseDelete, { overrideMethods: 'all' });
+SettingsSchema.plugin(MongooseDelete, { overrideMethods: 'all', deletedAt: true });
 
 // Índices
 SettingsSchema.index({ owner: 1 });

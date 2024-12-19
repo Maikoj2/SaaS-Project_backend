@@ -40,5 +40,6 @@ export const env = cleanEnv(process.env, {
     EMAIL_FROM_NAME: str(),
     EMAIL_FROM_ADDRESS: str(),
     COMPANY_NAME: str(),
-    FRONTEND_URL: str()
+    FRONTEND_URL: str(),
+    FRONTEND_URL_DEV: str()
 }); 

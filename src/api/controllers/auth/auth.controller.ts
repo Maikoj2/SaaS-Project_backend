@@ -10,6 +10,9 @@ import { ApiResponse } from '../../responses';
 
 import { IUserCustomRequest } from '../../interfaces';
 import { SettingsService } from '../../services/setting/settings.service';
+import GameFormat from '../../models/mongoose/championschip/gameFormat';
+import { DatabaseHelper } from '../../utils/database.helper';
+import { gameFormats } from '../../seeds/gameFormats.seed';
 
 
 export class AuthController {
@@ -204,4 +207,5 @@ export class AuthController {
             throw new AuthError(message, 404);
         }
     } 
+    
 } 

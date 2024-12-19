@@ -1,0 +1,45 @@
+.bracket {
+    display: flex;
+    justify-content: space-around;
+    padding: 20px;
+    font-family: Arial, sans-serif;
+}
+
+.round {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-around;
+    min-width: 300px;
+    margin: 0 20px;
+}
+
+.matchup {
+    background: #f5f5f5;
+    border: 1px solid #ddd;
+    border-radius: 5px;
+    padding: 15px;
+    margin: 10px 0;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.team {
+    font-weight: bold;
+    color: #333;
+    display: inline-block;
+    margin: 5px 10px;
+}
+
+.result, .details {
+    display: block;
+    width: 90%;
+    padding: 8px;
+    margin: 5px 0;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+}
+
+.result:focus, .details:focus {
+    outline: none;
+    border-color: #007bff;
+    box-shadow: 0 0 0 2px rgba(0,123,255,0.25);
+} 

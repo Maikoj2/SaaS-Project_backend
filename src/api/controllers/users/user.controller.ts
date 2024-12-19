@@ -1,4 +1,4 @@
-import {  Response } from 'express';
+import { Response } from 'express';
 import { UserService } from "../../services/user/user.service";
 import { IUserCustomRequest } from '../../interfaces';
 import { ApiResponse } from '../../responses';
@@ -16,7 +16,7 @@ export class UserController {
     private readonly emailService: EmailService;
     private readonly authService: AuthService;
 
-    
+
 
     constructor() {
         this.userService = new UserService();
@@ -124,58 +124,63 @@ export class UserController {
         }
     }
 
-    public  updateUser = async (req: IUserCustomRequest, res: Response): Promise<void> => {
+    public updateUser = async (req: IUserCustomRequest, res: Response): Promise<void> => {
         try {
             const userId = req.params.id;
             const tenant = req.clientAccount as string;
             const updateData = req.body;
-    
+
             // Eliminar la condición incorrecta que estaba antes
             if (!userId) {
                 this.logger.error('ID de usuario no proporcionado');
                 throw new AuthError('ID de usuario requerido', 400);
             }
-    
+
             this.logger.info('Iniciando proceso de actualización', {
                 userId,
                 tenant,
                 updateFields: Object.keys(updateData)
             });
-    
+
             // Llamar al servicio
             const updatedUser = await this.userService.updateUser(
-                userId, 
-                tenant, 
+                userId,
+                tenant,
                 updateData
             );
-    
+
             this.logger.info('Actualización completada', {
                 userId,
                 success: true
             });
-    
+
             res.status(200).json(
                 ApiResponse.success(updatedUser, 'Usuario actualizado exitosamente')
             );
-    
+
         } catch (error) {
             this.logger.error('Error en controlador de actualización', {
                 error: error instanceof Error ? error.message : 'Error desconocido',
                 userId: req.params.id,
                 tenant: req.clientAccount
             });
-    
+
             res.status(error instanceof AuthError ? error.statusCode : 500)
                 .json(ApiResponse.error(
                     error instanceof Error ? error.message : 'Error al actualizar usuario'
                 ));
         }
     }
-    
+
     public deleteUser = async (req: IUserCustomRequest, res: Response): Promise<void> => {
         try {
             const { id } = req.params;
             const tenant = req.clientAccount as string;
+            const currentUserId = req.user?._id.toString();
+            // Validar que no intente eliminarse a sí mismo
+            if (id === currentUserId) {
+                throw new AuthError('You cannot delete your own account', 403);
+            }
 
             const deletedUser = await this.userService.deleteUser(id, tenant);
 
@@ -208,6 +213,6 @@ export class UserController {
         return sortBy;
     };
 
-    
+
 
 }

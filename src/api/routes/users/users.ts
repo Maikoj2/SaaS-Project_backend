@@ -1,6 +1,5 @@
 import express, { Express, RequestHandler } from 'express';
-import { UsersRoute } from '../../models/apiRoutes/users/userRoutes.ts';
-import { auth } from '../../middlewares/auth.middleware.js';
+;
 import { requireAuth } from '../../config/auth/index.js';
 import { handleAuthError } from '../../config/auth/index.js';
 import { roleAuthorization } from '../../middlewares/auth/roleAuthorization.middleware.js';
@@ -10,6 +9,8 @@ import { origin } from '../../middlewares/index.js';
 import trimRequest from 'trim-request';
 import { userValidation } from '../../validators/user/user.validate.js';
 import { UserController } from '../../controllers/users/user.controller.js';
+import { UsersRoute } from '../../models/apiRoutes/users/userRoutes.ts.js';
+import { auth } from '../../middlewares/auth.middleware.js';
 
 const userController = new UserController();
 

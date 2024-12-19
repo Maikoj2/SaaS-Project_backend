@@ -118,7 +118,11 @@ export class UserService {
                 throw new AuthError('user not found', 404);
             }
             
-            const deletedUser = await DatabaseHelper.update(User, id, tenant, {deleted: true});
+            const deletedUser = await DatabaseHelper.update(User, id, tenant, 
+                {
+                    deletedAt: new Date(),
+                    deleted: true
+                });
             return deletedUser;
         } catch (error) {
             this.logger.error('Error deleting user:', error);

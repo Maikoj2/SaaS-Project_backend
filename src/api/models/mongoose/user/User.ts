@@ -96,8 +96,7 @@ const UserSchema = new Schema(
             default: () => customAlphabet('KA1234567890', 8)()
         },
         dummy: { type: Boolean, default: false },
-        resetPasswordToken: { type: String },
-        resetPasswordExpires: { type: Date }
+        deletedAt: { type: Date, default: null }
     },
     {
         versionKey: false,
@@ -131,7 +130,7 @@ UserSchema.methods.comparePassword = function(passwordAttempt: string): Promise<
 // Plugins
 UserSchema.plugin(mongoosePaginate);
 UserSchema.plugin(mongoTenant);
-UserSchema.plugin(mongoose_delete, { overrideMethods: 'all' });
+UserSchema.plugin(mongoose_delete, { overrideMethods: 'all', deletedAt: true });
 
 const UserModel = model<IUserDocument, IUserModel>('User', UserSchema);
 export default UserModel; 

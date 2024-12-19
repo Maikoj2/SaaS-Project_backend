@@ -1,9 +1,11 @@
 import { Injectable } from '@decorators/di';
 import { Logger } from '../../config/logger/WinstonLogger';
-import { Plugin, pluginSetting } from '../../models/mongoose';
+
 import { AuthError } from '../../errors/AuthError';
 import { DatabaseHelper } from '../../utils/database.helper';
 import { Types } from 'mongoose';
+import { Plugin } from '../../models';
+import PluginSetting from '../../models/mongoose/plugins/pluginsettings';
 
 @Injectable()
 export class PluginService {
@@ -56,7 +58,7 @@ export class PluginService {
             }
     
             await DatabaseHelper.findOneAndUpdate(
-                pluginSetting,
+                PluginSetting,
                 tenant,
                 { 'plugin._id': new Types.ObjectId(plugin._id) },
                 { plugin },

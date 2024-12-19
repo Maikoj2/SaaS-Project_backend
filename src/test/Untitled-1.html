@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cuadro de Resultados del Torneo</title>
+  <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+  <div class="bracket">
+    <!-- Primera ronda -->
+    <div class="round">
+      <div class="matchup">
+        <span class="team">Equipo A</span> vs <span class="team">Equipo B</span>
+        <input type="text" class="result" placeholder="Resultado" />
+        <input type="text" class="details" placeholder="Fecha, Hora, Lugar" />
+      </div>
+      <div class="matchup">
+        <span class="team">Equipo C</span> vs <span class="team">Equipo D</span>
+        <input type="text" class="result" placeholder="Resultado" />
+        <input type="text" class="details" placeholder="Fecha, Hora, Lugar" />
+      </div>
+    </div>
+
+    <!-- Segunda ronda -->
+    <div class="round">
+      <div class="matchup">
+        <span class="team">Ganador 1</span> vs <span class="team">Ganador 2</span>
+        <input type="text" class="result" placeholder="Resultado" />
+        <input type="text" class="details" placeholder="Fecha, Hora, Lugar" />
+      </div>
+    </div>
+
+    <!-- Final -->
+    <div class="round">
+      <div class="matchup">
+        <span class="team">Ganador Final</span> vs <span class="team">Subcampeón</span>
+        <input type="text" class="result" placeholder="Resultado" />
+        <input type="text" class="details" placeholder="Fecha, Hora, Lugar" />
+      </div>
+    </div>
+  </div>
+
+  <script src="./script.js"></script>
+</body>
+</html>

@@ -37,6 +37,9 @@ const checkDomain = async (req: IUserCustomRequest, res: Response, next: NextFun
             origin, 
             clientAccount: req.clientAccount 
         });
+        if (!req.clientAccount) {
+            throw new Error('Tenant not found');
+        }
         next();
     } catch (error) {
         logger.error('Error processing clientAccount:', error);
