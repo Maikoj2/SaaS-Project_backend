@@ -4,7 +4,8 @@ import { ApiResponse } from '../../responses/apiResponse';
 import { ProfileService } from '../../services/profile/profile.service';
 import { matchedData } from 'express-validator';
 import { MongooseHelper } from '../../utils';
-import { IUserCustomRequest } from '../../interfaces';
+import { ICustomRequest } from '../../interfaces';
+import { CustomError } from '../../errors';
 
 export class ProfileController {
     private readonly logger: Logger;
@@ -16,7 +17,7 @@ export class ProfileController {
         this.profileService = new ProfileService();
     }
 
-    public getProfile = async (req: IUserCustomRequest, res: Response): Promise<void> => {
+    public getProfile = async (req: ICustomRequest, res: Response): Promise<void> => {
         try {
             const userId = req.id as string;
             const tenant = req.clientAccount as string;
@@ -31,12 +32,12 @@ export class ProfileController {
         } catch (error) {
             this.logger.error('Error getting profile:', error);
             res.status(500).json(
-                ApiResponse.error('Error retrieving profile')
+                ApiResponse.error(new CustomError('Error retrieving profile', 500, 'ProfileControllerError'))
             );
         }
     }
 
-    public updateProfile = async (req: IUserCustomRequest, res: Response): Promise<void> => {
+    public updateProfile = async (req: ICustomRequest, res: Response): Promise<void> => {
         try {
             const userId = req.id as string;
             const tenant = req.clientAccount as string;
@@ -47,7 +48,7 @@ export class ProfileController {
             // validate that there is data to update
             if (!updateData || Object.keys(updateData).length === 0) {
                 res.status(400).json(
-                    ApiResponse.error('No data provided for update')
+                    ApiResponse.error(new CustomError('No data provided for update', 400, 'ProfileControllerError'))
                 );
                 return;
             }
@@ -64,12 +65,12 @@ export class ProfileController {
         } catch (error) {
             this.logger.error('Error updating profile:', error);
             res.status(500).json(
-                ApiResponse.error('Error updating profile')
+                ApiResponse.error(new CustomError('Error updating profile', 500, 'ProfileControllerError'))
             );
         }
     }
 
-    public changePassword = async (req: IUserCustomRequest, res: Response): Promise<void> => {
+    public changePassword = async (req: ICustomRequest, res: Response): Promise<void> => {
         try {
             const userId = req.id as string;
             const tenant = req.clientAccount as string;
@@ -85,12 +86,12 @@ export class ProfileController {
         } catch (error) {
             this.logger.error('Error changing password:', error);
             res.status(500).json(
-                ApiResponse.error('Error changing password')
+                ApiResponse.error(new CustomError('Error changing password', 500, 'ProfileControllerError'))
             );
         }
     }
 
-    public updateStepper = async (req: IUserCustomRequest, res: Response): Promise<void> => {
+    public updateStepper = async (req: ICustomRequest, res: Response): Promise<void> => {
         try {
             const userId = req.id as string;
             const tenant = req.clientAccount as string;
@@ -105,7 +106,7 @@ export class ProfileController {
         } catch (error) {
             this.logger.error('Error updating stepper:', error);
             res.status(500).json(
-                ApiResponse.error('Error updating stepper')
+                ApiResponse.error(new CustomError('Error updating stepper', 500, 'ProfileControllerError'))
             );
         }
     }

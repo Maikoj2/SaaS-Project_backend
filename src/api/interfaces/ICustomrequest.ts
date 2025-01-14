@@ -1,7 +1,7 @@
 import { Request } from "express";
 import { IUserDocument } from "../models/mongoose/user/User";
 
-export interface IUserCustomRequest extends Request {
+export interface ICustomRequest extends Request {
     user?: IUserDocument;
     clientAccount?: string;
     id?: string;

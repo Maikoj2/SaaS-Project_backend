@@ -3,16 +3,14 @@ import { matchedData } from 'express-validator';
 import { AuthService } from '../../services/auth/auth.service';
 import { Logger } from '../../config/logger/WinstonLogger';
 
-import { AuthError } from '../../errors/AuthError';
+import { CustomError } from '../../errors';
 
 import { ApiResponse } from '../../responses';
 
 
-import { IUserCustomRequest } from '../../interfaces';
+import { ICustomRequest } from '../../interfaces';
 import { SettingsService } from '../../services/setting/settings.service';
-import GameFormat from '../../models/mongoose/championschip/gameFormat';
-import { DatabaseHelper } from '../../utils/database.helper';
-import { gameFormats } from '../../seeds/gameFormats.seed';
+
 
 
 export class AuthController {
@@ -26,7 +24,7 @@ export class AuthController {
         this.logger = new Logger();
     }
 
-    public register = async (req: IUserCustomRequest, res: Response): Promise<void> => {
+    public register = async (req: ICustomRequest, res: Response): Promise<void> => {
         try {
             const registerData = {
                 name: req.body.name,
@@ -39,17 +37,17 @@ export class AuthController {
             const result = await this.authService.registerUser(registerData);
 
             res.status(201).json(
-                ApiResponse.success(result, 'Usuario registrado exitosamente')
+                ApiResponse.success(result, 'User registered successfully')
             );
 
         } catch (error) {
             this.logger.error('Error en registro:', error);
-            res.status(error instanceof AuthError ? error.statusCode : 500)
-                .json(ApiResponse.error(error instanceof AuthError ? error : 'Error registering user'));
+            res.status(error instanceof CustomError ? error.statusCode : 500)
+                .json(ApiResponse.error(error instanceof CustomError ? error : new CustomError('Error registering user', 500, 'AuthControllerError')));
         }
     };
 
-    public login = async (req: IUserCustomRequest, res: Response): Promise<void> => {
+    public login = async (req: ICustomRequest, res: Response): Promise<void> => {
         try {
             const tenant = req.clientAccount;
             this.validateField(tenant, 'Tenant no encontrado')
@@ -70,12 +68,12 @@ export class AuthController {
 
         } catch (error) {
             this.logger.error('Error en login:', error);
-            res.status(error instanceof AuthError ? error.statusCode : 500)
-                .json(ApiResponse.error(error instanceof AuthError ? error : 'Error logging in'));
+            res.status(error instanceof CustomError ? error.statusCode : 500)
+                .json(ApiResponse.error(error instanceof CustomError ? error : new CustomError('Error logging in', 500, 'AuthControllerError')));
         }
     };
 
-    public verify = async (req: IUserCustomRequest, res: Response): Promise<void> => {
+    public verify = async (req: ICustomRequest, res: Response): Promise<void> => {
         try {
             const { tenant, verificationCode } = req.params;
             this.logger.info('Verifying user:', {
@@ -93,12 +91,12 @@ export class AuthController {
 
         } catch (error) {
             this.logger.error('Error in verification:', error);
-            res.status(error instanceof AuthError ? error.statusCode : 500)
-                .json(ApiResponse.error(error instanceof AuthError ? error : 'Error verifying user'));
+            res.status(error instanceof CustomError ? error.statusCode : 500)
+                .json(ApiResponse.error(error instanceof CustomError ? error : new CustomError('Error verifying user', 500, 'AuthControllerError')));
         }
     };
 
-    public checkExist = async (req: IUserCustomRequest, res: Response): Promise<void> => {
+    public checkExist = async (req: ICustomRequest, res: Response): Promise<void> => {
         try {
             const tenant = req.clientAccount as string;
             const settings = await this.settingsService.findByTenant(tenant);
@@ -108,12 +106,12 @@ export class AuthController {
             );
         } catch (error) {
             this.logger.error('Error checking settings:', error);
-            res.status(error instanceof AuthError ? error.statusCode : 500)
-                .json(ApiResponse.error(error instanceof AuthError ? error : 'Error to check settings'));
+            res.status(error instanceof CustomError ? error.statusCode : 500)
+                .json(ApiResponse.error(error instanceof CustomError ? error : new CustomError('Error to check settings', 500, 'AuthControllerError')));
         }
     };
 
-    public verifyToken = async (req: IUserCustomRequest, res: Response): Promise<void> => {
+    public verifyToken = async (req: ICustomRequest, res: Response): Promise<void> => {
         try {
             const result = await this.authService.refreshToken(req);
 
@@ -124,12 +122,12 @@ export class AuthController {
         } catch (error) {
             this.logger.error('Error refreshing token:', error);
 
-            res.status(error instanceof AuthError ? error.statusCode : 500)
-                .json(ApiResponse.error(error instanceof AuthError ? error : 'Error to refresh token'));
+            res.status(error instanceof CustomError ? error.statusCode : 500)
+                .json(ApiResponse.error(error instanceof CustomError ? error : new CustomError('Error to refresh token', 500, 'AuthControllerError')));
         }
     };
 
-    public refreshToken = async (req: IUserCustomRequest, res: Response): Promise<void> => {
+    public refreshToken = async (req: ICustomRequest, res: Response): Promise<void> => {
         try {
             const result = await this.authService.refreshToken(req);
 
@@ -138,19 +136,11 @@ export class AuthController {
             );
         } catch (error) {
             this.logger.error('Error refreshing token:', error);
-            if (error instanceof AuthError) {
-                res.status(error.statusCode).json(
-                    ApiResponse.error(error.message)
-                );
-                return;
-            }
-            res.status(500).json(
-                ApiResponse.error('Internal server error')
-            );
+            ApiResponse.error(new CustomError('Error to refresh token', 500, 'AuthControllerError'))    
         }
     };
 
-    public forgotPassword = async (req: IUserCustomRequest, res: Response): Promise<void> => {
+    public forgotPassword = async (req: ICustomRequest, res: Response): Promise<void> => {
         try {
             const tenant = req.clientAccount;
             const locale = req.getLocale?.() || 'es';
@@ -167,12 +157,12 @@ export class AuthController {
             );
         } catch (error) {
             this.logger.error('Error in forgot password:', error);
-            res.status(error instanceof AuthError ? error.statusCode : 500)
-                .json(ApiResponse.error(error instanceof AuthError ? error : 'Error in forgot password'));
+            res.status(error instanceof CustomError ? error.statusCode : 500)
+                .json(ApiResponse.error(error instanceof CustomError ? error : new CustomError('Error in forgot password', 500, 'AuthControllerError')));
         }
     };
 
-    public resetPassword = async (req: IUserCustomRequest, res: Response): Promise<void> => {
+    public resetPassword = async (req: ICustomRequest, res: Response): Promise<void> => {
         try {
             const tenant = req.clientAccount as string;
             const {  newPassword } = req.body;
@@ -197,14 +187,14 @@ export class AuthController {
             );
         } catch (error) {
             this.logger.error('Error in reset password:', error);
-            res.status(error instanceof AuthError ? error.statusCode : 500)
-                .json(ApiResponse.error(error instanceof AuthError ? error : 'Error in reset password'));
+            res.status(error instanceof CustomError ? error.statusCode : 500)
+                .json(ApiResponse.error(error instanceof CustomError ? error : new CustomError('Error in reset password', 500, 'AuthControllerError')));
         }
     };
 
     private validateField(field: any, message: string): void {
         if (!field) {
-            throw new AuthError(message, 404);
+            throw new CustomError(message, 404);
         }
     } 
     

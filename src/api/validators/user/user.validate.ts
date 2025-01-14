@@ -1,7 +1,7 @@
 import { validate } from "../../middlewares";
 import { SocialUrlValidator } from "../custom";
 import { optionalSocialUrl, paramsValidator, password, requiredEmail, validateField } from "../expressValidatorHelper";
-import { query } from 'express-validator';
+import { query, param } from 'express-validator';
 
 
 export const userValidation = {
@@ -9,11 +9,38 @@ export const userValidation = {
         ...paramsValidator("id"),
         validate,
     ],
+    createUserByLink: [
+        ...paramsValidator("code", false),
+        ...validateField("name", true),
+        ...validateField("lastName", false),
+        ...requiredEmail,
+        ...validateField("numberIdCard", true),
+        ...validateField("typeIdCard", true),
+        ...validateField("tag", false),
+        ...validateField("avatar", false),
+        ...validateField("description", false),
+        ...validateField("nameBusiness", false),
+        ...validateField("street", false),
+        ...validateField("city", false),
+        ...validateField("country", false),
+        ...validateField("postalCode", false),
+        ...validateField("department", false),
+        ...password("password", true),
+        ...validateField("role", false),
+        ...validateField("phone", true),
+        ...validateField("address", false),
+
+        optionalSocialUrl("urlTwitter", SocialUrlValidator.validateTwitterUrl, "twitter"),
+        optionalSocialUrl("urlFacebook", SocialUrlValidator.validateFacebookUrl, "facebook"),
+        optionalSocialUrl("urlInstagram", SocialUrlValidator.validateInstagramUrl, "instagram"),
+        validate,
+    ],
     createUser: [
         ...validateField("name", true),
-        ...validateField("lastName", true),
+        ...validateField("lastName", false),
         ...requiredEmail,
-        ...validateField("nie", false),
+        ...validateField("numberIdCard", true),
+        ...validateField("typeIdCard", true),
         ...validateField("tag", false),
         ...validateField("avatar", false),
         ...validateField("description", false),
@@ -38,7 +65,8 @@ export const userValidation = {
         validateField("name", false),
         validateField("lastName", false),
         validateField("avatar", false),
-        validateField("nie", false),
+        validateField("numberIdCard", false),
+        validateField("typeIdCard", false),
         validateField("description", false),
         validateField("nameBusiness", false),
         validateField("phone", false),

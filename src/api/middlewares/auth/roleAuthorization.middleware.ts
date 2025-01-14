@@ -1,13 +1,15 @@
 import { Response, NextFunction } from 'express';
-import { IUserCustomRequest } from '../../interfaces';
+import { ICustomRequest } from '../../interfaces';
 import { Logger } from '../../config/logger/WinstonLogger';
 import { ApiResponse } from '../../responses';
+import { CustomError } from '../../errors';
 
 export const roleAuthorization = (allowedRoles: string[]) => {
     const logger = new Logger();
     
-    return async (req: IUserCustomRequest, res: Response, next: NextFunction) => {
+    return async (req: ICustomRequest, res: Response, next: NextFunction) => {
         try {
+            logger.info('roleAuthorization middleware' , req.user);
             const userRole = req.user?.role;
 
             if (!userRole || !allowedRoles.includes(userRole)) {
@@ -18,7 +20,7 @@ export const roleAuthorization = (allowedRoles: string[]) => {
                 });
 
                 return res.status(403).json(
-                    ApiResponse.error('No autorizado para esta operación')
+                    ApiResponse.error(new CustomError('No authorized for this operation', 403, 'RoleAuthorizationError'))
                 );
             }
 
@@ -26,7 +28,7 @@ export const roleAuthorization = (allowedRoles: string[]) => {
         } catch (error) {
             logger.error('Error en autorización de rol:', error);
             return res.status(403).json(
-                ApiResponse.error('Error en autorización')
+                ApiResponse.error(new CustomError('Error en autorización', 403, 'RoleAuthorizationError'))
             );
         }
     };

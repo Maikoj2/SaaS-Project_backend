@@ -1,8 +1,8 @@
 
 import { Types } from 'mongoose';
-import { IGroupDocument } from '../../models/mongoose/championschip/group';
-import { Group } from '../../models/mongoose/championschip/group';
-import { Match } from '../../models/mongoose/championschip/match';
+import { IGroupDocument } from '../../models/mongoose/championship/group';
+import { Group } from '../../models/mongoose/championship/group';
+import { Match } from '../../models/mongoose/championship/match';
 import { DatabaseHelper } from '../../utils/database.helper';
 
 export class GroupService {
@@ -145,7 +145,7 @@ export class GroupService {
 
             if (!group) throw new Error('Group not found');
 
-            return group.rankings.map((rank: any) => ({
+            return (group.rankings || []).map((rank: any) => ({
                 position: rank.position,
                 team: rank.teamId,
                 stats: {

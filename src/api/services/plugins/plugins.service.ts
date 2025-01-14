@@ -1,6 +1,5 @@
 import { FilterQuery } from "mongoose";
 import { Logger } from "../../config";
-import { PaginationOptions } from "../../interfaces";
 import { IPluginDocument, Plugin } from "../../models";
 import { DatabaseHelper } from "../../utils/database.helper";
 import { Request } from "express";

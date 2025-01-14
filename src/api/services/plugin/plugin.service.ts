@@ -1,7 +1,7 @@
 import { Injectable } from '@decorators/di';
 import { Logger } from '../../config/logger/WinstonLogger';
 
-import { AuthError } from '../../errors/AuthError';
+import { CustomError  } from '../../errors';
 import { DatabaseHelper } from '../../utils/database.helper';
 import { Types } from 'mongoose';
 import { Plugin } from '../../models';
@@ -30,7 +30,7 @@ export class PluginService {
 
         } catch (error) {
             this.logger.error('Error obteniendo plugins:', error);
-            throw new AuthError('Error al obtener plugins', 422);
+            throw new CustomError (error instanceof Error ? error.message : 'Error getting plugins', 422, 'PluginServiceError');
         }
     }
 
@@ -48,13 +48,13 @@ export class PluginService {
 
             console.log('Plugins activated:', list);
         } catch (error) {
-            throw new AuthError('Error activating plugins', 500);
+            throw new CustomError (error instanceof Error ? error.message : 'Error activating plugins', 500, 'PluginServiceError');
         }
     }
     private async pluginSetting(plugin: any, tenant: string): Promise<void> {
         try {
             if (!plugin || !tenant) {
-                throw new AuthError('Plugin or tenant not provided', 400);
+                throw new CustomError ('Plugin or tenant not provided', 400);
             }
     
             await DatabaseHelper.findOneAndUpdate(
@@ -69,7 +69,7 @@ export class PluginService {
                 }
             );
         } catch (error) {
-            throw new AuthError(`Error setting plugin ${plugin?.name}`, 500);
+            throw new CustomError (error instanceof Error ? error.message : `Error setting plugin ${plugin?.name}`, 500, 'PluginServiceError');
         }
     }
 } 

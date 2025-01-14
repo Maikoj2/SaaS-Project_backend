@@ -1,8 +1,8 @@
 import { Request, Response, NextFunction } from 'express';
-import { validationResult, ValidationError } from 'express-validator';
+import { validationResult } from 'express-validator';
 
 import { ApiResponse } from '../../responses';
-import { AuthError } from '../../errors';
+import { CustomError } from '../../errors';
 
 
 export const validate = (req: Request, res: Response, next: NextFunction) => {
@@ -10,7 +10,7 @@ export const validate = (req: Request, res: Response, next: NextFunction) => {
 
     if (!errors.isEmpty()) {
         return res.status(422).json(
-            ApiResponse.error({
+            ApiResponse.error( {
                 message: 'Error de validación',
                 statusCode: 422,
                 name: 'ValidationError',
@@ -18,7 +18,7 @@ export const validate = (req: Request, res: Response, next: NextFunction) => {
                     field: err.path || err.param,
                     message: err.msg
                 }))
-            } as AuthError)
+            } as any )
         );
     }
 

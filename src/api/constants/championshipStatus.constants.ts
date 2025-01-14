@@ -1,0 +1,1 @@
+export const ChampionshipStatus = ['draft', 'registration', 'active', 'completed', 'cancelled'];

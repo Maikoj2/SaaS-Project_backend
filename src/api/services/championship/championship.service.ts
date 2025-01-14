@@ -1,12 +1,28 @@
 import { nanoid } from "nanoid";
-import { Championship } from "../../models/mongoose/championschip/championship";
-import { IChampionshipDocument } from "../../models/mongoose/championschip/championship";
-import { InvitationLink } from "../../models/mongoose/championschip/invitationLink";
+import { Championship } from "../../models/mongoose/championship/championship";
+import { IChampionshipDocument } from "../../models/mongoose/championship/championship";
+import { InvitationLink } from "../../models/mongoose/championship/invitationLink";
 import { DatabaseHelper } from "../../utils/database.helper";
-import { Types } from "mongoose";
+import { PaginateResult, Schema, Types } from "mongoose";
+import ChampionshipConfiguration, { IConfigurationDocument } from "../../models/mongoose/championship/configuration";
+import { CustomError } from "../../errors";
 
+export interface IChampionshipPopulated {
+    _id: Schema.Types.ObjectId;
+    status: string;
+    teams: string[];
+}
 
+export interface PopulatedChampionship extends Omit<IConfigurationDocument, 'championshipId'> {
+    championshipId: IChampionshipPopulated;
+}
 
+const selectFields = ['id', 'name', 'startDate', 'endDate', 'status', 'teams', 'courts', 'description', 'registrations', 'idCreatorChampionship'];
+const selectFieldsCreator = ['name', 'email'];
+const selectFieldsChampionship = ['status', 'teams'];
+const selectFieldsConfiguration = ['maxTeams', 'gameFormatId', 'tieBreakerCriteria'];
+const selectFieldsGameFormat = ['name', 'description'];
+const selectFieldsCourts = ['name', 'description' , 'status'];
 type ChampionshipStatus = 'draft' | 'registration' | 'in_progress' | 'completed' | 'canceled';
 export class ChampionshipService {
     /**
@@ -23,7 +39,7 @@ export class ChampionshipService {
 
 
         } catch (error: any) {
-            throw new Error(`Error creating championship: ${error.message}`);
+            throw new CustomError(error instanceof Error ? error.message : 'Error creating championship', 500);
         }
     }
 
@@ -36,10 +52,10 @@ export class ChampionshipService {
                 Championship,
                 tenant,
                 { _id: championshipId },
-                { status: newStatus as any }
+                { status: newStatus as any },
             );
             if (!championship) {
-                throw new Error('Championship not found');
+                throw new CustomError('Championship not found', 404, 'ChampionshipServiceError');
             }
             // 2. Buscar con populate
             const populatedChampionship = await DatabaseHelper.findOneWithRelations(
@@ -50,47 +66,65 @@ export class ChampionshipService {
                     basic: ['idCreatorChampionship'],
                     nested: [{
                         path: 'idCreatorChampionship',
-                        select: 'name email ' // el -_id es opcional, si no quieres el ID
+                        select: selectFieldsCreator.join(' ')
                     }]
                 }
             );
-                
+
 
             if (!populatedChampionship) {
-                throw new Error('Championship not found');
+                throw new CustomError('Championship not found', 404, 'ChampionshipServiceError');
             }
-    
+
             return populatedChampionship;
         } catch (error: any) {
-            throw new Error(`Error updating championship status: ${error.message}`);
+            throw new CustomError(error instanceof Error ? error.message : 'Error updating championship status', 500, 'ChampionshipServiceError');
         }
     }
 
     /**
      * Registrar equipo en campeonato
      */
-    async registerTeam(championshipId: string, teamId: string): Promise<IChampionshipDocument> {
+    async registerTeam(championshipId: string, teamId: string, tenant: string): Promise<IChampionshipDocument> {
         try {
-            const championship = await Championship.findById(championshipId);
+            const championship = await DatabaseHelper.findOneWithRelations(
+                ChampionshipConfiguration,
+                tenant,
+                { championshipId: championshipId },
+                {
+                    basic: ['championshipId',],
+                    nested: [{
+                        path: 'championshipId',
+                        select: selectFieldsChampionship.join(' ')
+                    }]
+                },
+                {
+                    select: selectFieldsConfiguration
+                }
+            ) as unknown as PopulatedChampionship;
             if (!championship) {
                 throw new Error('Championship not found');
             }
 
             // Validaciones de negocio
-            if (championship.status !== 'draft') {
+            if (championship.championshipId.status !== 'draft') {
                 throw new Error('Registration period is closed');
             }
 
-            if (championship.registeredTeams && championship.registeredTeams.length >= championship.numberOfTeams) {
+            if (championship.championshipId.teams && championship.championshipId.teams.length >= championship.maxTeams) {
                 throw new Error('Championship is full');
             }
-            if (!championship.registeredTeams) {
-                championship.registeredTeams = [];
+            const updatedChampionship = await DatabaseHelper.update(
+                Championship,
+                championshipId,
+                tenant,
+                { $push: { teams: teamId } }
+            );
+            if (!updatedChampionship) {
+                throw new Error('Championship not found');
             }
+            return updatedChampionship;
 
-
-            championship.registeredTeams.push(teamId);
-            return await championship.save();
         } catch (error: any) {
             throw new Error(`Error registering team: ${error.message}`);
         }
@@ -126,10 +160,29 @@ export class ChampionshipService {
         }
     }
 
+    async findById(tenant: string, id: string): Promise<IChampionshipDocument | null> {
+        const championship = await DatabaseHelper.findOneWithRelations(
+            Championship,
+            tenant,
+            { _id: id },
+            {
+                basic: ['idCreatorChampionship'],
+                nested: [{
+                    path: 'idCreatorChampionship',
+                    select: selectFieldsCreator.join(' ')
+                }]
+            }
+        );
+        if (!championship) {
+            throw new Error('Championship not found');
+        }
+        return championship;
+    }
+
     /**
      * Obtener campeonatos activos
      */
-    async getActive(tenant: string): Promise<IChampionshipDocument[]> {
+    async getActive(tenant: string, page: number, limit: number): Promise<PaginateResult<IChampionshipDocument>> {
         try {
             const championships = await DatabaseHelper.getItemsWithRelations(
                 Championship,
@@ -138,18 +191,22 @@ export class ChampionshipService {
                     status: { $in: ['registration', 'in_progress'] }
                 },
                 {
-                    page: 1,
-                    limit: 100
+                    page,
+                    limit,
+                    select: selectFields
                 },
                 {
-                    basic: ['gameFormat', 'registeredTeams'],
-                    nested: []
+                    basic: ['idCreatorChampionship'],
+                    nested: [{
+                        path: 'idCreatorChampionship',
+                        select: selectFieldsCreator.join(' ')
+                    }]
                 }
             );
-            if (!championships || !championships.items) {
+            if (!championships) {
                 throw new Error('No championships found');
             }
-            return championships.items as IChampionshipDocument[];
+            return championships
         } catch (error: any) {
             throw new Error(`Error getting active championships: ${error.message}`);
         }
@@ -201,5 +258,72 @@ export class ChampionshipService {
             startDate: { $gte: startDate },
             endDate: { $lte: endDate }
         });
+    }
+    /**
+     * Agregar un nuevo registrationId a un campeonato
+     */
+    async addRegistrationId(championshipId: string, tenant: string, registrationId: string): Promise<IChampionshipDocument> {
+        try {
+            const updatedChampionship = await DatabaseHelper.findOneAndUpdate(
+                Championship,
+                tenant,
+                { _id: championshipId },
+                { $push: { registrations: registrationId } }, // Usar $push para agregar al array
+                { new: true } // Retornar el documento actualizado
+            );
+
+            if (!updatedChampionship) {
+                throw new CustomError('Championship not found', 404, 'ChampionshipServiceError');
+            }
+
+            return updatedChampionship;
+        } catch (error: any) {
+            throw new CustomError(error instanceof Error ? error.message : 'Error adding registrationId', 500, 'ChampionshipServiceError');
+        }
+    }
+
+    async updateConfiguration(championshipConfigurationId: string, tenant: string, configuration: Partial<IConfigurationDocument>) {
+        const championshipConfiguration = await DatabaseHelper.findOne(
+            ChampionshipConfiguration,
+            tenant,
+            { _id: championshipConfigurationId }
+        );
+        if (!championshipConfiguration) {
+            throw new Error('Championship configuration not found');
+        }
+
+
+        return await DatabaseHelper.update(
+            ChampionshipConfiguration,
+            championshipConfiguration._id.toString(),
+            tenant,
+            configuration,
+            {
+                new: true,              // return the updated document
+                runValidators: true,    // run validators from the schema
+                select: ['-_id -updatedAt -createdAt']
+            }
+        );
+    }
+    
+    async getConfigurationById(championshipConfigurationId: string, tenant: string) {
+        return await DatabaseHelper.findOneWithRelations(
+            ChampionshipConfiguration,
+            tenant,
+            { _id: championshipConfigurationId },
+            {
+                basic: ['championshipId', 'gameFormatId', 'courts'],
+                nested: [{
+                    path: 'championshipId',
+                    select: selectFieldsChampionship.join(' ')
+                }, {
+                    path: 'gameFormatId',
+                    select: selectFieldsGameFormat.join(' ')
+                }, {
+                    path: 'courts',
+                    select: selectFieldsCourts.join(' ')
+                }]
+            }
+        );
     }
 } 

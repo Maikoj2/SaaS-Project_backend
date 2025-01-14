@@ -1,5 +1,5 @@
 import { Injectable } from '@decorators/di';
-import { AuthError } from '../../errors/AuthError';
+
 
 import { User } from '../../models/mongoose';
 
@@ -11,7 +11,7 @@ import { randomBytes } from 'crypto';
 import { Logger } from '../../config/logger/WinstonLogger';
 
 import { PasswordUtil } from '../../utils';
-import { AuthResponse, IUserCustomRequest, RegisterDTO } from '../../interfaces';
+import { AuthResponse, ICustomRequest, RegisterDTO } from '../../interfaces';
 import { DatabaseHelper } from '../../utils/database.helper';
 import Settings from '../../models/mongoose/setting/setting';
 import { v4 as uuidv4 } from 'uuid';
@@ -26,7 +26,8 @@ import { ApiResponse } from '../../responses';
 import { lookup } from 'geoip-lite';
 import moment from 'moment';
 import { gameFormats } from '../../seeds/gameFormats.seed';
-import GameFormat from '../../models/mongoose/championschip/gameFormat';
+import GameFormat from '../../models/mongoose/championship/gameFormat';
+import { CustomError } from '../../errors';
 
 
 
@@ -65,13 +66,13 @@ export class AuthService {
         const existingTenant = await DatabaseHelper.exists(Settings, tenant, {});
 
         if (existingTenant) {
-            throw new AuthError('Tenant already exists', 422);
+            throw new CustomError('Tenant already exists', 422, 'AuthServiceError');
         }
         // Verificar email existente
         const existingUser = await DatabaseHelper.exists(User, tenant, { email: email.toLowerCase() });
 
         if (existingUser) {
-            throw new AuthError('Email already registered', 422);
+            throw new CustomError('Email already registered', 422, 'AuthServiceError');
         }
         // Encriptar la contraseña usando PasswordUtil
         const hashedPassword = await PasswordUtil.hashPassword(password);
@@ -97,7 +98,7 @@ export class AuthService {
             tenant,
             ownerId: user._id.toString()
         });
-        await this.seedGameFormats(tenant);
+
         await this.pluginService.activePlugins(['excelImport', 'pdfReport', 'liveResults', 'socialSharing'], tenant)
         // Generar token y respuesta
 
@@ -120,7 +121,7 @@ export class AuthService {
         try {
             const referredUser = await DatabaseHelper.findOne(User, tenant, { referredCode: codeRef });
             if (!referredUser) {
-                throw new AuthError('Referred user not found', 404);
+                throw new CustomError('Referred user not found', 404, 'AuthServiceError');
             }
 
             const body = {
@@ -132,7 +133,7 @@ export class AuthService {
 
             await DatabaseHelper.create(referred, tenant, body);
         } catch (error) {
-            throw new AuthError('Error registering referred user', 500);
+            throw new CustomError('Error registering referred user', 500, 'AuthServiceError');
         }
     };
 
@@ -155,11 +156,11 @@ export class AuthService {
                 {
                     select: ['_id', 'email', 'verification', 'verified'],
                     throwError: true,
-                    errorMessage: 'Código de verificación inválido'
+                    errorMessage: 'Invalid verification code'
                 }
             );
             if (!user) {
-                throw new AuthError('User not found', 404);
+                throw new CustomError('User not found', 404, 'AuthServiceError');
             }
             // Actualizar usuario como verificado
             const updatedUser = await DatabaseHelper.update(
@@ -176,30 +177,37 @@ export class AuthService {
                 }
             );
 
-            console.log('User verified successfully:', updatedUser);
+            this.logger.info('User verified successfully:', {
+                tenant,
+                updatedUser
+            });
 
             return {
                 verified: true,
                 message: 'User successfully verified'
             };
         } catch (error) {
-            console.error('Verification error:', error);
-            throw new AuthError(
-                error instanceof AuthError ? error.message : 'Error verifying user',
-                error instanceof AuthError ? error.statusCode : 500
+            this.logger.error('Verification error:', {
+                error,
+                tenant
+            });
+            throw new CustomError(
+                error instanceof CustomError ? error.message : 'Error verifying user',
+                error instanceof CustomError ? error.statusCode : 500,
+                'AuthServiceError'
             );
         }
     }
 
-    public async refreshToken(req: IUserCustomRequest): Promise<TokenResponse> {
+    public async refreshToken(req: ICustomRequest): Promise<TokenResponse> {
         const tenant = req.clientAccount;
         const refreshToken = req.headers.authorization?.replace('Bearer ', '').trim();
 
         if (!refreshToken) {
-            throw new AuthError('Refresh token not provided', 401);
+            throw new CustomError('Refresh token not provided', 401, 'AuthServiceError');
         }
         if (!tenant) {
-            throw new AuthError('Tenant not provided', 401);
+            throw new CustomError('Tenant not provided', 401, 'AuthServiceError');
         }
 
         // Verificar refresh token
@@ -209,7 +217,7 @@ export class AuthService {
         const user = await User.byTenant(tenant).findById(decoded);
 
         if (!user) {
-            throw new AuthError('User not found', 404);
+            throw new CustomError('User not found', 404, 'AuthServiceError');
         }
 
         // Generar nuevos tokens
@@ -231,7 +239,7 @@ export class AuthService {
             });
 
             if (!user) {
-                throw new AuthError('User not found', 404);
+                throw new CustomError('User not found', 404, 'AuthServiceError');
             }
 
             // 2. Verificar si ya existe un token válido
@@ -291,7 +299,7 @@ export class AuthService {
             };
         } catch (error) {
             this.logger.error('Error in forgot password:', error);
-            throw new AuthError('Error in forgot password process', 500);
+            throw new CustomError('Error in forgot password process', 500, 'AuthServiceError');
         }
     }
 
@@ -299,10 +307,10 @@ export class AuthService {
         const user = await DatabaseHelper.findOne(User, data.tenant, { email: data.email.toLowerCase() }, {
             select: ['+password'],
             throwError: false,
-            errorMessage: 'Usuario no encontrado'
+            errorMessage: 'User not found'
         });
         if (!user) {
-            throw new AuthError('Invalid credentials', 401);
+            throw new CustomError('Invalid credentials', 401, 'AuthServiceError');
         }
 
         // Verificar si el usuario está verificado
@@ -319,21 +327,21 @@ export class AuthService {
                 tenant: data.tenant
             });
 
-            throw new AuthError('Please verify your email before logging in. A new verification email has been sent.', 403);
+            throw new CustomError('Please verify your email before logging in. A new verification email has been sent.', 403, 'AuthServiceError');
         }
 
         // Verificar si el usuario está bloqueado
         await this.checkLoginAttemptsAndBlockExpires(user);
         // Verificar contraseña
         const isPasswordMatch = await PasswordUtil.comparePassword(data.password, user.password);
-        this.logger.info('Resultado de comparación:', {
+        this.logger.info('Password comparison result:', {
             isPasswordMatch,
             passwordLength: data.password.length,
             hashLength: user.password.length
         });
         if (!isPasswordMatch) {
             await this.passwordsDoNotMatch(user);
-            throw new AuthError('Invalid credentials', 401);
+            throw new CustomError('Invalid credentials', 401, 'AuthServiceError');
         }
         // Reset intentos de login y generar token
         user.loginAttempts = 0;
@@ -364,19 +372,19 @@ export class AuthService {
                 }
             );
             if (!forgotPasswordRecord) {
-                throw new AuthError('Invalid or expired reset token', 400);
+                throw new CustomError('Invalid or expired reset token', 400, 'AuthServiceError');
             }
             const now = new Date();
             if (now > forgotPasswordRecord.expiresAt) {
-                this.logger.error('Token expirado');
-                throw new AuthError('El enlace de recuperación ha expirado', 400);
+                this.logger.error('Reset token expired');
+                throw new CustomError('Reset token expired', 400, 'AuthServiceError');
             }
             const user = await DatabaseHelper.findOne(User, tenant, {
                 email: forgotPasswordRecord.email
             });
 
             if (!user) {
-                throw new AuthError('Token inválido o expirado', 400);
+                throw new CustomError('Invalid or expired reset token', 400, 'AuthServiceError');
             }
             // Usar PasswordUtil para hashear
             const hashedPassword = await PasswordUtil.hashPassword(newPassword);
@@ -391,7 +399,7 @@ export class AuthService {
             return { message: 'Password updated successfully' };
         } catch (error) {
             this.logger.error('Error in reset password:', error);
-            throw error;
+            throw new CustomError('Error in reset password', 500, 'AuthServiceError');
         }
     }
 
@@ -427,7 +435,7 @@ export class AuthService {
             return forgotPassword;
         } catch (error) {
             this.logger.error('Error saving forgot password:', error);
-            throw new AuthError('Error saving forgot password request', 422);
+            throw new CustomError('Error saving forgot password request', 422, 'AuthServiceError');
         }
     }
 
@@ -436,13 +444,13 @@ export class AuthService {
 
 
         if (user.blockExpires > Date.now()) {
-            throw new AuthError('User temporarily blocked', 409);
+            throw new CustomError('User temporarily blocked', 409, 'AuthServiceError');
         }
 
         if (user.loginAttempts >= this.MAX_LOGIN_ATTEMPTS) {
             user.blockExpires = new Date(Date.now() + this.BLOCK_TIME);
             await user.save();
-            throw new AuthError('User temporarily blocked', 409);
+            throw new CustomError('User temporarily blocked', 409, 'AuthServiceError');
         }
     }
 
@@ -457,7 +465,7 @@ export class AuthService {
         if (user.loginAttempts >= this.MAX_LOGIN_ATTEMPTS) {
             user.blockExpires = new Date(Date.now() + this.BLOCK_TIME);
             await user.save();
-            throw new AuthError('User temporarily blocked', 409);
+            throw new CustomError('User temporarily blocked', 409, 'AuthServiceError');
         }
     }
     private formatUserResponse(user: any) {
@@ -470,21 +478,5 @@ export class AuthService {
         };
     }
 
-    private seedGameFormats = async (tenant: string) => {
-        try {
-            for (const format of gameFormats) {
-                
-                await DatabaseHelper.findOneAndUpdate(
-                    GameFormat,
-                    tenant,
-                    { formatType: format.formatType },
-                    format,
-                    { upsert: true, new: true }
-                );
-            }
-            this.logger.info('Game formats seeded successfully');
-        } catch (error) {
-            this.logger.error('Error seeding game formats:', error);
-        }
-    }
+
 } 

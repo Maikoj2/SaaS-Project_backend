@@ -7,6 +7,11 @@ import { errorMiddleware } from '../../middlewares';
 import { env } from '../../config/env.config';
 import '../../config/passport/passport'
 import passport from 'passport';
+import { seedGameFormats } from '../../seeds/gameFormats.seed';
+import { seedClubs } from '../../seeds/clubs.seed';
+import { PluginLoader } from '../../plugin';
+import { seedCourts } from '../../seeds/courts.seed';
+import { seedMatchFormats } from '../../seeds/MatchFormat.seed';
 
 
 
@@ -17,6 +22,7 @@ export class Server {
     private readonly db: DatabaseConnection;
     private routeLoader: RouteLoader;
     private server: any; // Para almacenar la instancia del servidor HTTP
+    private pluginLoader: PluginLoader;
 
     constructor() {
         this.app = express();
@@ -28,6 +34,7 @@ export class Server {
         this.setupMiddlewares();
         this.setupRoutes();
         this.setupErrorHandling();
+        this.pluginLoader = new PluginLoader();
     }
 
     private setupMiddlewares(): void {
@@ -36,10 +43,10 @@ export class Server {
         this.app.use(express.json());
         this.app.use(bodyParser.urlencoded({ extended: true }));
 
-         // Inicializar Passport
-         this.app.use(passport.initialize());
-        
-        
+        // Inicializar Passport
+        this.app.use(passport.initialize());
+
+
         // Archivos estáticos
         this.app.use(express.static('public'));
 
@@ -56,7 +63,7 @@ export class Server {
 
     private setupRoutes(): void {
         this.app.use(env.API_PREFIX, this.routeLoader.loadRoutes());
-        
+
         // Manejo de rutas no encontradas
         this.app.use('*', (req, res) => {
             this.logger.warn(`Ruta no encontrada: ${req.originalUrl}`);
@@ -70,12 +77,38 @@ export class Server {
     private setupErrorHandling(): void {
         this.app.use(errorMiddleware);
     }
+    private async setupPlugins(): Promise<void> {
+        try {
+            // Asumiendo que tienes un tenant por defecto o lo obtienes de alguna configuración
+            const defaultTenant = 'miapp';
+            await this.pluginLoader.loadPlugins(defaultTenant);
+
+            const loadedPlugins = this.pluginLoader.getLoadedPlugins();
+            this.logger.info('Plugins cargados:', loadedPlugins);
+        } catch (error) {
+            this.logger.error('Error cargando plugins:', error);
+            throw error;
+        }
+    }
+
 
     public async start(): Promise<void> {
         try {
             // Conectar a la base de datos
             await this.db.connect();
             this.logger.info('Conexión a base de datos establecida');
+            // Inicializar datos básicos
+            await seedGameFormats('miapp');
+            this.logger.info('Formatos de juego inicializados');
+            await seedClubs('miapp');
+            this.logger.info('Clubs inicializados');
+            await seedCourts('miapp');
+            this.logger.info('Courts inicializados');
+            await seedMatchFormats('miapp');
+            this.logger.info('Match formats inicializados');
+            // Cargar plugins (añade esto)
+            await this.setupPlugins();
+            this.logger.info('Plugins inicializados correctamente');
 
             // Iniciar servidor
             this.server = this.app.listen(this.port, () => {
@@ -127,5 +160,9 @@ export class Server {
                 this.server.close(resolve);
             });
         }
+    }
+    // Método helper para acceder a los plugins (opcional)
+    public getPluginLoader(): PluginLoader {
+        return this.pluginLoader;
     }
 } 

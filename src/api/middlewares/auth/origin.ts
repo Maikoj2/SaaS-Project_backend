@@ -2,7 +2,7 @@ import { NextFunction, Response } from 'express';
 import { parse } from 'psl';
 
 import { Logger } from '../../config/logger';
-import { IUserCustomRequest } from '../../interfaces';
+import { ICustomRequest } from '../../interfaces';
 
 const getExpeditiousCache = require('express-expeditious');
 const redisEngine = require('expeditious-engine-redis');
@@ -19,7 +19,7 @@ const parseDomain = (data: RegExpExecArray) => {
     }
 }
 
-const checkDomain = async (req: IUserCustomRequest, res: Response, next: NextFunction) => {
+const checkDomain = async (req: ICustomRequest, res: Response, next: NextFunction) => {
     try {
         const origin = req.get('origin');
         
@@ -48,7 +48,7 @@ const checkDomain = async (req: IUserCustomRequest, res: Response, next: NextFun
     }
 }
 
-const checkTenant = async (req: IUserCustomRequest, res: Response, next: NextFunction) => {
+const checkTenant = async (req: ICustomRequest, res: Response, next: NextFunction) => {
     try {
         if (process.env.USE_REDIS === 'true') {
             if (!cache) {

@@ -1,6 +1,5 @@
 import { Injectable } from '@decorators/di';
 import { Logger } from '../../config/logger/WinstonLogger';
-import { AuthError } from '../../errors/AuthError';
 // import nodemailer from 'nodemailer'; // dependent to send emails
 
 interface ResetPasswordData {
@@ -101,7 +100,7 @@ export class EmailService {
             
         } catch (error) {
             this.logger.error('Error sending verification email:', error);
-            throw new AuthError('Error sending verification email', 500);
+            throw error;
         }
     
     }

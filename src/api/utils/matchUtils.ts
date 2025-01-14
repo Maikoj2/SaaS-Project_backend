@@ -1,6 +1,6 @@
 
 import { Types } from 'mongoose';
-import { Match } from '../models/mongoose/championschip/match';
+import { Match } from '../models/mongoose/championship/match';
 
 export class MatchUtils {
     /**

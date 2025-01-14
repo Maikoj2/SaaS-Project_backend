@@ -2,7 +2,7 @@ import { Logger } from "../../config";
 
 import { Injectable } from "@decorators/di";
 import { GameFormatService } from "../../services/championship/gameformat.service";
-import { IUserCustomRequest } from "../../interfaces";
+import { ICustomRequest } from "../../interfaces";
 import { Response } from "express";
 
 @Injectable()
@@ -15,7 +15,7 @@ export class GameFormatController {
         this.logger = new Logger();
     }
 
-    public create = async (req: IUserCustomRequest, res: Response) =>  {
+    public create = async (req: ICustomRequest, res: Response) =>  {
         try {
             const tenant = req.clientAccount as string;
     
