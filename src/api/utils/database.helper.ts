@@ -5,6 +5,7 @@ import { Logger } from '../config/logger/WinstonLogger';
 import { Request } from 'express';
 import { FindOptions, UpdateOptions, PopulateOptions     } from '../interfaces/IhelperDatabase';
 import { CustomError } from '../errors';
+import { ClientSession } from 'mongoose';
 
 
 
@@ -47,16 +48,18 @@ export class DatabaseHelper {
         model: ITenantModel<T>,
         id: string,
         tenant: string,
-        options: FindOptions = {}
+        options: FindOptions = {},
+        session?: ClientSession
     ): Promise<T | null> {
-        return this.findOne(model, tenant, { _id: new Types.ObjectId(id), deleted: options.deleted }, options);
+        return this.findOne(model, tenant, { _id: new Types.ObjectId(id), deleted: options.deleted }, options, session);
     }
 
     static async findOne<T extends ITenantDocument>(
         model: ITenantModel<T>,
         tenant: string,
         query: Record<string, any>,
-        options: FindOptions = {}
+        options: FindOptions = {},
+        session?: ClientSession
     ): Promise<T | null> {
         const {
             select = [],
@@ -66,7 +69,7 @@ export class DatabaseHelper {
 
         try {
 
-            const docQuery = model.byTenant(tenant).findOne(query);
+            const docQuery = model.byTenant(tenant).findOne(query).session(session || null);
             if (select.length > 0) docQuery.select(select);
 
             const doc = await docQuery;
@@ -89,7 +92,8 @@ export class DatabaseHelper {
         id: string,
         tenant: string,
         updateData: Partial<T>,
-        options: UpdateOptions = {}
+        options: UpdateOptions = {},
+        session?: ClientSession
     ): Promise<T | null>  =>{
         const {
             select = [],
@@ -107,7 +111,8 @@ export class DatabaseHelper {
                     {
                         new: true,
                         runValidators,
-                        select: select.length > 0 ? select : undefined
+                        select: select.length > 0 ? select.join(' ') : undefined,
+                        session: session || null
                     }
                 );
 
@@ -141,10 +146,13 @@ export class DatabaseHelper {
     static async create<T extends ITenantDocument>(
         model: ITenantModel<T>,
         tenant: string,
-        data: Partial<T>
+        data: Partial<T>,
+        session?: ClientSession
     ): Promise<T> {
         try {
-            return await model.byTenant(tenant).create(data);
+            const options = session ? { session } : {};
+            const doc = await model.byTenant(tenant).create([data], options);
+            return doc[0];
         } catch (error) {
             this.logger.error('Error creating document:', {
                 error,
@@ -334,7 +342,8 @@ export class DatabaseHelper {
             basic?: string[];
             nested?: PopulateOptions[];
         },
-        options: FindOptions = {}
+        options: FindOptions = {},
+        session?: ClientSession
     ): Promise<T | null> {
         const {
             select = [],
@@ -343,7 +352,7 @@ export class DatabaseHelper {
         } = options;
 
         try {
-            let docQuery: Query<T | null, T> = model.byTenant(tenant).findOne(query);
+            let docQuery: Query<T | null, T> = model.byTenant(tenant).findOne(query).session(session || null);
 
             // Aplicar select si existe
             if (select.length > 0) {

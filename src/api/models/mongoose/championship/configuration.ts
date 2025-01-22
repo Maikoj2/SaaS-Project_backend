@@ -3,7 +3,7 @@ import { ITenantDocument, ITenantModel } from "../../../interfaces";
 import MongooseDelete from 'mongoose-delete';
 import mongoTenant from 'mongo-tenant';
 import mongoosePaginate from 'mongoose-paginate-v2';
-import { IChampionshipDocument } from "./championship";
+import { ChampionshipType, IChampionshipDocument } from "./championship";
 import { IGameFormatDocument } from "./gameFormat";
 
 // Interfaces
@@ -23,7 +23,7 @@ export interface IConfigurationDocument extends ITenantDocument {
     matchDurationLimit?: number;
     setDurationLimit?: number;
     registrationDeadline: Date;
-    competitionType: 'elimination' | 'double-elimination' | 'group-classification' | 'round-robin' | 'custom';
+    competitionType: ChampionshipType;
     registrationFee: number;
     tournamentBracket?: any;
     matchFormatId: Schema.Types.ObjectId;

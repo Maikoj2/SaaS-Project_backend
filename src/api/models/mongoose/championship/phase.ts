@@ -1,18 +1,19 @@
-import { model, Schema } from "mongoose";
+import { model, Schema, Types } from "mongoose";
 import { ITenantDocument, ITenantModel } from "../../../interfaces";
 import MongooseDelete from 'mongoose-delete';
 import mongoTenant from 'mongo-tenant';
 import mongoosePaginate from 'mongoose-paginate-v2';
+import { PhaseStatus } from "../../../constants/championshipStatus.constants";
 
 export interface IPhaseDocument extends ITenantDocument {
-    championshipId: Schema.Types.ObjectId;
+    championshipId: Types.ObjectId;
     name: string;
     order: number;
-    previousPhaseId?: Schema.Types.ObjectId;
-    nextPhaseId?: Schema.Types.ObjectId;
-    groups?: Schema.Types.ObjectId[];
-    matches?: Schema.Types.ObjectId[];
-    status: 'pending' | 'in_progress' | 'completed';
+    previousPhaseId?: Types.ObjectId;
+    nextPhaseId?: Types.ObjectId;
+    groups?: Types.ObjectId[];
+    matches?: Types.ObjectId[];
+    status: PhaseStatus;
     startDate?: Date;
     endDate?: Date;
     startTime?: string;
@@ -27,7 +28,7 @@ export interface IPhaseModel extends ITenantModel<IPhaseDocument> {
 const PhaseSchema = new Schema<IPhaseDocument>(
     {
         championshipId: {
-            type: Schema.Types.ObjectId,
+            type: Types.ObjectId,
             ref: 'Championship',
             required: true
         },
@@ -40,19 +41,19 @@ const PhaseSchema = new Schema<IPhaseDocument>(
             required: true
         },
         previousPhaseId: {
-            type: Schema.Types.ObjectId,
+            type: Types.ObjectId,
             ref: 'Phase'
         },
         nextPhaseId: {
-            type: Schema.Types.ObjectId,
+            type: Types.ObjectId,
             ref: 'Phase'
         },
         groups: [{
-            type: Schema.Types.ObjectId,
+            type: Types.ObjectId,
             ref: 'Group'
         }],
         matches: [{
-            type: Schema.Types.ObjectId,
+            type: Types.ObjectId,
             ref: 'Match'
         }],
         status: {

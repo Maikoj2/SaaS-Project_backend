@@ -7,6 +7,7 @@ import { Injectable } from '@decorators/di';
 import { ConfigurationService } from '../../services/championship/configuration.service';
 import { Types } from 'mongoose';
 import { CustomError } from '../../errors';
+import { ChampionshipStatus } from '../../constants/championshipStatus.constants';
 
 @Injectable()
 export class ChampionshipController {
@@ -42,14 +43,13 @@ export class ChampionshipController {
                 registrationDeadline,
                 registrationFee
             } = req.body;
-            console.log(req.body);
             const championship = await this.championshipService.create(tenant, {
                 type,
                 name,
                 description,
                 startDate,
                 endDate,
-                status: 'draft',
+                status: ChampionshipStatus.DRAFT,
                 idCreatorChampionship: req.user?._id as any 
             });
         
@@ -67,7 +67,7 @@ export class ChampionshipController {
             const updatedChampionship = await this.championshipService.updateStatus(
                 championship._id.toString(),
                 tenant,
-                'registration'
+                ChampionshipStatus.REGISTRATION
             );
 
 

@@ -6,6 +6,8 @@ import { DatabaseHelper } from "../../utils/database.helper";
 import { PaginateResult, Schema, Types } from "mongoose";
 import ChampionshipConfiguration, { IConfigurationDocument } from "../../models/mongoose/championship/configuration";
 import { CustomError } from "../../errors";
+import { ChampionshipStatus } from '../../constants/championshipStatus.constants';
+
 
 export interface IChampionshipPopulated {
     _id: Schema.Types.ObjectId;
@@ -23,7 +25,6 @@ const selectFieldsChampionship = ['status', 'teams'];
 const selectFieldsConfiguration = ['maxTeams', 'gameFormatId', 'tieBreakerCriteria'];
 const selectFieldsGameFormat = ['name', 'description'];
 const selectFieldsCourts = ['name', 'description' , 'status'];
-type ChampionshipStatus = 'draft' | 'registration' | 'in_progress' | 'completed' | 'canceled';
 export class ChampionshipService {
     /**
      * Crear nuevo campeonato
@@ -152,7 +153,7 @@ export class ChampionshipService {
             championship.winner = winners.first;
             championship.runnerUp = winners.second;
             championship.thirdPlace = winners.third;
-            championship.status = 'completed';
+            championship.status = ChampionshipStatus.COMPLETED;
 
             return await championship.save();
         } catch (error: any) {

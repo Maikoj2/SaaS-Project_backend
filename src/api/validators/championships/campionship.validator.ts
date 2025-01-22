@@ -222,7 +222,7 @@ export const validateUpdateStatusChampionship = [
         .withMessage('MISSING')
         .notEmpty()
         .withMessage('IS_EMPTY')
-        .isIn(ChampionshipStatus)
+        .isIn(Object.values(ChampionshipStatus))
         .withMessage('INVALID_STATUS'),
     check('id')
         .exists()
