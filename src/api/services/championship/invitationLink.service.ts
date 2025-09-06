@@ -1,7 +1,8 @@
 import { nanoid } from 'nanoid';
-import { InvitationLink } from '../../models/mongoose/championschip/invitationLink';
+import { InvitationLink } from '../../models/mongoose/championship/invitationLink';
 import { DatabaseHelper } from '../../utils/database.helper';
 import { env } from '../../config/env.config';
+import { Championship } from '../../models/mongoose/championship/championship';
 
 export class InvitationLinkService {
     async generateLink(tenant: string, championshipId: any, maxUses: number, expiresAt: Date) {
@@ -21,7 +22,7 @@ export class InvitationLinkService {
                 }
             );
 
-            const baseUrl = env.FRONTEND_URL || `${env.FRONTEND_URL_DEV}${env.API_PREFIX}/championships/${championshipId}`;
+            const baseUrl = env.FRONTEND_URL ;
             return {
                 invitationLink: `${baseUrl}/register?code=${code}`,
                 expiresAt: invitationLink.expiresAt
@@ -89,8 +90,15 @@ export class InvitationLinkService {
             { code },
             { $inc: { usedCount: 1 } }
         );
+        const championship = await DatabaseHelper.findOne(
+            Championship,
+            tenant,
+            { _id: invitationLink.championshipId },
+            {select: ['name', 'description', 'startDate', 'endDate']}
+        );
+        
     
-        return invitationLink.championshipId;
+        return championship;
     }
 
     async deactivateLink(tenant: string, championshipId: string) {
@@ -121,11 +129,12 @@ export class InvitationLinkService {
         };
     }
 
-    async getAllLinks(tenant: string, championshipId: string) {
+    async getAllLinks(tenant: string, page: number, limit: number) {
         return await DatabaseHelper.getItems(
             InvitationLink,
             tenant,
-            { championshipId, sort: { createdAt: -1 } }
+            { },
+            { page, limit }
         );
     }
 }

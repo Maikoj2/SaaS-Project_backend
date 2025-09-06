@@ -41,5 +41,14 @@ export const env = cleanEnv(process.env, {
     EMAIL_FROM_ADDRESS: str(),
     COMPANY_NAME: str(),
     FRONTEND_URL: str(),
-    FRONTEND_URL_DEV: str()
+    FRONTEND_URL_DEV: str(),
+
+    // Mercado Pago
+    MP_ACCESS_TOKEN: str(),
+    MP_CLIENT_ID: str(),
+    MP_SECRET_ID: str(),
+    MP_MODE: str({ default: 'sandbox' }),
+    
+    // Frontend
+    FRONTEND_URL_TENANT: str()
 }); 

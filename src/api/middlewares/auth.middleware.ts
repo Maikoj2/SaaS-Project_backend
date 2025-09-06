@@ -1,16 +1,17 @@
 import { Response, NextFunction } from 'express';
-import { IUserCustomRequest } from '../interfaces';
-import { AuthError } from '../errors/AuthError';
+import { ICustomRequest } from '../interfaces';
+import { CustomError } from '../errors';
 import { TokenService } from '../services/auth/token.service';
+import { ApiResponse } from '../responses';
 
 const tokenService = new TokenService();
 
-export const auth = async (req: IUserCustomRequest, res: Response, next: NextFunction) => {
+export const auth = async (req: ICustomRequest, res: Response, next: NextFunction) => {
     try {
         const token = req.headers.authorization?.replace('Bearer ', '');
-        
+
         if (!token) {
-            throw new AuthError('Token not provided', 401);
+            throw new CustomError('Token not provided', 401, 'AuthMiddlewareError');
         }
 
         try {
@@ -18,7 +19,8 @@ export const auth = async (req: IUserCustomRequest, res: Response, next: NextFun
             const userId = tokenService.getUserIdFromToken(token);
             req.id = userId;
             next();
-        } catch (error) {
+        }
+        catch (error) {
             // Si es ruta de refresh, permite continuar
             if (req.path.includes('/refresh-token')) {
                 req.token = token;
@@ -29,30 +31,21 @@ export const auth = async (req: IUserCustomRequest, res: Response, next: NextFun
             // Para otras rutas, intenta refresh automático
             try {
                 const newToken = await tokenService.refreshTokens(token);
-                const userId = tokenService.getUserIdFromToken(newToken);
-                
-                return res.status(200).json({
+                return res.status(200).json(ApiResponse.success({
                     status: 'warning',
                     code: 'TOKEN_REFRESHED',
                     message: 'Your session was about to expire and has been renewed',
                     newToken: `Bearer ${newToken}`,
                     shouldRefresh: true
-                });
-            } catch (refreshError) {
-                return res.status(401).json({
-                    status: 'error',
-                    code: 'ACCESS_TOKEN_EXPIRED',
-                    message: 'Your access token has expired',
-                    shouldRefresh: true
-                });
+                }));
             }
+            catch (refreshError) {
+                return res.status(401).json(ApiResponse.error(new CustomError('Your access token has expired', 401, 'AuthMiddlewareError')));
+            }
+
         }
-    } catch (error) {
-        return res.status(401).json({
-            status: 'error',
-            code: 'INVALID_TOKEN',
-            message: error instanceof Error ? error.message : 'Token inválido',
-            shouldRefresh: false
-        });
+    }
+    catch (error) {
+        return res.status(401).json(ApiResponse.error(new CustomError('Your access token has expired', 401, 'AuthMiddlewareError')));
     }
 }; 

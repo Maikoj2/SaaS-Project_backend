@@ -11,6 +11,7 @@ import { userValidation } from '../../validators/user/user.validate.js';
 import { UserController } from '../../controllers/users/user.controller.js';
 import { UsersRoute } from '../../models/apiRoutes/users/userRoutes.ts.js';
 import { auth } from '../../middlewares/auth.middleware.js';
+import { ValidationChain } from 'express-validator';
 
 const userController = new UserController();
 
@@ -59,9 +60,22 @@ app.post(UsersRoute.USERS, [
     auth as RequestHandler,
     requireAuth,
     handleAuthError,
+    roleAuthorization([
+        AuthRole.ADMIN,
+        AuthRole.ORGANIZER
+    ]),
     userValidation.createUser,
+    trimRequest.all,
 ],
     userController.createUser as RequestHandler
+);
+// Create user by link invitation
+app.post(UsersRoute.USERS_BY_LINK, [
+    origin.checkDomain as RequestHandler,
+    origin.checkTenant as RequestHandler,
+    ...userValidation.createUserByLink as ValidationChain[],
+],
+    userController.createUserByLink as RequestHandler
 );
 
 // Update user

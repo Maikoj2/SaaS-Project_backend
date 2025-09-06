@@ -1,6 +1,8 @@
 import { check, CustomValidator } from "express-validator";
 import { MongooseHelper } from "../../utils/mongoose.helper";
 import { validate } from "../../middlewares";
+import { ChampionshipStatus } from "../../constants/championshipStatus.constants";
+import { ChampionshipType } from "../../models/mongoose/championship/championship";
 
 // Validador de fecha
 const validateDate: CustomValidator = (value, { req }) => {
@@ -22,7 +24,7 @@ const validateEndDate: CustomValidator = (value, { req }) => {
 };
 
 // Validador de IDs de MongoDB
-const validateMongoIds: CustomValidator = async (value) => {
+export const validateMongoIds: CustomValidator = async (value) => {
     if (!Array.isArray(value)) return true;
 
     for (const id of value) {
@@ -81,6 +83,16 @@ export const championshipValidators = {
             .isIn(['draft', 'active', 'completed', 'cancelled'])
             .withMessage('INVALID_STATUS'),
     ],
+    
+    type: [
+        check('type')
+            .exists()
+            .withMessage('MISSING')
+            .notEmpty()
+            .withMessage('IS_EMPTY')
+            .isIn(Object.values(ChampionshipType))
+            .withMessage('INVALID_TYPE'),
+    ],
     arrayFields: (field: 'phases' | 'teams' | 'courts' | 'matches' | 'registrations') => [
         check(field)
             .optional()
@@ -100,8 +112,8 @@ export const championshipConfigurationValidators = {
             .isInt({ min: 2 })
             .withMessage('MUST_BE_GREATER_THAN_1'),
     ],
-    gameFormat: [
-        check('gameFormat')
+    gameFormatId: [
+        check('gameFormatId')
             .optional()
             .isMongoId()
             .withMessage('INVALID_ID_FORMAT'),
@@ -145,11 +157,12 @@ export const championshipConfigurationValidators = {
             .withMessage('IS_EMPTY')
             .isInt({ min: 0 })
             .withMessage('MUST_BE_GREATER_THAN_0'),
-    ],
+    ]
 };
 
 // Validadores compuestos para diferentes operaciones
 export const validateCreateChampionship = [
+    ...championshipValidators.type,
     ...championshipValidators.name,
     ...championshipValidators.description,
     ...championshipValidators.startDate,
@@ -179,7 +192,7 @@ export const validateUpdateChampionship = [
 
 export const validateCreateChampionshipConfiguration = [
     ...championshipConfigurationValidators.maxTeams,
-    ...championshipConfigurationValidators.gameFormat,
+    ...championshipConfigurationValidators.gameFormatId,
     check('tieBreakerCriteria.setRatio')
         .optional()
         .isBoolean()
@@ -202,4 +215,23 @@ export const validateCreateChampionshipConfiguration = [
     ...championshipConfigurationValidators.registrationFee,
     validate,
 ];
+
+export const validateUpdateStatusChampionship = [
+    check('status')
+        .exists()
+        .withMessage('MISSING')
+        .notEmpty()
+        .withMessage('IS_EMPTY')
+        .isIn(Object.values(ChampionshipStatus))
+        .withMessage('INVALID_STATUS'),
+    check('id')
+        .exists()
+        .withMessage('MISSING')
+        .notEmpty()
+        .withMessage('IS_EMPTY')
+        .isMongoId()
+        .withMessage('INVALID_ID_FORMAT'),
+    validate,
+];
+
 

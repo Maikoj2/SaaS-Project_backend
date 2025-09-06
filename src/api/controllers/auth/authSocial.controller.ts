@@ -1,8 +1,10 @@
-import { NextFunction, Request, Response } from "express";
+import {   Response } from "express";
 import { Logger } from "../../config";
 import { ApiResponse } from "../../responses/apiResponse";
 import { matchedData } from "express-validator";
 import { FacebookService } from "../../services/email/facebook.service";
+import { CustomError } from "../../errors";
+import { ICustomRequest } from "../../interfaces";
 
 
 
@@ -16,7 +18,7 @@ export class AuthSocialController {
         this.facebookService = new FacebookService();
     }
 
-    public  facebookLogin = async (req: Request, res: Response) => {
+    public  facebookLogin = async (req: ICustomRequest, res: Response) => {
         try {
             const data = matchedData(req);
             this.facebookService.authenticate(req, res, data.tenant);
@@ -26,7 +28,7 @@ export class AuthSocialController {
         } catch (error) {
             this.logger.error(error as string);
              res.status(500).json(
-                ApiResponse.error('Error logging in with Facebook')
+                ApiResponse.error(new CustomError('Error logging in with Facebook', 500, 'AuthSocialControllerError'))
             );
         }
     }

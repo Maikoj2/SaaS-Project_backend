@@ -10,7 +10,8 @@ import { ITenantDocument, ITenantModel } from '../../../interfaces/model.interfa
 export interface IUserDocument extends ITenantDocument {
     name: string;
     lastName?: string;
-    nie?: string;
+    numberIdCard: string;
+    typeIdCard: 'CC' | 'TI' | 'PASSPORT' | 'NIE';
     stepper: any[];
     email: string;
     password: string;
@@ -20,7 +21,6 @@ export interface IUserDocument extends ITenantDocument {
     tag: any[];
     avatar?: string;
     description?: string;
-    nameBusiness?: string;
     phone?: string;
     address?: IAddress;
     loginAttempts: number;
@@ -50,7 +50,8 @@ const UserSchema = new Schema(
     {
         name: { type: String, required: true },
         lastName: { type: String, required: false },
-        nie: { type: String, required: false },
+        typeIdCard: { type: String, required: false, enum: ['CC', 'TI', 'PASSPORT', 'NIE'], default: 'CC' },
+        numberIdCard: { type: String, required: false, unique: true , default: ''},
         stepper: { type: Array, default: [] },
         email: {
             type: String,
@@ -73,7 +74,6 @@ const UserSchema = new Schema(
         tag: { type: Array, default: [] },
         avatar: { type: String },
         description: { type: String },
-        nameBusiness: { type: String },
         phone: { type: String, required: false },
         address: {
             type: {

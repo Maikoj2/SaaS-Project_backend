@@ -118,7 +118,7 @@ const getBasicPlan = (): IPlan => ({
 const SettingsSchema = new Schema<ISettingsDocument, ISettingsModel>({
     name: { 
         type: String,
-        default: null 
+        default: '' 
     },
     owner: { 
         type: String,
@@ -126,15 +126,15 @@ const SettingsSchema = new Schema<ISettingsDocument, ISettingsModel>({
     },
     currencySymbol: { 
         type: String,
-        default: null 
+        default: '$' 
     },
     currency: { 
         type: String,
-        default: null 
+        default: 'COP' 
     },
     logo: { 
         type: String,
-        default: null 
+        default: '' 
     },
     plugins: { 
         type: [Object],

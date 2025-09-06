@@ -1,7 +1,7 @@
 import jwt, { verify } from 'jsonwebtoken';
 import { env } from '../../config/env.config';
 
-import { AuthError } from '../../errors/AuthError';
+import { CustomError } from '../../errors';
 import { Injectable } from '@decorators/di';
 import { decrypt, encrypt } from '../../utils';
 
@@ -37,7 +37,7 @@ export class TokenService {
             const decoded = jwt.verify(tokens.accessToken, env.JWT_SECRET) as TokenPayload;
             return decoded.userId;
         } catch (error) {
-            throw new AuthError('Token inválido o expirado', 401);
+            throw new CustomError(error instanceof Error ? error.message : 'Error getting user id from token', 401, 'TokenServiceError');
         }
     }
 
@@ -69,7 +69,7 @@ export class TokenService {
             ) as TokenPayload;
 
             if (decoded.type !== 'refresh') {
-                throw new AuthError('Invalid refresh token', 401);
+                throw new CustomError('Invalid refresh token', 401, 'TokenServiceError');
             }
 
             // Generar nuevos tokens
@@ -79,7 +79,7 @@ export class TokenService {
             return encrypt(JSON.stringify(newTokens));
 
         } catch (error) {
-            throw new AuthError('Invalid refresh token', 401);
+            throw new CustomError('Invalid refresh token', 401, 'TokenServiceError');
         }
     }
 
@@ -93,7 +93,7 @@ export class TokenService {
                 env.JWT_SECRET
             ) as TokenPayload;
         } catch (error) {
-            throw new AuthError('Invalid access token', 401);
+            throw new CustomError('Invalid access token', 401, 'TokenServiceError');
         }
     }
 
@@ -102,7 +102,7 @@ export class TokenService {
             const decoded = verify(token,env.JWT_SECRET) as { userId: string };
             return decoded.userId;
         } catch (error) {
-            throw new AuthError('Invalid or expired token', 401);
+            throw new CustomError('Invalid or expired token', 401, 'TokenServiceError');
         }
     }
 } 

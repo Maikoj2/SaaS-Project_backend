@@ -1,10 +1,11 @@
-import { AuthError } from '../errors/AuthError';
 import { Document, Model, PaginateOptions, PaginateResult, Query, Types } from 'mongoose';
 import { ITenantDocument, ITenantModel } from '../interfaces/model.interface';
 import { PaginationOptions } from '../interfaces';
 import { Logger } from '../config/logger/WinstonLogger';
 import { Request } from 'express';
-import { FindOptions, UpdateOptions, PopulateOptions, QueryOptions } from '../interfaces/IhelperDatabase';
+import { FindOptions, UpdateOptions, PopulateOptions     } from '../interfaces/IhelperDatabase';
+import { CustomError } from '../errors';
+import { ClientSession } from 'mongoose';
 
 
 
@@ -33,13 +34,13 @@ export class DatabaseHelper {
             const docs = await docQuery;
             
             if (!docs.length && throwError) {
-                throw new AuthError(errorMessage, 404);
+                    throw new CustomError(errorMessage, 404, 'DatabaseError');
             }
     
             return docs;
         } catch (error) {
-            if (error instanceof AuthError) throw error;
-            throw new AuthError('Database error', 500);
+            if (error instanceof CustomError) throw error;
+            throw new CustomError(error instanceof Error ? error.message : 'Database error', 500, 'DatabaseError');
         }
     }
 
@@ -47,16 +48,18 @@ export class DatabaseHelper {
         model: ITenantModel<T>,
         id: string,
         tenant: string,
-        options: FindOptions = {}
+        options: FindOptions = {},
+        session?: ClientSession
     ): Promise<T | null> {
-        return this.findOne(model, tenant, { _id: new Types.ObjectId(id), deleted: options.deleted }, options);
+        return this.findOne(model, tenant, { _id: new Types.ObjectId(id), deleted: options.deleted }, options, session);
     }
 
     static async findOne<T extends ITenantDocument>(
         model: ITenantModel<T>,
         tenant: string,
         query: Record<string, any>,
-        options: FindOptions = {}
+        options: FindOptions = {},
+        session?: ClientSession
     ): Promise<T | null> {
         const {
             select = [],
@@ -66,31 +69,32 @@ export class DatabaseHelper {
 
         try {
 
-            const docQuery = model.byTenant(tenant).findOne(query);
+            const docQuery = model.byTenant(tenant).findOne(query).session(session || null);
             if (select.length > 0) docQuery.select(select);
 
             const doc = await docQuery;
 
             if (!doc && throwError) {
                 this.logger.warn('Document not found:', { model: model.modelName, tenant, query });
-                throw new AuthError(errorMessage, 404);
+                throw new CustomError(errorMessage, 404, 'DatabaseError');
             }
 
             this.logger.info('Document found:', { model: model.modelName, id: doc?._id });
             return doc;
         } catch (error) {
-            if (error instanceof AuthError) throw error;
-            throw new AuthError('Database error', 500);
+            if (error instanceof CustomError) throw error;
+            throw new CustomError(error instanceof Error ? error.message : 'Database error', 500, 'DatabaseError');
         }
     }
 
-    static async update<T extends ITenantDocument>(
+    static update = async <T extends ITenantDocument>(
         model: ITenantModel<T>,
         id: string,
         tenant: string,
         updateData: Partial<T>,
-        options: UpdateOptions = {}
-    ): Promise<T | null> {
+        options: UpdateOptions = {},
+        session?: ClientSession
+    ): Promise<T | null>  =>{
         const {
             select = [],
             throwError = true,
@@ -107,7 +111,8 @@ export class DatabaseHelper {
                     {
                         new: true,
                         runValidators,
-                        select: select.length > 0 ? select : undefined
+                        select: select.length > 0 ? select.join(' ') : undefined,
+                        session: session || null
                     }
                 );
 
@@ -117,7 +122,7 @@ export class DatabaseHelper {
                     id,
                     tenant
                 });
-                throw new AuthError(errorMessage, 404);
+                throw new CustomError(errorMessage, 404, 'DatabaseError');
             }
 
             return doc;
@@ -129,10 +134,11 @@ export class DatabaseHelper {
                 tenant
             });
 
-            if (error instanceof AuthError) throw error;
-            throw new AuthError(
+            if (error instanceof CustomError) throw error;
+            throw new CustomError(
                 error instanceof Error ? error.message : 'Error updating document',
-                500
+                500,
+                'DatabaseError'
             );
         }
     }
@@ -140,12 +146,19 @@ export class DatabaseHelper {
     static async create<T extends ITenantDocument>(
         model: ITenantModel<T>,
         tenant: string,
-        data: Partial<T>
+        data: Partial<T>,
+        session?: ClientSession
     ): Promise<T> {
         try {
-            return await model.byTenant(tenant).create(data);
+            const options = session ? { session } : {};
+            const doc = await model.byTenant(tenant).create([data], options);
+            return doc[0];
         } catch (error) {
-            throw new AuthError('Error creating document', 500);
+            this.logger.error('Error creating document:', {
+                error,
+                data
+            });
+            throw error;
         }
     }
 
@@ -159,11 +172,11 @@ export class DatabaseHelper {
 
         try {
             const doc = await model.byTenant(tenant).findByIdAndDelete(id);
-            if (!doc && throwError) throw new AuthError(errorMessage, 404);
+            if (!doc && throwError) throw new CustomError(errorMessage, 404, 'DatabaseError');
             return doc;
         } catch (error) {
-            if (error instanceof AuthError) throw error;
-            throw new AuthError('Database error', 500);
+            if (error instanceof CustomError) throw error;
+            throw new CustomError(error instanceof Error ? error.message : 'Database error', 500, 'DatabaseError');
         }
     }
 
@@ -176,7 +189,7 @@ export class DatabaseHelper {
             const count = await model.byTenant(tenant).countDocuments(query);
             return count > 0;
         } catch (error) {
-            throw new AuthError('Database error', 500);
+            throw new CustomError(error instanceof Error ? error.message : 'Database error', 500, 'DatabaseError');
         }
     }
 
@@ -191,7 +204,7 @@ export class DatabaseHelper {
             return await model.byTenant(tenant)
                 .findOneAndUpdate(query, update, options);
         } catch (error) {
-            throw new AuthError('Database error', 500);
+            throw new CustomError(error instanceof Error ? error.message : 'Database error', 500, 'DatabaseError');
         }
     }
 
@@ -220,9 +233,27 @@ export class DatabaseHelper {
             const result = await model.byTenant(tenant).paginate(query, paginateOptions);
             return this.cleanPaginationID(result);
         } catch (error) {
-            throw new AuthError(
+            throw new CustomError(
                 error instanceof Error ? error.message : 'Error getting items',
-                422
+                422,
+                'DatabaseError'
+            );
+        }
+    }
+
+    static async count<T extends ITenantDocument>(
+        model: ITenantModel<T>,
+        tenant: string,
+        query: Record<string, any>
+    ): Promise<number> {
+        try {
+            const count = await model.byTenant(tenant).countDocuments(query);
+            return count;
+        } catch (error) {
+            throw new CustomError(
+                error instanceof Error ? error.message : 'Error counting documents',
+                500,
+                'DatabaseError'
             );
         }
     }
@@ -246,7 +277,7 @@ export class DatabaseHelper {
             const result = await model.paginate(query, options);
             return this.cleanPaginationID(result);
         } catch (error) {
-            throw new Error(error instanceof Error ? error.message : 'Error getting items');
+            throw new CustomError(error instanceof Error ? error.message : 'Error getting items', 422, 'DatabaseError');
         }
     }
 
@@ -292,9 +323,10 @@ export class DatabaseHelper {
             
             return this.cleanPaginationID(result);
         } catch (error) {
-            throw new AuthError(
+            throw new CustomError(
                 error instanceof Error ? error.message : 'Error getting items',
-                422
+                422,
+                'DatabaseError' 
             );
         }
     }
@@ -310,7 +342,8 @@ export class DatabaseHelper {
             basic?: string[];
             nested?: PopulateOptions[];
         },
-        options: FindOptions = {}
+        options: FindOptions = {},
+        session?: ClientSession
     ): Promise<T | null> {
         const {
             select = [],
@@ -319,7 +352,7 @@ export class DatabaseHelper {
         } = options;
 
         try {
-            let docQuery: Query<T | null, T> = model.byTenant(tenant).findOne(query);
+            let docQuery: Query<T | null, T> = model.byTenant(tenant).findOne(query).session(session || null);
 
             // Aplicar select si existe
             if (select.length > 0) {
@@ -346,7 +379,7 @@ export class DatabaseHelper {
                     tenant,
                     query
                 });
-                throw new AuthError(errorMessage, 404);
+                throw new CustomError(errorMessage, 404, 'DatabaseError');
             }
 
             this.logger.info('Document found:', {
@@ -355,8 +388,8 @@ export class DatabaseHelper {
             });
             return doc;
         } catch (error) {
-            if (error instanceof AuthError) throw error;
-            throw new AuthError('Database error', 500);
+            if (error instanceof CustomError) throw error;
+            throw new CustomError(error instanceof Error ? error.message : 'Database error', 500, 'DatabaseError');
         }
     }
 
@@ -384,9 +417,54 @@ export class DatabaseHelper {
     
             return doc;
         } catch (error) {
-            throw new AuthError(
+            throw new CustomError(
                 error instanceof Error ? error.message : 'Error creating document',
-                422
+                422,
+                'DatabaseError'
+            );
+        }
+    }
+
+    static async insertDocumentsConcurrently<T extends ITenantDocument>(
+        model: ITenantModel<T>,
+        tenant: string,
+        documents: Partial<T>[]
+    ): Promise<Document<T>[] > {
+        const insertionPromises = documents.map(async (doc) => {
+            try {
+                const insertedDoc = await model.byTenant(tenant).create(doc);
+                this.logger.info('Document inserted:', { docId: insertedDoc._id });
+                return insertedDoc;
+            } catch (error) {
+                this.logger.error('Error inserting document:', { error, document: doc });
+                // Decide si devolver null, lanzar o manejar de otra forma
+                return error; // Opcional, o lanza una excepción
+            }
+        });
+    
+        // Esperar a que todas las inserciones se resuelvan
+        const results = await Promise.all(insertionPromises);
+    
+        // Filtrar nulos (si aplicaste manejo de errores)
+        return results.filter((doc): doc is NonNullable<typeof doc> => doc !== null) as Document<T>[];
+    }
+    
+    static async deleteMany<T extends ITenantDocument>(
+        model: ITenantModel<T>,
+        tenant: string,
+        query: Record<string, any>
+    ): Promise<number> {
+        try {
+
+            const result = await model.byTenant(tenant).deleteMany(query);
+            this.logger.info('Documents deleted:', { model: model.modelName, count: result.deletedCount });
+            return result.deletedCount || 0;
+        } catch (error) {
+            this.logger.error('Error deleting documents:', { error, model: model.modelName });
+            throw new CustomError(
+                error instanceof Error ? error.message : 'Error deleting documents',
+                500,
+                'DatabaseError'
             );
         }
     }
@@ -397,10 +475,13 @@ export class DatabaseHelper {
      */
     private static cleanPaginationID<T extends Document>(items: PaginateResult<T>): PaginateResult<T> {
         items.docs = items.docs.map(item => {
-            const doc = item.toObject();
-            delete doc.__v;
-            delete doc.id;
-            return doc;
+            if (item && typeof item.toObject === 'function') {
+                const doc = item.toObject();
+                delete doc.__v;
+                delete doc.id;
+                return doc;
+            }
+            return item;
         });
         return items;
     }

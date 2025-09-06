@@ -1,6 +1,6 @@
 
 import { DatabaseHelper } from "../../utils/database.helper";
-import { AuthError } from "../../errors/AuthError";
+import { CustomError } from "../../errors";
 import { User } from "../../models";
 import { PaginationOptions } from "../../interfaces";
 import { Logger } from "../../config";
@@ -28,7 +28,7 @@ export class UserService {
             return users;
         } catch (error) {
             this.logger.error('Error getting users:', error);
-            throw new AuthError('Error getting users', 500);
+            throw new CustomError (error instanceof Error ? error.message : 'Error getting users', 500, 'UserServiceError');
         }
     }
 
@@ -83,7 +83,7 @@ export class UserService {
             return newUser;
         } catch (error) {
             this.logger.error('Error creating user:', error);
-            throw error;
+            throw new CustomError (error instanceof Error ? error.message : 'Error creating user', 500, 'UserServiceError');
         }
     }
 
@@ -96,14 +96,14 @@ export class UserService {
             });
     
             if (!existingUser) {
-                throw new AuthError('user not found', 404);
+                throw new CustomError ('user not found', 404);
             }
     
             const processedData = DataProcessor.processSocialNetworks(userData);
             return await DatabaseHelper.update(User, id, tenant, processedData);
         } catch (error) {
             this.logger.error('Error updating user:', error);
-            throw error;
+            throw new CustomError (error instanceof Error ? error.message : 'Error updating user', 500, 'UserServiceError');
         }
     }
 
@@ -115,7 +115,7 @@ export class UserService {
             });
 
             if (!existingUser) {
-                throw new AuthError('user not found', 404);
+                throw new CustomError ('user not found', 404);
             }
             
             const deletedUser = await DatabaseHelper.update(User, id, tenant, 
@@ -126,7 +126,7 @@ export class UserService {
             return deletedUser;
         } catch (error) {
             this.logger.error('Error deleting user:', error);
-            throw error;
+            throw new CustomError (error instanceof Error ? error.message : 'Error deleting user', 500, 'UserServiceError');
         }
     }
 

@@ -1,8 +1,8 @@
-import { ChampionshipConfiguration } from "../../models/mongoose/championschip/configuration";
+import { ChampionshipConfiguration } from "../../models/mongoose/championship/configuration";
 
-import { Championship } from "../../models/mongoose/championschip/championship";
-import { GameFormat } from "../../models/mongoose/championschip/gameFormat";
-import { IConfigurationDocument } from "../../models/mongoose/championschip/configuration";
+import { Championship } from "../../models/mongoose/championship/championship";
+import { GameFormat } from "../../models/mongoose/championship/gameFormat";
+import { IConfigurationDocument } from "../../models/mongoose/championship/configuration";
 import { Logger } from "../../config";
 import { DatabaseHelper } from "../../utils/database.helper";
 
