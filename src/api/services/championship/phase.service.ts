@@ -7,26 +7,8 @@ import { DatabaseHelper } from '../../utils/database.helper';
 import ChampionshipConfiguration from '../../models/mongoose/championship/configuration';
 import mongoose, { ClientSession, Schema } from 'mongoose';
 import { Types } from 'mongoose';
-import { GameFormatType, Gender, PhaseStatus } from '../../constants/championshipStatus.constants';
+import { ChampionshipType, PhaseStatus } from '../../constants/championshipStatus.constants';
 import { Championship } from '../../models/mongoose/championship/championship';
-import Match from '../../models/mongoose/championship/match';
-
-interface MatchDurationParams {
-    gender: Gender;
-    avgSetsPerMatch: number;
-    historicalData?: {
-        avgDuration: number;
-        tiebreakerProbability: number;
-    };
-}
-
-interface GameFormatConfig {
-    sets: number;
-    pointsPerSet: number;
-    tiebreakerPoints: number;
-    maxPointsPerSet: number;
-    minAdvantage: boolean;
-}
 
 export class PhaseService {
     private logger: Logger;
@@ -47,7 +29,6 @@ export class PhaseService {
                 { basic: ['gameFormatId', 'championshipId'] },
 
             );
-            this.logger.info('championshipConfiguration', championshipConfiguration);
 
             if (!championshipConfiguration) {
                 throw new CustomError('game format not found in championship configuration', 404, 'PhaseServiceError');
@@ -62,9 +43,13 @@ export class PhaseService {
             const championshipEndDateString = championshipConfiguration.championshipId.endDate.toISOString();
             const championshipStartDateString = championshipConfiguration.championshipId.startDate.toISOString();
 
+            //calculo la cantidad de dias entre la fecha de inicio y fin del campeonato
+            const daysBetween = this.calculateDaysBetween(championshipStartDateString, championshipEndDateString);
 
+            //calculo la cantidad de fases que se van a crear
 
             const config = championshipConfiguration.gameFormatId.config;
+            this.logger.info('config', config);
 
             switch (championshipConfiguration.gameFormatId.name) {
                 case 'elimination_simple': {
@@ -96,14 +81,7 @@ export class PhaseService {
                     // phases.push(...this.createGroupPhases(config, startDate));
                     break;
                 case 'groups_and_elimination': {
-                    const phases = await this.createGroupAndEliminationPhases(
-                        config,
-                        startTime,
-                        championshipStartDateString, // Fecha inicio campeonato
-                        championshipEndDateString,   // Nueva: Fecha fin campeonato
-                        championshipId,
-                        tenant,
-                        session);
+                    const phases = await this.createGroupAndEliminationPhases(config, startTime, championshipStartDateString, championshipId, tenant, session);
                     if (!phases || phases.length === 0) {
                         throw new CustomError('phases not created', 404, 'PhaseServiceError');
                     }
@@ -202,9 +180,10 @@ export class PhaseService {
     }
 
 
-    private calculateDaysBetween(startDate: Date, endDate: Date): number {
-        const diffMs = endDate.getTime() - startDate.getTime();
-        return Math.ceil(diffMs / (1000 * 60 * 60 * 24)); 
+    private calculateDaysBetween(startDate: string, endDate: string): number {
+        const start = new Date(startDate);
+        const end = new Date(endDate);
+        return Math.ceil((end.getTime() - start.getTime()) / (1000 * 3600 * 24)); // Redondeo hacia arriba
     }
     // Métodos auxiliares para crear fases específicas
     private createEliminationPhases = async (levels: string[],
@@ -236,7 +215,7 @@ export class PhaseService {
                     order: ++currentOrder, // Orden basado en la posición
                     previousPhaseId: previousPhaseId ? new Types.ObjectId(previousPhaseId) : undefined, // Fase anterior (null para la primera)
                     status: PhaseStatus.PENDING, // Estado inicial
-                    startTime: new Date(startTime),
+                    startTime: startTime,
                 };
                 // Crear la fase en la base de datos
                 const phase = await DatabaseHelper.create(Phase, tenant, phaseData, session);
@@ -274,13 +253,12 @@ export class PhaseService {
         try {
             const phaseData = {
                 championshipId: championshipId ? new Types.ObjectId(championshipId) : undefined,
-                name: GameFormatType.GROUPS,
+                name: ChampionshipType.GROUPS,
                 order: 1,
                 previousPhaseId: undefined,
                 status: PhaseStatus.PENDING,
-                startTime: new Date(startTime),
+                startTime: startTime,
                 startDate: new Date(startDate)
-
             };
             const phase = await DatabaseHelper.create(Phase, tenant, phaseData, session);
             return phase;
@@ -292,60 +270,64 @@ export class PhaseService {
 
     private createGroupAndEliminationPhases = async (
         config: IGameFormatConfig,
-        startTime: string, // Formato ISO: "2025-12-01T07:00:00"
-        championshipStartDateStr: string,
-        championshipEndDateStr: string,
+        startTime: string,
+        startDate: string,
         championshipId: string,
         tenant: string,
         session: ClientSession
     ): Promise<IPhaseDocument[]> => {
-        const startDate = new Date(championshipStartDateStr);
-        const endDate = new Date(championshipEndDateStr);
-        const totalDays = this.calculateDaysBetween(startDate, endDate);
-    
-        // 1. Crear fase de grupos (50% del tiempo)
-        const groupPhaseEnd = new Date(startDate);
-        groupPhaseEnd.setDate(startDate.getDate() + Math.floor(totalDays * 0.5));
-        
-        const groupPhase = await this.createGroupPhases(
-            config,
-            startTime, // Mantener hora original
-            startDate.toISOString(),
+        let phases: IPhaseDocument[] = [];
+        let groupPhase: IPhaseDocument | null = null;
+
+        // 1. Crear Fase de Grupos
+        this.logger.info('create group and elimination phases');
+        if (config.groups) {
+            groupPhase = await this.createGroupPhases(config, startTime, startDate, championshipId, tenant, session);
+            if (!groupPhase) {
+                throw new CustomError('Group phase not created', 404, 'PhaseServiceError');
+            }
+            phases.push(groupPhase);
+        }
+
+        // 2. Crear Fases de Eliminación
+        if (!config.levels) throw new CustomError('Levels not found', 404, 'PhaseServiceError');
+
+        const eliminationPhases = await this.createEliminationPhases(
+            config.levels,
+            startTime,
+            startDate,
             championshipId,
             tenant,
+            groupPhase?._id.toString() || null, // Pasar el ID del grupo como fase anterior
             session
         );
-    
-        // 2. Programar eliminatorias
-        let currentPhaseDate = new Date(groupPhaseEnd);
-        currentPhaseDate.setDate(currentPhaseDate.getDate() + 1); // Iniciar al día siguiente
-        const eliminationPhases: IPhaseDocument[] = [];
-        const timeParts = startTime.split('T')[1].substring(0, 5); // "07:00"
-    
-        for (const level of config.levels || []) {
-            const phaseStart = new Date(currentPhaseDate);
-            phaseStart.setHours(parseInt(timeParts.split(':')[0]), parseInt(timeParts.split(':')[1]));
-            
-            const phaseEnd = new Date(phaseStart);
-            phaseEnd.setDate(phaseStart.getDate() + 1); // Duración de 1 día por fase
-    
-            const phase = await DatabaseHelper.create(Phase, tenant, {
-                championshipId: new Types.ObjectId(championshipId),
-                name: level,
-                startDate: phaseStart,
-                endDate: phaseEnd,
-                startTime: new Date(phaseStart.toISOString()),
-                order: eliminationPhases.length + 2,
-                previousPhaseId: eliminationPhases.length === 0 
-                    ? groupPhase._id 
-                    : eliminationPhases[eliminationPhases.length - 1]._id
-            }, session);
-    
-            eliminationPhases.push(phase);
-            currentPhaseDate = new Date(phaseEnd);
+
+        // 3. Vincular Grupo -> Primera Fase de Eliminación
+        if (groupPhase && eliminationPhases.length > 0) {
+            const firstEliminationPhase = eliminationPhases[0];
+
+            // Actualizar Fase de Grupos
+            await DatabaseHelper.update(
+                Phase,
+                groupPhase._id.toString(),
+                tenant,
+                { nextPhaseId: firstEliminationPhase._id ? new Types.ObjectId(firstEliminationPhase._id) : undefined },
+                {},
+                session
+            );
+
+            // Actualizar Primera Fase de Eliminación
+            await DatabaseHelper.update(
+                Phase,
+                firstEliminationPhase._id.toString(),
+                tenant,
+                { previousPhaseId: groupPhase._id ? new Types.ObjectId(groupPhase._id) : undefined },
+                {},
+                session
+            );
         }
-    
-        return [groupPhase, ...eliminationPhases];
+
+        return [...phases, ...eliminationPhases];
     };
 
     private createLeaguePhases(config: any, startDate: string): IPhaseDocument[] {
@@ -363,239 +345,5 @@ export class PhaseService {
             throw new CustomError('levels not found in game format configuration', 404, 'PhaseServiceError');
         }
         return true;
-    }
-    private calculatePhaseDates(
-        championshipStart: Date,
-        championshipEnd: Date,
-        phaseCount: number
-    ): Date[] {
-        const interval = (championshipEnd.getTime() - championshipStart.getTime()) / phaseCount;
-        return Array.from({ length: phaseCount }, (_, i) =>
-            new Date(championshipStart.getTime() + (i * interval))
-        );
-    }
-    public async scheduleExistingPhases(
-        championshipId: string,
-        tenant: string,
-        startDate: Date,
-        endDate: Date,
-        dailyStartTime: string = "07:00"
-    ): Promise<IPhaseDocument[]> {
-        const session = await mongoose.startSession();
-        session.startTransaction();
-
-        try {
-            // 1. Obtener fases existentes
-            const phases = await DatabaseHelper.getItemsWithRelations(
-                Phase,
-                tenant,
-                { championshipId },
-                { sort: { order: 1 } },
-                {},
-                session
-            );
-
-            if (!phases || phases.totalDocs === 0) {
-                throw new CustomError('No phases found to schedule', 404, 'PhaseServiceError');
-            }
-
-            // 2. Calcular distribución temporal
-            const durationDays = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 3600 * 24));
-            const schedule = await this.calculatePhaseSchedule(phases.docs, tenant, session, startDate, durationDays, dailyStartTime);
-
-            // 3. Actualizar fases con horarios
-            const updatedPhases = await this.updatePhaseTimes(schedule, tenant, session);
-
-            await session.commitTransaction();
-            return updatedPhases;
-        } catch (error) {
-            await session.abortTransaction();
-            this.logger.error('Error scheduling phases:', error);
-            throw error;
-        } finally {
-            await session.endSession();
-        }
-    }
-
-    private async calculatePhaseSchedule(
-        phases: IPhaseDocument[],
-        tenant: string,
-        session: ClientSession,
-        startDate: Date,
-        totalDays: number,
-        dailyStart: string
-    ): Promise<Map<string, { startTime: Date; endTime: Date }>> {
-        const scheduleMap = new Map<string, { startTime: Date; endTime: Date }>();
-        const phasesPerDay = this.distributePhasesPerDay(phases, totalDays);
-        let currentDate = new Date(startDate);
-
-        // Corregir: Usar for...of para manejar async/await correctamente
-        for (const [dayIndex, dailyPhases] of phasesPerDay) {
-            let currentTime = this.combineDateTime(currentDate, dailyStart);
-
-            // Cambiar forEach por bucle for
-            for (const phase of dailyPhases) {
-                const phaseDuration = await this.calculatePhaseDuration(phase, tenant, session);
-                const endTime = new Date(currentTime.getTime() + phaseDuration * 60000);
-
-                scheduleMap.set(phase._id.toString(), {
-                    startTime: new Date(currentTime),
-                    endTime: endTime
-                });
-
-                currentTime = new Date(endTime.getTime() + 30 * 60000);
-            }
-
-            currentDate = this.addDays(currentDate, 1);
-        }
-
-        return scheduleMap;
-    }
-
-    private distributePhasesPerDay(phases: IPhaseDocument[], totalDays: number): Map<number, IPhaseDocument[]> {
-        // Usar distribución más balanceada
-        const distribution = new Map<number, IPhaseDocument[]>();
-        let currentDay = 0;
-
-        phases.forEach((phase, index) => {
-            if (!distribution.has(currentDay)) distribution.set(currentDay, []);
-            distribution.get(currentDay)!.push(phase);
-
-            if ((index + 1) % Math.ceil(phases.length / totalDays) === 0) currentDay++;
-        });
-
-        return distribution;
-    }
-
-    private async updatePhaseTimes(
-        schedule: Map<string, { startTime: Date; endTime: Date }>,
-        tenant: string,
-        session: ClientSession
-    ): Promise<IPhaseDocument[]> {
-        const updatedPhases: IPhaseDocument[] = [];
-
-        for (const [phaseId, times] of schedule) {
-            const updatedPhase = await DatabaseHelper.update(
-                Phase,
-                phaseId,
-                tenant,
-                {
-                    startTime: times.startTime,
-                    endTime: times.endTime,
-                    status: PhaseStatus.SCHEDULED
-                },
-                { new: true },
-                session
-            );
-
-            if (updatedPhase) updatedPhases.push(updatedPhase);
-        }
-
-        return updatedPhases;
-    }
-
-    private combineDateTime(date: Date, timeString: string): Date {
-        const [hours, minutes] = timeString.split(':').map(Number);
-        return new Date(
-            date.getFullYear(),
-            date.getMonth(),
-            date.getDate(),
-            hours,
-            minutes
-        );
-    }
-
-    private async calculatePhaseDuration(
-        phase: IPhaseDocument,
-        tenant: string,
-        session: ClientSession
-    ): Promise<number> {
-        // 1. Obtener partidos de la fase
-        const matches = await DatabaseHelper.getItemsWithRelations(
-            Match,
-            tenant,
-            { phaseId: phase._id },
-            { select: ['courtId'] },
-            {},
-            session
-        );
-
-        // 2. Obtener configuración del campeonato
-        const config = await DatabaseHelper.findOneWithRelations(ChampionshipConfiguration,
-            tenant,
-            { championshipId: phase.championshipId },
-            { basic: ['gameFormatId', 'championshipId'] },
-            {},
-            session
-        );
-
-        if (!config || !config.courts || config.courts.length === 0) {
-            throw new CustomError('Configuración incompleta del campeonato', 400, 'PhaseServiceError');
-        }
-
-        // 3. Obtener formato de juego
-        const gameFormat = config.gameFormatId as unknown as GameFormatConfig;
-
-        // 4. Calcular parámetros clave
-        const matchParams: MatchDurationParams = {
-            gender: config.gender, // Asumiendo que el championship tiene campo gender
-            avgSetsPerMatch: 3, // Valor por defecto, ajustar según lógica de negocio
-            historicalData: {
-                avgDuration: 45,
-                tiebreakerProbability: 0.3
-            }
-        };
-
-        // 5. Calcular duración
-        const totalMatches = matches.totalDocs;
-        const avgSets = await this.calculateAverageSets(phase, tenant, session);
-        const matchDuration = this.calculateMatchDuration(gameFormat, matchParams);
-        const breakTime = 15; // minutos entre partidos
-        const totalCourts = config.courts.length;
-
-        const matchesPerCourt = Math.ceil(totalMatches / totalCourts);
-        return (matchDuration * this.getSetFactor(avgSets) + breakTime) * matchesPerCourt - breakTime;
-    }
-
-    private calculateMatchDuration(
-        format: GameFormatConfig,
-        params: MatchDurationParams
-    ): number {
-        const BASE_DURATION_PER_POINT = 0.8;
-        const GENDER_MODIFIER = { male: 1.1, female: 1.0, mixed: 1.0 };
-        if (format.sets < 1 || format.pointsPerSet < 15) {
-            throw new CustomError('Configuración de formato inválida', 400, 'PhaseServiceError');
-        }
-        let totalDuration = 0;
-        for (let set = 1; set <= format.sets; set++) {
-            const isTiebreaker = set === format.sets && format.sets > 1;
-            const basePoints = isTiebreaker ? format.tiebreakerPoints : format.pointsPerSet;
-            const complexityFactor = format.minAdvantage ? 1.2 : 1.0;
-
-            totalDuration += basePoints * BASE_DURATION_PER_POINT * complexityFactor;
-        }
-
-        return totalDuration * GENDER_MODIFIER[params.gender];
-    }
-    private addDays(date: Date, days: number): Date {
-        const result = new Date(date);
-        result.setDate(result.getDate() + days);
-        return result;
-    }
-    // Nuevos métodos auxiliares:
-    private async calculateAverageSets(
-        phase: IPhaseDocument,
-        tenant: string,
-        session: ClientSession
-    ): Promise<number> {
-        const result = await Match.aggregate([
-            { $match: { phaseId: phase._id } },
-            { $group: { _id: null, avgSets: { $avg: "$setsPlayed" } } }
-        ]).session(session);
-
-        return result[0]?.avgSets || 3; // Default 3 si no hay datos
-    }
-    private getSetFactor(avgSets: number): number {
-        return 1 + (avgSets - 3) * 0.2; // +20% por set adicional
     }
 } 
