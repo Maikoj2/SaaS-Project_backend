@@ -1,8 +1,9 @@
-import { model, Schema } from "mongoose";
+import { model, Schema, Types } from "mongoose";
 import { ITenantDocument, ITenantModel } from "../../../interfaces";
 import MongooseDelete from 'mongoose-delete';
 import mongoTenant from 'mongo-tenant';
 import mongoosePaginate from 'mongoose-paginate-v2';
+import { GroupStatus } from "../../../constants/championshipStatus.constants";
 
 interface ITeamRankingDocument  {
     teamId: Schema.Types.ObjectId;
@@ -23,13 +24,13 @@ interface ITeamRankingDocument  {
 }
 
 export interface IGroupDocument extends ITenantDocument {
-    // championshipId: Schema.Types.ObjectId;
-    groupDistributionId: Schema.Types.ObjectId;
+    championshipId: Types.ObjectId;
+    groupDistributionId: Types.ObjectId;
     name: string;
-    teams: Schema.Types.ObjectId[];
-    matches?: Schema.Types.ObjectId[];
+    teams: Types.ObjectId[];
+    matches?: Types.ObjectId[];
     rankings?: ITeamRankingDocument[];
-    status: 'active' | 'completed';
+    status: GroupStatus;
     deletedAt?: Date;
 }
 
@@ -105,11 +106,11 @@ const TeamRankingSchema = new Schema({
 
 const GroupSchema = new Schema<IGroupDocument>(
     {
-        // championshipId: {
-        //     type: Schema.Types.ObjectId,
-        //     ref: 'Championship',
-        //     required: true
-        // },
+        championshipId: {
+            type: Schema.Types.ObjectId,
+            ref: 'Championship',
+            required: true
+        },
         groupDistributionId: {
             type: Schema.Types.ObjectId,
             ref: 'GroupDistribution',
@@ -130,8 +131,8 @@ const GroupSchema = new Schema<IGroupDocument>(
         rankings: [TeamRankingSchema],
         status: {
             type: String,
-            enum: ['active', 'completed'],
-            default: 'active'
+            enum: GroupStatus,
+            default: GroupStatus.ACTIVE
         }
     },
     {

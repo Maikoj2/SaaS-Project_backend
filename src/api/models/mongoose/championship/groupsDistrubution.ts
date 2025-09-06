@@ -1,10 +1,15 @@
-import { model, Schema } from "mongoose";
+import { model, Schema, Types } from "mongoose";
 import { ITenantDocument, ITenantModel } from "../../../interfaces";
 import MongooseDelete from 'mongoose-delete';
 import mongoTenant from 'mongo-tenant';
 import mongoosePaginate from 'mongoose-paginate-v2';
+import { GroupDistributionFormatType } from "../../../constants/championshipStatus.constants";
+import { GroupDistributionStatus } from "../../../constants/championshipStatus.constants";
 
 // Interfaces
+export type DistributionGroups = {
+    [key: string]: ITeamDistribution[];
+}
 export interface ITeamDistribution {
     teamId: Schema.Types.ObjectId;
     position: number;
@@ -12,16 +17,14 @@ export interface ITeamDistribution {
 }
 
 export interface IGroupDistributionDocument extends ITenantDocument {
-    phaseId: Schema.Types.ObjectId;
+    championshipId: Types.ObjectId;
     name: string;
     cantTeams: number;
     cantGroups: number;
-    distribution: {
-        [key: string]: ITeamDistribution[];
-    };
-    formatType: 'serpentine' | 'linear' | 'random' | 'custom';
+    distribution: DistributionGroups;
+    formatType: GroupDistributionFormatType;
     customRules?: string;
-    status: 'draft' | 'active' | 'completed';
+    status: GroupDistributionStatus;
     createdAt?: Date;
     updatedAt?: Date;
     deletedAt?: Date;
@@ -30,7 +33,7 @@ export interface IGroupDistributionDocument extends ITenantDocument {
 export interface IGroupDistributionModel extends ITenantModel<IGroupDistributionDocument> {
     byTenant(tenant: string): ITenantModel<IGroupDistributionDocument>;
     findByChampionship(championshipId: string): Promise<IGroupDistributionDocument[]>;
-    updateDistribution(id: string, distribution: { [key: string]: ITeamDistribution[] }): Promise<IGroupDistributionDocument>;
+    updateDistribution(id: string, distribution: DistributionGroups): Promise<IGroupDistributionDocument>;
 }
 
 // Schema para la distribución de equipos
@@ -53,11 +56,12 @@ const TeamDistributionSchema = new Schema({
 
 const GroupDistributionSchema = new Schema<IGroupDistributionDocument>(
     {
-        phaseId: {
-            type: Schema.Types.ObjectId,
-            ref: 'Phase',
+        championshipId: {
+            type: Types.ObjectId,
+            ref: 'Championship',
             required: true
         },
+    
         name: {
             type: String,
             required: true
@@ -80,16 +84,16 @@ const GroupDistributionSchema = new Schema<IGroupDistributionDocument>(
         },
         formatType: {
             type: String,
-            enum: ['serpentine', 'linear', 'random', 'custom'],
-            default: 'serpentine'
+            enum: GroupDistributionFormatType,
+            default: GroupDistributionFormatType.SERPENTINE
         },
         customRules: {
             type: String
         },
         status: {
             type: String,
-            enum: ['draft', 'active', 'completed'],
-            default: 'draft'
+            enum: GroupDistributionStatus,
+            default: GroupDistributionStatus.DRAFT
         },
         deletedAt: {
             type: Date,

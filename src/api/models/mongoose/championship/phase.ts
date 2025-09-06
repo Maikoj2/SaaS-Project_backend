@@ -16,8 +16,12 @@ export interface IPhaseDocument extends ITenantDocument {
     status: PhaseStatus;
     startDate?: Date;
     endDate?: Date;
-    startTime?: string;
-    endTime?: string;
+    startTime?: Date;
+    endTime?: Date;
+    courtAssignments?: {
+        courtId: Types.ObjectId;
+        timeSlots: Date[];
+    }[];
 }
 
 export interface IPhaseModel extends ITenantModel<IPhaseDocument> {
@@ -70,13 +74,21 @@ const PhaseSchema = new Schema<IPhaseDocument>(
             required: false
         },
         startTime: {
-            type: String,
+            type: Date,
             required: true
         },
         endTime: {
-            type: String,
+            type: Date,
             required: false
-        }
+        },
+        courtAssignments: [{  // Nueva estructura
+            courtId: {
+                type: Types.ObjectId,
+                ref: 'Court',
+                required: true
+            },
+            timeSlots: [Date]
+        }]
     },
     {
         timestamps: true,
@@ -102,6 +114,17 @@ PhaseSchema.virtual('progress').get(async function() {
 
     const completedMatches = matches.filter((match: any) => match.status === 'completed').length;
     return Math.round((completedMatches / matches.length) * 100);
+});
+PhaseSchema.pre('validate', function(next) {
+    if (this.startDate && this.endDate && this.startDate >= this.endDate) {
+        next(new Error('La fecha de fin debe ser posterior a la de inicio'));
+    }
+    next();
+});
+PhaseSchema.virtual('groupDetails', {
+    ref: 'Group',
+    localField: 'groups',
+    foreignField: '_id'
 });
 
 // Export

@@ -7,20 +7,23 @@ import { auth, origin } from '../../middlewares';
 import { GameFormatController } from '../../controllers/championShip/gameFormat.controller';
 import trimRequest from 'trim-request';
 import { validateCreateGameFormat } from '../../validators/championships/gameformat.validator';
+import { gameFormatValidate } from '../../validators/championships/gameFormat.validaror';
 
 const gameFormatController = new GameFormatController();
 const app: Express = express();
 
 // Get all game formats
-// app.get('/', [
-//     origin.checkDomain as RequestHandler,
-//     origin.checkTenant as RequestHandler,
-//     auth as RequestHandler,
-//     requireAuth,
-//     handleAuthError,
-//     roleAuthorization([AuthRole.ADMIN, AuthRole.ORGANIZER]),
-//     trimRequest.all
-// ], gameFormatController.getAll as RequestHandler);
+app.get('/', [
+    origin.checkDomain as RequestHandler,
+    origin.checkTenant as RequestHandler,
+    auth as RequestHandler,
+    requireAuth,
+    handleAuthError,
+    roleAuthorization([AuthRole.ADMIN, AuthRole.ORGANIZER]),
+    trimRequest.all,
+    gameFormatValidate.getAll,
+], gameFormatController.getAll as RequestHandler);
+
 
 // Create game format
 app.post('/', [
@@ -34,6 +37,15 @@ app.post('/', [
     validateCreateGameFormat
 ], gameFormatController.create as RequestHandler);
 
-// ... otras rutas según necesites
+app.patch( '/:id', [
+    origin.checkDomain as RequestHandler,
+    origin.checkTenant as RequestHandler,
+    auth as RequestHandler,
+    requireAuth,
+    handleAuthError,
+    roleAuthorization([AuthRole.ADMIN]),
+    trimRequest.all,
+    // validateUpdateGameFormat
+], gameFormatController.update as RequestHandler);
 
 export default app;

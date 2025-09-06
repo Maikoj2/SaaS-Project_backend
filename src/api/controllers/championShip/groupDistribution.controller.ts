@@ -22,10 +22,10 @@ export class GroupDistributionController {
         try {
             const tenant = req.clientAccount as string;
             const { championshipId } = req.params;
-            const { formatType } = req.body;
+            const { formatType, startTime, intervalMinutes, breakBetweenMatches } = req.body;
         
-            const groupDistribution = await this.groupDistributionService.createGroupDistribution(championshipId, tenant, { formatType });
-            res.status(201).json(groupDistribution);
+            const groupDistribution = await this.groupDistributionService.createGroupDistribution(championshipId, tenant, { formatType }, startTime, intervalMinutes, breakBetweenMatches);
+            res.status(201).json(ApiResponse.success(groupDistribution, 'Group, matches and group of distribution created successfully'));
         } catch (error) {
             this.logger.error('Error creating group distribution:', error);
             res.status(error instanceof CustomError ? error.statusCode : 500)

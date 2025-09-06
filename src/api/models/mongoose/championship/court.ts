@@ -19,6 +19,11 @@ export interface ICourtDocument extends ITenantDocument {
         description: string;
         technician?: string;
     }[];
+    schedule?: {
+        matchId: Schema.Types.ObjectId;
+        startTime: Date;
+        endTime: Date;
+    }[];
     createdAt?: Date;
     updatedAt?: Date;
 }
@@ -33,6 +38,12 @@ const MaintenanceSchema = new Schema({
     date: { type: Date, required: true },
     description: { type: String, required: true },
     technician: { type: String }
+}, { _id: false });
+
+const ScheduleSchema = new Schema({
+    matchId: { type: Schema.Types.ObjectId, ref: 'Match', required: false, default: null },
+    startTime: { type: Date, required: false, default: null },
+    endTime: { type: Date, required: false, default: null }
 }, { _id: false });
 
 const CourtSchema = new Schema<ICourtDocument>(
@@ -68,6 +79,7 @@ const CourtSchema = new Schema<ICourtDocument>(
         amenities: [{
             type: String
         }],
+        schedule: [ScheduleSchema],
         maintenanceHistory: [MaintenanceSchema],
         deletedAt: { 
             type: Date, 

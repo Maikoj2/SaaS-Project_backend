@@ -3,6 +3,8 @@ import { ITenantDocument, ITenantModel } from "../../../interfaces";
 import MongooseDelete from 'mongoose-delete';
 import mongoTenant from 'mongo-tenant';
 import mongoosePaginate from 'mongoose-paginate-v2';
+import { Types } from "mongoose";
+import { MatchStatus } from "../../../constants/championshipStatus.constants";
 
 interface IScore {
     homeTeam: number;
@@ -15,15 +17,16 @@ interface IScore {
 }
 
 export interface IMatchDocument extends ITenantDocument {
-    phaseId: Schema.Types.ObjectId;
-    groupId?: Schema.Types.ObjectId;
-    homeTeamId: Schema.Types.ObjectId;
-    awayTeamId: Schema.Types.ObjectId;
-    courtId: Schema.Types.ObjectId;
-    gameFormatId: Schema.Types.ObjectId;
-    statistics: Schema.Types.ObjectId[];
+    championshipId: Types.ObjectId;
+    phaseId?: Types.ObjectId;
+    groupId?: Types.ObjectId;
+    homeTeamId: Types.ObjectId;
+    awayTeamId: Types.ObjectId;
+    courtId?: Types.ObjectId;
+    statistics: Types.ObjectId[];
+    round?: String;
     score?: IScore;
-    status: 'scheduled' | 'in_progress' | 'completed' | 'cancelled';
+    status: MatchStatus;
     startTime?: Date;
     endTime?: Date;
 }
@@ -52,16 +55,21 @@ const ScoreSchema = new Schema({
 
 const MatchSchema = new Schema<IMatchDocument>(
     {
+        championshipId: {
+            type: Schema.Types.ObjectId,
+            ref: 'Championship',
+            required: true
+        },
         phaseId: {
             type: Schema.Types.ObjectId,
             ref: 'Phase',
             required: true
         },
-        level: {
-            type: String,
-            enum: ['round_of_16', 'quarterfinals', 'semifinals', 'final'],
+        groupId: {
+            type: Schema.Types.ObjectId,
+            ref: 'Group',
             required: true
-          },
+        },
         homeTeamId: {
             type: Schema.Types.ObjectId,
             ref: 'Team',
@@ -77,20 +85,16 @@ const MatchSchema = new Schema<IMatchDocument>(
             ref: 'Court',
             required: true
         },
-        gameFormatId: {
-            type: Schema.Types.ObjectId,
-            ref: 'GameFormat',
-            required: true
-        },
+        round: String,
         statistics: [{
             type: Schema.Types.ObjectId,
             ref: 'Statistics'
         }],
         score: ScoreSchema,
         status: {
-            type: String,
-            enum: ['scheduled', 'in_progress', 'completed', 'cancelled'],
-            default: 'scheduled'
+            type: String, 
+            enum: Object.values(MatchStatus),
+            default: MatchStatus.SCHEDULED
         },
         startTime: Date,
         endTime: Date

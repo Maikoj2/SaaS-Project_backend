@@ -14,6 +14,7 @@ export const courtSeeds = [
         location: "Nacional",
         dimensions: "20x40",
         surface: "sand",
+        schedule: [],
         amenities: ["seating", "lighting"],
         maintenanceHistory: []
     },
@@ -25,6 +26,7 @@ export const courtSeeds = [
         location: "Nacional",
         dimensions: "20x40",
         surface: "sand",
+        schedule: [],
         amenities: ["seating", "lighting"],
         maintenanceHistory: []
     },
@@ -36,6 +38,7 @@ export const courtSeeds = [
         location: "Nacional",
         dimensions: "20x40",
         surface: "sand",
+        schedule: [],
         amenities: ["seating", "lighting"],
         maintenanceHistory: []
     },
@@ -49,6 +52,7 @@ export const courtSeeds = [
         dimensions: "16x8",
         surface: "sand",
         amenities: ["shower", "shade"],
+        schedule: [],
         maintenanceHistory: []
     },
     {
@@ -60,6 +64,7 @@ export const courtSeeds = [
         dimensions: "16x8",
         surface: "sand",
         amenities: ["shower", "shade"],
+        schedule: [],
         maintenanceHistory: []
     },
     {
@@ -71,6 +76,7 @@ export const courtSeeds = [
         dimensions: "16x8",
         surface: "sand",
         amenities: ["shower", "shade"],
+        schedule: [],
         maintenanceHistory: []
     }
 ];

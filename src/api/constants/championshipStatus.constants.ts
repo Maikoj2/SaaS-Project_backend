@@ -8,10 +8,12 @@ export enum ChampionshipStatus {
 export enum PhaseStatus {
     PENDING = 'pending',
     IN_PROGRESS = 'in_progress',
-    COMPLETED = 'completed'
+    COMPLETED = 'completed',
+    SCHEDULED = 'scheduled',
+    CANCELLED = 'cancelled'
 }   
 
-export enum ChampionshipType {
+export enum GameFormatType {
     SIMPLE = 'elimination_simple',
     DOUBLE = 'elimination_double',
     GROUPS = 'groups',
@@ -21,4 +23,31 @@ export enum ChampionshipType {
 
 
 }
+export enum GroupDistributionFormatType {
+    SERPENTINE = 'serpentine',
+    LINEAR = 'linear',
+    RANDOM = 'random',
+    CUSTOM = 'custom'
+}
 
+export enum GroupDistributionStatus {
+    DRAFT = 'draft',
+    ACTIVE = 'active',
+    COMPLETED = 'completed'
+}
+
+export enum GroupStatus {
+    ACTIVE = 'active',
+    COMPLETED = 'completed'
+}
+export enum MatchStatus {
+    SCHEDULED = 'scheduled',
+    IN_PROGRESS = 'in_progress',
+    COMPLETED = 'completed',
+    CANCELLED = 'cancelled'
+}
+export enum Gender {
+    MALE = 'male',
+    FEMALE = 'female',
+    MIXED = 'mixed'
+}

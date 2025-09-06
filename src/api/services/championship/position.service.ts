@@ -15,12 +15,13 @@ export class PositionService {
         this.logger = new Logger();
     }
 
-    public autoAssignPositions = async (tenant: string, championshipId: string): Promise<Document<IPositionDocument, any, any>[]> => {
+    public autoAssignPositions = async (tenant: string, championshipId: string): Promise<IPositionDocument[]> => {
         try {
             // Obtener registros confirmados ordenados por fecha de registro
             // Obtener el número total de registros confirmados para el campeonato
             const registrations = await this.getTotalRegistrations(tenant, championshipId);
             this.logger.info(`Registrations found: ${registrations.docs.length}`);
+
 
 
             // Asignar posiciones automáticamente
@@ -34,9 +35,12 @@ export class PositionService {
 
 
             // Guardar posiciones en la base de datos
-            const result = await DatabaseHelper.insertDocumentsConcurrently(Position, tenant, positions);
+            const result: IPositionDocument[] = [];
+            for (const position of positions) { 
+                const newPosition = await DatabaseHelper.create(Position, tenant, position);
+                result.push(newPosition);
+            }
 
-            this.logger.info(`Positions assigned automatically for championship ${championshipId}`);
             return result;
         } catch (error) {
             this.logger.error('Error auto-assigning positions:', error);
@@ -48,10 +52,11 @@ export class PositionService {
         }
     }
 
-    public manualAssignPositions = async (tenant: string, championshipId: string, positions: Array<{ teamId: string, position: number }>): Promise<Document<IPositionDocument, any, any>[]> => {
+    public manualAssignPositions = async (tenant: string, championshipId: string, positions: Array<{ teamId: string, position: number }>): Promise<IPositionDocument[]> => {
         try {
             // Validar y guardar posiciones manualmente
             const positionDocs = positions.map(pos => ({
+
                 championshipId: championshipId as unknown as Types.ObjectId,
                 teamId: pos.teamId as unknown as Types.ObjectId,
                 position: pos.position,
@@ -62,7 +67,12 @@ export class PositionService {
             await DatabaseHelper.deleteMany(Position, tenant, { championshipId });
 
             // Guardar nuevas posiciones
-            const result = await DatabaseHelper.insertDocumentsConcurrently(Position, tenant, positionDocs);
+            const result: IPositionDocument[] = [];
+            for (const position of positionDocs) {
+                const newPosition = await DatabaseHelper.create(Position, tenant, position);
+                result.push(newPosition);
+            }
+
 
             this.logger.info(`Positions assigned manually for championship ${championshipId}`);
             return result;
@@ -72,10 +82,11 @@ export class PositionService {
         }
     }
 
-    public assignPositionByRegistrationId = async (tenant: string, registrationId: string, position: number): Promise<Document<IPositionDocument, any, any>[]> => {
+    public assignPositionByRegistrationId = async (tenant: string, registrationId: string, position: number): Promise<IPositionDocument> => {
         try {
             // Buscar el registro por ID
             const registration = await DatabaseHelper.findOne(Registration, tenant, { _id: new Types.ObjectId(registrationId) });
+
 
             if (!registration) {
                 throw new CustomError('Registration not found', 404, 'PositionServiceError');
@@ -106,7 +117,9 @@ export class PositionService {
             await DatabaseHelper.deleteMany(Position, tenant, { championshipId: registration.championshipId, teamId: registration.teamId });
 
             // Guardar la nueva posición
-            const result = await DatabaseHelper.insertDocumentsConcurrently(Position, tenant, [positionDoc]);
+            const result = await DatabaseHelper.create(Position, tenant, positionDoc);
+
+
 
             this.logger.info(`Position ${position} assigned to team ${registration.teamId} for championship ${registration.championshipId}`);
             return result;
@@ -116,10 +129,11 @@ export class PositionService {
         }
     }
 
-    public assignRandomPositions = async (tenant: string, championshipId: string): Promise<Document<IPositionDocument, any, any>[]> => {
+    public assignRandomPositions = async (tenant: string, championshipId: string): Promise<IPositionDocument[]> => {
         try {
             const registrations = await this.getTotalRegistrations(tenant, championshipId);
             
+
             const uniquePositions = new Set<number>();
             // Generar números aleatorios únicos
             while (uniquePositions.size < registrations.totalDocs) {
@@ -142,7 +156,12 @@ export class PositionService {
             await DatabaseHelper.deleteMany(Position, tenant, { championshipId: new Types.ObjectId(championshipId) });
 
             // Guardar nuevas posiciones
-            const result = await DatabaseHelper.insertDocumentsConcurrently(Position, tenant, positions);
+            const result: IPositionDocument[] = [];
+            for (const position of positions) {
+                const newPosition = await DatabaseHelper.create(Position, tenant, position);
+                result.push(newPosition);
+            }
+
 
             return result;
         } catch (error) {

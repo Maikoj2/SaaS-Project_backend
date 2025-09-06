@@ -51,7 +51,7 @@ const UserSchema = new Schema(
         name: { type: String, required: true },
         lastName: { type: String, required: false },
         typeIdCard: { type: String, required: false, enum: ['CC', 'TI', 'PASSPORT', 'NIE'], default: 'CC' },
-        numberIdCard: { type: String, required: false, unique: true , default: ''},
+        numberIdCard: { type: String, required: false, unique: true , default: '', index: true},
         stepper: { type: Array, default: [] },
         email: {
             type: String,

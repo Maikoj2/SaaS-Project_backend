@@ -3,7 +3,7 @@ import { ITenantDocument, ITenantModel } from '../interfaces/model.interface';
 import { PaginationOptions } from '../interfaces';
 import { Logger } from '../config/logger/WinstonLogger';
 import { Request } from 'express';
-import { FindOptions, UpdateOptions, PopulateOptions     } from '../interfaces/IhelperDatabase';
+import { FindOptions, UpdateOptions, PopulateOptions } from '../interfaces/IhelperDatabase';
 import { CustomError } from '../errors';
 import { ClientSession } from 'mongoose';
 
@@ -16,27 +16,27 @@ export class DatabaseHelper {
         model: Model<T>,
         query: Record<string, any>,
         options: FindOptions = {}
-    ): Promise<T[]>{
+    ): Promise<T[]> {
         const {
             select = [],
             deleted = false,
             throwError = false,
             errorMessage = 'Documents not found'
         } = options;
-    
+
         try {
             const docQuery = model.find(query);
-            
+
             if (select.length > 0) {
                 docQuery.select(select);
             }
-    
+
             const docs = await docQuery;
-            
+
             if (!docs.length && throwError) {
-                    throw new CustomError(errorMessage, 404, 'DatabaseError');
+                throw new CustomError(errorMessage, 404, 'DatabaseError');
             }
-    
+
             return docs;
         } catch (error) {
             if (error instanceof CustomError) throw error;
@@ -94,7 +94,7 @@ export class DatabaseHelper {
         updateData: Partial<T>,
         options: UpdateOptions = {},
         session?: ClientSession
-    ): Promise<T | null>  =>{
+    ): Promise<T | null> => {
         const {
             select = [],
             throwError = true,
@@ -198,11 +198,12 @@ export class DatabaseHelper {
         tenant: string,
         query: Record<string, any>,
         update: Record<string, any>,
-        options: Record<string, any> = {}
+        options: Record<string, any> = {},
+        session?: ClientSession
     ): Promise<T | null> {
         try {
             return await model.byTenant(tenant)
-                .findOneAndUpdate(query, update, options);
+                .findOneAndUpdate(query, update, options).session(session || null);
         } catch (error) {
             throw new CustomError(error instanceof Error ? error.message : 'Database error', 500, 'DatabaseError');
         }
@@ -219,15 +220,20 @@ export class DatabaseHelper {
                 page = 1,
                 limit = 10,
                 sort = { createdAt: -1 },
-                select = []
+                order = -1,
+                select = []  
             } = options;
+
+
 
             const paginateOptions = {
                 page,
                 limit,
                 sort,
+                order,
                 select: select.join(' '),
                 lean: true
+
             };
 
             const result = await model.byTenant(tenant).paginate(query, paginateOptions);
@@ -244,10 +250,11 @@ export class DatabaseHelper {
     static async count<T extends ITenantDocument>(
         model: ITenantModel<T>,
         tenant: string,
-        query: Record<string, any>
+        query: Record<string, any>,
+        session?: ClientSession
     ): Promise<number> {
         try {
-            const count = await model.byTenant(tenant).countDocuments(query);
+            const count = await model.byTenant(tenant).countDocuments(query).session(session || null);
             return count;
         } catch (error) {
             throw new CustomError(
@@ -292,7 +299,8 @@ export class DatabaseHelper {
         relations?: {
             basic?: string[];
             nested?: PopulateOptions[];
-        }
+        },
+        session?: ClientSession
     ): Promise<PaginateResult<T>> {
         try {
             const {
@@ -301,32 +309,29 @@ export class DatabaseHelper {
                 sort = { createdAt: -1 },
                 select = []
             } = options;
-    
+            const querySession = model.byTenant(tenant).find(query).session(session || null)
             const paginateOptions: PaginateOptions = {
                 page,
                 limit,
                 sort,
-                select: select.join(' '),
+                select: select.length > 0 ? select.join(' ') : undefined,
                 lean: true,
-                populate: []
+                populate: [],
             };
-    
+
             if (relations) {
                 paginateOptions.populate = [
                     ...(relations.basic?.map(path => ({ path })) || []),
                     ...(relations.nested || [])
                 ];
             }
-    
-            const result = await model.byTenant(tenant).paginate(query, paginateOptions);
-            console.log('Result:', result);
-            
+            const result = await model.paginate(querySession, paginateOptions);
             return this.cleanPaginationID(result);
         } catch (error) {
             throw new CustomError(
                 error instanceof Error ? error.message : 'Error getting items',
                 422,
-                'DatabaseError' 
+                'DatabaseError'
             );
         }
     }
@@ -401,10 +406,10 @@ export class DatabaseHelper {
             basic?: string[];
             nested?: PopulateOptions[];
         }
-    ): Promise<T > {
+    ): Promise<T> {
         try {
             const doc = await model.byTenant(tenant).create(data);
-    
+
             if (relations) {
                 const docWithRelations = await model.byTenant(tenant)
                     .findById(doc._id)
@@ -414,7 +419,7 @@ export class DatabaseHelper {
                     ]);
                 return docWithRelations as T;
             }
-    
+
             return doc;
         } catch (error) {
             throw new CustomError(
@@ -425,30 +430,34 @@ export class DatabaseHelper {
         }
     }
 
-    static async insertDocumentsConcurrently<T extends ITenantDocument>(
+    static async saveDocumentsIndividually<T extends ITenantDocument>(
         model: ITenantModel<T>,
         tenant: string,
-        documents: Partial<T>[]
-    ): Promise<Document<T>[] > {
-        const insertionPromises = documents.map(async (doc) => {
+        documents: T[],
+        session: ClientSession
+    ): Promise<T[]> {
+        const savedDocs: T[] = [];
+        
+        for (const doc of documents) {
             try {
-                const insertedDoc = await model.byTenant(tenant).create(doc);
-                this.logger.info('Document inserted:', { docId: insertedDoc._id });
-                return insertedDoc;
+                const TenantModel = model.byTenant(tenant); 
+                const newDoc = new TenantModel(doc);
+                await newDoc.save({ session });
+                savedDocs.push(newDoc);
             } catch (error) {
-                this.logger.error('Error inserting document:', { error, document: doc });
-                // Decide si devolver null, lanzar o manejar de otra forma
-                return error; // Opcional, o lanza una excepción
+                await session.abortTransaction();
+                throw new CustomError(
+                    `Error guardando documento: ${error instanceof Error ? error.message : 'Error desconocido'}`,
+                    500,
+                    'DocumentSaveError',
+
+                );
             }
-        });
-    
-        // Esperar a que todas las inserciones se resuelvan
-        const results = await Promise.all(insertionPromises);
-    
-        // Filtrar nulos (si aplicaste manejo de errores)
-        return results.filter((doc): doc is NonNullable<typeof doc> => doc !== null) as Document<T>[];
+        }
+        
+        return savedDocs;
     }
-    
+
     static async deleteMany<T extends ITenantDocument>(
         model: ITenantModel<T>,
         tenant: string,
@@ -485,4 +494,5 @@ export class DatabaseHelper {
         });
         return items;
     }
+
 }

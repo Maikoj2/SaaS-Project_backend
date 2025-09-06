@@ -1,0 +1,19 @@
+1. i must create and complete the CRUD for the user model()
+2. i must create and complete the CRUD for the post model
+3. i must create and complete the CRUD for the comment model
+4. i must create and complete the CRUD for the like model
+5. i must create and complete the CRUD for the follow model
+6. i must create and complete the CRUD for the notification model
+7. i must create and complete the CRUD for the message model    
+8. i must create and complete the CRUD for the championship model
+9. i must create and complete the CRUD for the groupDistribution model
+10. i must create and complete the CRUD for the team model
+11. i must create and complete the CRUD for the player model
+12. i must create and complete the CRUD for the tournament model
+13. i must create and complete the CRUD for the group model
+14. i must create and complete the CRUD for the match model
+15. i must create and complete the CRUD for the score model
+16. i must create and complete the CRUD for the statistic model
+17. i must create and complete the CRUD for the news model
+18. i must create and complete the CRUD for the event model
+

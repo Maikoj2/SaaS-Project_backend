@@ -1,5 +1,18 @@
+import { Types } from 'mongoose';
 import { Logger } from '../api/config/logger';
-type Match = { home: string, away: string, court?: string, startTime?: string, endTime?: string };
+
+import Schema from 'mongoose';
+import { DistributionGroups } from '../api/models/mongoose/championship/groupsDistrubution';
+type Match = {
+    home: string;
+    away: string;
+    round?: string;
+    group?: string;
+    court?: string;
+    startTime?: Date;
+    endTime?: Date;
+};
+
 type RoundsObject = { [key: number]: Match[] };
 
 interface TeamGroup {
@@ -8,7 +21,7 @@ interface TeamGroup {
     grupo: string;
 }
 
-type CourtSchedule = { court: string, times: string[] };
+type CourtSchedule = { court: string, schedule: Array<{ start: Date; end: Date }> };
 
 
 interface GruposDistribuidos {
@@ -17,9 +30,17 @@ interface GruposDistribuidos {
 
 class GroupDistributor {
     private logger: Logger;
+    private BREAK_BETWEEN_MATCHES: number;
 
     constructor() {
         this.logger = new Logger();
+        this.BREAK_BETWEEN_MATCHES = 5;
+    }
+    getBreakBetweenMatches(): number {
+        return this.BREAK_BETWEEN_MATCHES;
+    }
+    setBreakBetweenMatches(breakBetweenMatches: number): void {
+        this.BREAK_BETWEEN_MATCHES = breakBetweenMatches;
     }
 
     generateTeamsNames(cantidad: number): string[] {
@@ -99,12 +120,12 @@ class GroupDistributor {
     }
 
 
-    teamsDistributionSerpentine(cantidadEquipos: number, cantidadGrupos: number): GruposDistribuidos {
+    teamsDistributionSerpentine(cantidadEquipos: number, cantidadGrupos: number): DistributionGroups {
         // Generar lista de equipos
         const equipos = this.generateTeamsNames(cantidadEquipos);
         console.log('Equipos generados:', equipos);
 
-        let grupos: GruposDistribuidos = {};
+        let grupos: DistributionGroups = {};
         // Generar posiciones dinámicamente
         let posiciones = this.generarPosiciones(Math.ceil(cantidadEquipos / cantidadGrupos));
         let nombresGrupos = Array.from(
@@ -134,12 +155,12 @@ class GroupDistributor {
                 const grupoIndex = gruposIndex[i];
                 const nombreGrupo = nombresGrupos[grupoIndex];
                 const equipo = equipos[equipoIndex];
-                const puesto = posiciones[puestoIndex];
+                const puesto = posiciones[puestoIndex]
 
                 grupos[nombreGrupo].push({
-                    equipo,
-                    puesto,
-                    grupo: nombreGrupo
+                    teamId: equipo as any,
+                    position: parseInt(puesto),
+                    group: nombreGrupo
                 });
                 equipoIndex++;
             }
@@ -199,8 +220,8 @@ class GroupDistributor {
         Object.entries(distribuidor).forEach(([nombreGrupo, equipos]) => {
             // console.log(`\n${nombreGrupo}:`);
             // console.table(equipos, ['equipo', 'puesto', 'grupo']);
-            const teams = equipos.map(equipo => equipo.equipo);
-            const matches = this.generateRoundRobinMatches(teams);
+            const teams = equipos.map(equipo => equipo.teamId);
+            const matches = this.generateRoundRobinMatches(teams as any);
             // const scheduledMatches = this.scheduleMatches(matches, courtSchedules);
             const group = {
                 name: nombreGrupo,
@@ -267,41 +288,120 @@ class GroupDistributor {
 
         return rounds;
     }
-    
-    assignMatchesToCourts(matches: Match[], courts: CourtSchedule[]): Match[] {
-        return matches.map((match, index) => {
-            match.court = courts[index % courts.length].court;
-            return match;
-        });
+    reorganizeMatchesByRound(groups: { [key: string]: any }): Match[] {
+        return Object.entries(groups).flatMap(([groupName, rounds]) => 
+            Object.entries(rounds).flatMap(([roundNumber, matches]) => 
+                (matches as any[]).map(match => ({
+                    ...match,
+                    round: `Ronda ${parseInt(roundNumber) }`, // Ronda 1, 2, 3...
+                    group: groupName
+                }))
+            )
+        );
     }
-    reorganizeMatchesByRound(matchesId: RoundsObject[]): Match[] {
-        const allMatches: Match[] = [];
 
-        matchesId.forEach(groupRounds => {
-            Object.entries(groupRounds).forEach(([round, matches]) => {
-
-                allMatches.push(...matches);
-            });
+     // 1. Nueva función para agrupar partidos por ronda-grupo
+     private groupMatchesByRoundGroup(matches: Match[]): Map<string, Match[]> {
+        const groups = new Map<string, Match[]>();
+        
+        matches.forEach(match => {
+            const key = `${match.group}-${match.round}`;
+            if (!groups.has(key)) groups.set(key, []);
+            groups.get(key)?.push(match);
         });
-
-        return allMatches;
+        
+        return groups;
     }
+
+    // 2. Asignación de horarios por bloques de rondas
     assignTimesToMatches(matches: Match[], startTime: string, intervalMinutes: number): Match[] {
-        const start = new Date(`2025-01-12T${startTime}:00`);
-        return matches.map((match, index) => {
-            const matchTime = new Date(start.getTime() + Math.floor(index / 2) * intervalMinutes * 60000);
-const hours = matchTime.getHours().toString().padStart(2, '0');
-const minutes = matchTime.getMinutes().toString().padStart(2, '0');
+        const roundGroups = this.groupMatchesByRoundGroup(matches);
+        const [startHour, startMinute] = startTime.split(':').map(Number);
+        let currentTime = new Date();
+        currentTime.setHours(startHour, startMinute, 0, 0);
 
-// Calcula el tiempo de fin sumando el intervalo
-const endTime = new Date(matchTime.getTime() + intervalMinutes * 60000);
-const endHours = endTime.getHours().toString().padStart(2, '0');
-const endMinutes = endTime.getMinutes().toString().padStart(2, '0');
+        // Ordenar rondas por número
+        const sortedRounds = Array.from(roundGroups.keys()).sort((a, b) => {
+            const roundA = parseInt(a.split('-')[1].replace('Ronda ', ''));
+            const roundB = parseInt(b.split('-')[1].replace('Ronda ', ''));
+            return roundA - roundB;
+        });
 
-match.startTime = `${hours}:${minutes}`;
-match.endTime = `${endHours}:${endMinutes}`;
+        // Asignar mismo horario a todos los partidos de la misma ronda-grupo
+        sortedRounds.forEach(roundKey => {
+            const matchesInRound = roundGroups.get(roundKey) || [];
+            const duration = intervalMinutes;
+            
+            matchesInRound.forEach(match => {
+                match.startTime = new Date(currentTime);
+                match.endTime = new Date(currentTime.getTime() + duration * 60000);
+            });
 
-            return match;
+            // Avanzar el tiempo solo después de procesar toda la ronda
+            currentTime = new Date(currentTime.getTime() + (duration + 5) * 60000); // +5 min entre rondas
+        });
+
+        return matches;
+    }
+
+    
+
+    // 3. Asignación balanceada de canchas por ronda
+    assignMatchesToCourts(matches: Match[], courts: CourtSchedule[]): Match[] {
+        const courtList = [...courts];
+        let currentCourtIndex = 0;
+
+        // Ordenar partidos por horario y grupo
+        const sortedMatches = [...matches].sort((a, b) => {
+            const timeDiff = a.startTime!.getTime() - b.startTime!.getTime();
+            if (timeDiff !== 0) return timeDiff;
+            return (a.group || '').localeCompare(b.group || '');
+        });
+
+        return sortedMatches.map(match => {
+            // Buscar cancha disponible en este horario
+            const availableCourt = courtList.find(court => 
+                !court.schedule.some(s => 
+                    match.startTime! < s.end && 
+                    match.endTime! > s.start
+                )
+            );
+
+            if (availableCourt) {
+                availableCourt.schedule.push({
+                    start: match.startTime!,
+                    end: match.endTime!
+                });
+                return { ...match, court: availableCourt.court };
+            }
+
+            // Rotación circular de canchas si todas están ocupadas
+            currentCourtIndex = (currentCourtIndex + 1) % courtList.length;
+            const defaultCourt = courtList[currentCourtIndex];
+            defaultCourt.schedule.push({
+                start: match.startTime!,
+                end: match.endTime!
+            });
+            return { ...match, court: defaultCourt.court };
+        });
+    }
+    printSchedule(matches: Match[]) {
+        const scheduleByCourt = matches.reduce((acc, match) => {
+            const court = match.court || 'Sin asignar';
+            acc[court] = acc[court] || [];
+            acc[court].push(match);
+            return acc;
+        }, {} as Record<string, Match[]>);
+        console.log('scheduleByCourt', scheduleByCourt);
+
+        Object.entries(scheduleByCourt).forEach(([court, matches]) => {
+            console.log(`\n${court}:`);
+            console.table(matches.map(m => ({
+                Horario: `${m.startTime?.toLocaleTimeString()} - ${m.endTime?.toLocaleTimeString()}`,
+                Partido: `${m.home} vs ${m.away}`,
+                Grupo: m.group,
+                Ronda: m.round
+            })));
         });
     }
 
@@ -320,134 +420,150 @@ const distributor = new GroupDistributor();
 // console.log('\nPrueba con 48 equipos:');
 // distributor.serpentineFormat(12, 4); 
 
-console.log('\nPrueba con 12 equipos:');
-// distributor.serpentineFormat(32, 8); 
+console.log('\nPrueba con 32 equipos:');
+const groupDistribution = distributor.serpentineFormat( 12, 3
 
-const matches: RoundsObject[] = [
-    {
-        "1": [
-            {
-                "home": "Águilas de Arena",
-                "away": "Lobos del Oeste"
-            },
-            {
-                "home": "Orcas Volley",
-                "away": "Pumas del Sol"
-            }
-        ],
-        "2": [
-            {
-                "home": "Águilas de Arena",
-                "away": "Pumas del Sol"
-            },
-            {
-                "home": "Lobos del Oeste",
-                "away": "Orcas Volley"
-            }
-        ],
-        "3": [
-            {
-                "home": "Águilas de Arena",
-                "away": "Orcas Volley"
-            },
-            {
-                "home": "Pumas del Sol",
-                "away": "Lobos del Oeste"
-            }
-        ]
-    },
-    {
-        "1": [
-            {
-                "home": "Leones de Playa",
-                "away": "Panteras del Este"
-            },
-            {
-                "home": "Tiburones Beach",
-                "away": "Cóndores del Viento"
-            }
-        ],
-        "2": [
-            {
-                "home": "Leones de Playa",
-                "away": "Cóndores del Viento"
-            },
-            {
-                "home": "Panteras del Este",
-                "away": "Tiburones Beach"
-            }
-        ],
-        "3": [
-            {
-                "home": "Leones de Playa",
-                "away": "Tiburones Beach"
-            },
-            {
-                "home": "Cóndores del Viento",
-                "away": "Panteras del Este"
-            }
-        ]
-    },
-    {
-        "1": [
-            {
-                "home": "Tigres del Mar",
-                "away": "Jaguares del Sur"
-            },
-            {
-                "home": "Delfines FC",
-                "away": "Halcones del Norte"
-            }
-        ],
-        "2": [
-            {
-                "home": "Tigres del Mar",
-                "away": "Halcones del Norte"
-            },
-            {
-                "home": "Jaguares del Sur",
-                "away": "Delfines FC"
-            }
-        ],
-        "3": [
-            {
-                "home": "Tigres del Mar",
-                "away": "Delfines FC"
-            },
-            {
-                "home": "Halcones del Norte",
-                "away": "Jaguares del Sur"
-            }
-        ]
-    }
-];
+);
 
-const courtSchedules: CourtSchedule[] = [
-    { court: 'Cancha #1', times: ['Mañana', 'Tarde'] },
-    { court: 'Cancha #2', times: ['Mañana', 'Tarde'] }
-];
-const startTime = '07:00';
-const intervalMinutes = 45;
+console.log('groupDistribution', groupDistribution);
 
-console.log(matches);
+const allGroupMatches: { [key: string]: RoundsObject } = {};
 
-const organizedMatches = distributor.reorganizeMatchesByRound(matches);
+Object.entries(groupDistribution).forEach(([groupName, teams]) => {
+    // Extrae los nombres de los equipos
+    const teamNames = teams.map(team => team.teamId);
 
-console.log(organizedMatches);
-
-const assignedCourts = distributor.assignMatchesToCourts(organizedMatches, courtSchedules);
-
-console.log(assignedCourts);
-// Separar y mostrar los partidos por cancha
-const scheduledMatches = distributor.assignTimesToMatches(assignedCourts, startTime, intervalMinutes);
-const courts = [...new Set(assignedCourts.map(match => match.court))];
-
-courts.forEach(court => {
-    console.log(`\n${court}:`); 
-    const matchesForCourt = scheduledMatches.filter(match => match.court === court);
-    console.table(matchesForCourt.map(match => ({
-    
-        Horario: `${match.startTime}-${match.endTime}` ,
-        Partido: `${match.home} vs ${match.away}`
-    })));
+    // Genera los partidos en formato round-robin
+    const matches = distributor.generateRoundRobinMatches(teamNames as any);
+    console.log('matches', matches);
+    // Muestra los partidos generados para cada grupo
+    allGroupMatches[groupName] = matches;
 });
+
+console.log('allGroupMatches', JSON.stringify(allGroupMatches, null, 2));
+//     {
+//         "1": [
+//             {
+//                 "home": "Águilas de Arena",
+//                 "away": "Lobos del Oeste"
+//             },
+//             {
+//                 "home": "Orcas Volley",
+//                 "away": "Pumas del Sol"
+//             }
+//         ],
+//         "2": [
+//             {
+//                 "home": "Águilas de Arena",
+//                 "away": "Pumas del Sol"
+//             },
+//             {
+//                 "home": "Lobos del Oeste",
+//                 "away": "Orcas Volley"
+//             }
+//         ],
+//         "3": [
+//             {
+//                 "home": "Águilas de Arena",
+//                 "away": "Orcas Volley"
+//             },
+//             {
+//                 "home": "Pumas del Sol",
+//                 "away": "Lobos del Oeste"
+//             }
+//         ]
+//     },
+//     {
+//         "1": [
+//             {
+//                 "home": "Leones de Playa",
+//                 "away": "Panteras del Este"
+//             },
+//             {
+//                 "home": "Tiburones Beach",
+//                 "away": "Cóndores del Viento"
+//             }
+//         ],
+//         "2": [
+//             {
+//                 "home": "Leones de Playa",
+//                 "away": "Cóndores del Viento"
+//             },
+//             {
+//                 "home": "Panteras del Este",
+//                 "away": "Tiburones Beach"
+//             }
+//         ],
+//         "3": [
+//             {
+//                 "home": "Leones de Playa",
+//                 "away": "Tiburones Beach"
+//             },
+//             {
+//                 "home": "Cóndores del Viento",
+//                 "away": "Panteras del Este"
+//             }
+//         ]
+//     },
+//     {
+//         "1": [
+//             {
+//                 "home": "Tigres del Mar",
+//                 "away": "Jaguares del Sur"
+//             },
+//             {
+//                 "home": "Delfines FC",
+//                 "away": "Halcones del Norte"
+//             }
+//         ],
+//         "2": [
+//             {
+//                 "home": "Tigres del Mar",
+//                 "away": "Halcones del Norte"
+//             },
+//             {
+//                 "home": "Jaguares del Sur",
+//                 "away": "Delfines FC"
+//             }
+//         ],
+//         "3": [
+//             {
+//                 "home": "Tigres del Mar",
+//                 "away": "Delfines FC"
+//             },
+//             {
+//                 "home": "Halcones del Norte",
+//                 "away": "Jaguares del Sur"
+//             }
+//         ]
+//     }
+// ];
+
+
+const START_TIME = '08:00';
+const INTERVAL_MINUTES = 45;
+
+
+// 3. Asignar canchas con rotación balanceada
+const courtSchedules: CourtSchedule[] = [
+    { court: 'Cancha #1', schedule: [] },
+    { court: 'Cancha #2', schedule: [] },
+    { court: 'Cancha #3', schedule: [] },
+    { court: 'Cancha #4', schedule: [] },
+
+];
+const organizedMatches = distributor.reorganizeMatchesByRound(allGroupMatches);
+console.log('organizedMatches', organizedMatches);
+
+// 2. Asignar horarios por bloques de rondas
+const matchesWithTimes = distributor.assignTimesToMatches(organizedMatches, START_TIME, INTERVAL_MINUTES);
+console.log('matchesWithTimes', matchesWithTimes);
+
+
+const finalMatches = distributor.assignMatchesToCourts(matchesWithTimes, courtSchedules);
+
+console.log('finalMatches', finalMatches);
+console.log('courtSchedules',  JSON.stringify(courtSchedules, null, 2) );
+
+// 4. Mostrar resultados
+distributor.printSchedule(finalMatches);

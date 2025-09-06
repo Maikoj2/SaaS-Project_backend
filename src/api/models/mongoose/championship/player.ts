@@ -178,7 +178,6 @@ const PlayerSchema = new Schema<IPlayerDocument>(
 
 // Índices
 PlayerSchema.index({ status: 1 });
-PlayerSchema.index({ userId: 1 }, { unique: true });
 
 
 // Middleware pre-save para verificar rol de usuario

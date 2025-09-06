@@ -39,5 +39,7 @@ export interface PaginationOptions {
     page?: number;
     limit?: number;
     sort?: Record<string, 1 | -1>;
+    order?: string;
     select?: string[];
+
 }

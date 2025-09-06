@@ -1,10 +1,12 @@
-import { model, Schema } from "mongoose";
+import { model, Schema, Types } from "mongoose";
 import { ITenantDocument, ITenantModel } from "../../../interfaces";
 import MongooseDelete from 'mongoose-delete';
 import mongoTenant from 'mongo-tenant';
 import mongoosePaginate from 'mongoose-paginate-v2';
-import { ChampionshipType, IChampionshipDocument } from "./championship";
+import {  IChampionshipDocument } from "./championship";
 import { IGameFormatDocument } from "./gameFormat";
+import { GameFormatType, Gender } from "../../../constants/championshipStatus.constants";
+
 
 // Interfaces
 interface ITieBreakerCriteria {
@@ -14,16 +16,17 @@ interface ITieBreakerCriteria {
 }
 
 export interface IConfigurationDocument extends ITenantDocument {
-    championshipId: Schema.Types.ObjectId | IChampionshipDocument;
+    championshipId:  Types.ObjectId | IChampionshipDocument;
     maxTeams: number;
-    courts: Schema.Types.ObjectId[];
-    gameFormatId: Schema.Types.ObjectId | IGameFormatDocument;
+    gender: Gender;
+    courts: Types.ObjectId[];
+    gameFormatId: Types.ObjectId | IGameFormatDocument;
     tieBreakerCriteria: ITieBreakerCriteria;
     customRules?: string;
     matchDurationLimit?: number;
     setDurationLimit?: number;
     registrationDeadline: Date;
-    competitionType: ChampionshipType;
+    competitionType: GameFormatType;
     registrationFee: number;
     tournamentBracket?: any;
     matchFormatId: Schema.Types.ObjectId;
@@ -70,11 +73,17 @@ const ChampionshipConfigurationSchema = new Schema<IConfigurationDocument>(
             type: Schema.Types.ObjectId,
             ref: 'Court'
         }],
+        gender: {
+            type: String,
+            enum: Object.values(Gender),
+            required: true,
+            default: Gender.MALE
+        },
         competitionType: {
             type: String,
-            enum: ['elimination', 'double-elimination', 'group-classification', 'round-robin', 'custom'],
+            enum: Object.values(GameFormatType),
             required: true,
-            default: 'elimination'
+            default: GameFormatType.GROUPS_AND_ELIMINATION
         },
         tournamentBracket: {
             type: Object,
