@@ -9,7 +9,10 @@ export const roleAuthorization = (allowedRoles: string[]) => {
     
     return async (req: ICustomRequest, res: Response, next: NextFunction) => {
         try {
-            logger.info('roleAuthorization middleware' , req.user);
+            logger.info('roleAuthorization middleware', {
+                userId: req.user?._id,
+                role: req.user?.role,
+            });
             const userRole = req.user?.role;
 
             if (!userRole || !allowedRoles.includes(userRole)) {

@@ -103,7 +103,7 @@ export class AuthService {
         // Generar token y respuesta
 
         const userInfo = this.formatUserResponse(user);
-        const token = this.tokenService.generateToken(user._id.toString());
+        const token = this.tokenService.generateToken(user._id.toString(), tenant);
         await this.registerUserReferred(userReferred as string, user, tenant)
         const settings = await this.settingsService.getSettings(tenant);
 
@@ -141,8 +141,7 @@ export class AuthService {
         try {
 
             this.logger.info('Verifying user:', {
-                tenant,
-                verificationId
+                tenant
             });
 
             // Buscar usuario con el código de verificación
@@ -179,7 +178,7 @@ export class AuthService {
 
             this.logger.info('User verified successfully:', {
                 tenant,
-                updatedUser
+                userId: updatedUser?._id
             });
 
             return {
@@ -188,7 +187,7 @@ export class AuthService {
             };
         } catch (error) {
             this.logger.error('Verification error:', {
-                error,
+                error: error instanceof Error ? { name: error.name, message: error.message } : error,
                 tenant
             });
             throw new CustomError(
@@ -211,17 +210,22 @@ export class AuthService {
         }
 
         // Verificar refresh token
-        const decoded = this.tokenService.getUserIdFromToken(refreshToken);
+        const decoded = this.tokenService.getPayloadFromRefreshToken(refreshToken);
+
+        // Validar que el tenant del token coincida con el tenant de la petición
+        if (decoded.tenant !== tenant) {
+            throw new CustomError('Token not valid for this tenant domain', 401, 'AuthServiceError');
+        }
 
         // Buscar usuario
-        const user = await User.byTenant(tenant).findById(decoded);
+        const user = await User.byTenant(tenant).findById(decoded.userId);
 
         if (!user) {
             throw new CustomError('User not found', 404, 'AuthServiceError');
         }
 
         // Generar nuevos tokens
-        const tokens = this.tokenService.generateToken(user._id.toString());
+        const tokens = this.tokenService.generateToken(user._id.toString(), tenant);
 
         return {
             token: tokens,
@@ -298,8 +302,12 @@ export class AuthService {
                 message: 'Email recovery sent'
             };
         } catch (error) {
-            this.logger.error('Error in forgot password:', error);
-            throw new CustomError('Error in forgot password process', 500, 'AuthServiceError');
+            this.logger.error('Error in forgot password:', error instanceof Error ? { name: error.name, message: error.message } : error);
+            throw new CustomError(
+                error instanceof CustomError ? error.message : 'Error in forgot password process',
+                error instanceof CustomError ? error.statusCode : 500,
+                'AuthServiceError'
+            );
         }
     }
 
@@ -334,11 +342,6 @@ export class AuthService {
         await this.checkLoginAttemptsAndBlockExpires(user);
         // Verificar contraseña
         const isPasswordMatch = await PasswordUtil.comparePassword(data.password, user.password);
-        this.logger.info('Password comparison result:', {
-            isPasswordMatch,
-            passwordLength: data.password.length,
-            hashLength: user.password.length
-        });
         if (!isPasswordMatch) {
             await this.passwordsDoNotMatch(user);
             throw new CustomError('Invalid credentials', 401, 'AuthServiceError');
@@ -348,7 +351,7 @@ export class AuthService {
         user.blockExpires = new Date(0);
         await user.save();
 
-        const token = this.tokenService.generateToken(user._id.toString());
+        const token = this.tokenService.generateToken(user._id.toString(), data.tenant);
         const userInfo = this.formatUserResponse(user);
         const settings = await this.settingsService.getSettings(data.tenant);
 
@@ -398,8 +401,12 @@ export class AuthService {
 
             return { message: 'Password updated successfully' };
         } catch (error) {
-            this.logger.error('Error in reset password:', error);
-            throw new CustomError('Error in reset password', 500, 'AuthServiceError');
+            this.logger.error('Error in reset password:', error instanceof Error ? { name: error.name, message: error.message } : error);
+            throw new CustomError(
+                error instanceof CustomError ? error.message : 'Error in reset password',
+                error instanceof CustomError ? error.statusCode : 500,
+                'AuthServiceError'
+            );
         }
     }
 
@@ -434,8 +441,12 @@ export class AuthService {
             this.logger.info('Forgot password record created:', { id: forgotPassword._id });
             return forgotPassword;
         } catch (error) {
-            this.logger.error('Error saving forgot password:', error);
-            throw new CustomError('Error saving forgot password request', 422, 'AuthServiceError');
+            this.logger.error('Error saving forgot password:', error instanceof Error ? { name: error.name, message: error.message } : error);
+            throw new CustomError(
+                error instanceof CustomError ? error.message : 'Error saving forgot password request',
+                error instanceof CustomError ? error.statusCode : 422,
+                'AuthServiceError'
+            );
         }
     }
 

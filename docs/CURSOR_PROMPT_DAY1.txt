@@ -1,0 +1,19 @@
+Read:
+
+docs/PROJECT_CONTEXT.md
+docs/BUSINESS_RULES.md
+docs/CURRENT_TASK.md
+
+Act as CTO.
+
+Analyze the project context.
+
+Generate:
+
+1. Missing architecture decisions
+2. Missing business rules
+3. Risks in multi-tenancy
+4. Risks in security
+5. Suggested improvements
+
+Do not generate code.
