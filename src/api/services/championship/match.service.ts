@@ -1,115 +1,95 @@
+import { Injectable } from "@decorators/di";
+import { DatabaseHelper } from "../../utils/database.helper";
+import Match, { IMatchDocument } from "../../models/mongoose/championship/match";
+import Statistics from "../../models/mongoose/championship/statistics";
+import { PaginateResult } from "mongoose";
+import { MatchStatus } from "../../constants/championshipStatus.constants";
+import { Team } from "../../models/mongoose/championship/team";
+import { Phase } from "../../models/mongoose/championship/phase";
+import { Court } from "../../models/mongoose/championship/court";
 
-import { Match } from '../../models/championship/match.model';
-import { Team } from '../../models/championship/team.model';
-import { Phase } from '../../models/championship/phase.model';
-import { Group } from '../../models/championship/group.model';
-import { Court } from '../../models/championship/court.model';
-import { Referee } from '../../models/championship/referee.model';
-import { Statistics } from '../../models/championship/statistics.model';
-import { Op } from 'sequelize';
-
-interface MatchFilters {
-  championship_id?: string;
-  phase_id?: string;
-  group_id?: string;
-  status?: string;
-}
-
+@Injectable()
 export class MatchService {
-  public async createMatch(matchData: any): Promise<Match> {
+
+  public async createMatch(tenant: string, matchData: Partial<IMatchDocument>): Promise<IMatchDocument> {
     try {
       // Validate teams exist and are different
-      const team1 = await Team.findByPk(matchData.team1_id);
-      const team2 = await Team.findByPk(matchData.team2_id);
+      if (matchData.homeTeamId && matchData.awayTeamId) {
+        const team1 = await Team.findById(matchData.homeTeamId);
+        const team2 = await Team.findById(matchData.awayTeamId);
 
-      if (!team1 || !team2) {
-        throw new Error('One or both teams not found');
-      }
+        if (!team1 || !team2) {
+          throw new Error('One or both teams not found');
+        }
 
-      if (matchData.team1_id === matchData.team2_id) {
-        throw new Error('A team cannot play against itself');
+        if (matchData.homeTeamId.toString() === matchData.awayTeamId.toString()) {
+          throw new Error('A team cannot play against itself');
+        }
       }
 
       // Validate phase exists
-      if (matchData.phase_id) {
-        const phase = await Phase.findByPk(matchData.phase_id);
+      if (matchData.phaseId) {
+        const phase = await Phase.findById(matchData.phaseId);
         if (!phase) {
           throw new Error('Phase not found');
         }
       }
 
-      // Validate court exists and is available
-      if (matchData.court_id) {
-        const court = await Court.findByPk(matchData.court_id);
+      // Validate court exists
+      if (matchData.courtId) {
+        const court = await Court.findById(matchData.courtId);
         if (!court) {
           throw new Error('Court not found');
         }
-
-        if (court.status !== 'available') {
-          throw new Error('Court is not available');
-        }
       }
 
-      const match = await Match.create(matchData);
+      const match = await DatabaseHelper.create(Match, tenant, matchData);
       return match;
     } catch (error: any) {
       throw new Error(`Error creating match: ${error.message}`);
     }
   }
 
-  public async getAllMatches(filters: MatchFilters): Promise<Match[]> {
+  public async getAllMatches(
+    tenant: string,
+    page: number,
+    limit: number,
+    sort: Record<string, 1 | -1>,
+    order: string,
+    filters: any = {}
+  ): Promise<PaginateResult<IMatchDocument>> {
     try {
-      const whereClause: any = {};
-      const includeClause: any = [
+      const query: any = {};
+
+      if (filters.championshipId) query.championshipId = filters.championshipId;
+      if (filters.phaseId) query.phaseId = filters.phaseId;
+      if (filters.groupId) query.groupId = filters.groupId;
+      if (filters.courtId) query.courtId = filters.courtId;
+      if (filters.status) query.status = filters.status;
+      if (filters.date) {
+        const date = new Date(filters.date);
+        const nextDay = new Date(date);
+        nextDay.setDate(date.getDate() + 1);
+        query.startTime = { $gte: date, $lt: nextDay };
+      }
+
+      const matches = await DatabaseHelper.getItemsWithRelations(
+        Match,
+        tenant,
+        query,
+        { page, limit, sort, order },
         {
-          model: Team,
-          as: 'team1',
-          attributes: ['id', 'name']
-        },
-        {
-          model: Team,
-          as: 'team2',
-          attributes: ['id', 'name']
-        },
-        {
-          model: Phase,
-          as: 'phase',
-          attributes: ['id', 'name', 'type']
-        },
-        {
-          model: Court,
-          as: 'court',
-          attributes: ['id', 'name', 'location']
-        },
-        {
-          model: Referee,
-          as: 'referee',
-          attributes: ['id', 'name']
+          nested: [
+            { path: 'homeTeamId', select: 'name' },
+            { path: 'awayTeamId', select: 'name' },
+            { path: 'phaseId', select: 'name type' },
+            { path: 'groupId', select: 'name' },
+            { path: 'courtId', select: 'name location' },
+            { path: 'refereeId', select: 'name' },
+            { path: 'statistics' }
+          ]
         }
-      ];
-
-      if (filters.championship_id) {
-        includeClause[0].where = { championship_id: filters.championship_id };
-        includeClause[1].where = { championship_id: filters.championship_id };
-      }
-
-      if (filters.phase_id) {
-        whereClause.phase_id = filters.phase_id;
-      }
-
-      if (filters.group_id) {
-        whereClause.group_id = filters.group_id;
-      }
-
-      if (filters.status) {
-        whereClause.status = filters.status;
-      }
-
-      const matches = await Match.findAll({
-        where: whereClause,
-        include: includeClause,
-        order: [['scheduled_date', 'ASC']]
-      });
+      );
 
       return matches;
     } catch (error: any) {
@@ -117,112 +97,92 @@ export class MatchService {
     }
   }
 
-  public async getMatchById(id: number): Promise<Match | null> {
+  public async getMatchById(id: string, tenant: string): Promise<IMatchDocument | null> {
     try {
-      const match = await Match.findByPk(id, {
-        include: [
-          {
-            model: Team,
-            as: 'team1',
-            attributes: ['id', 'name']
-          },
-          {
-            model: Team,
-            as: 'team2',
-            attributes: ['id', 'name']
-          },
-          {
-            model: Phase,
-            as: 'phase',
-            attributes: ['id', 'name', 'type']
-          },
-          {
-            model: Group,
-            as: 'group',
-            attributes: ['id', 'name']
-          },
-          {
-            model: Court,
-            as: 'court',
-            attributes: ['id', 'name', 'location']
-          },
-          {
-            model: Referee,
-            as: 'referee',
-            attributes: ['id', 'name']
-          },
-          {
-            model: Statistics,
-            as: 'statistics'
-          }
-        ]
-      });
-
+      const match = await DatabaseHelper.findOneWithRelations(
+        Match,
+        tenant,
+        { _id: id },
+        {
+          nested: [
+            { path: 'homeTeamId', select: 'name' },
+            { path: 'awayTeamId', select: 'name' },
+            { path: 'phaseId', select: 'name type' },
+            { path: 'groupId', select: 'name' },
+            { path: 'courtId', select: 'name location' },
+            { path: 'refereeId', select: 'name' },
+            { path: 'statistics' }
+          ]
+        }
+      );
       return match;
     } catch (error: any) {
       throw new Error(`Error retrieving match: ${error.message}`);
     }
   }
 
-  public async updateMatch(id: number, updateData: any): Promise<Match | null> {
+  public async updateMatch(id: string, updateData: any): Promise<IMatchDocument | null> {
     try {
-      const match = await Match.findByPk(id);
+      const match = await Match.findById(id);
       if (!match) {
         return null;
       }
 
       // Prevent updating finished matches
-      if (match.status === 'finished' && updateData.status !== 'finished') {
+      if (match.status === MatchStatus.COMPLETED && updateData.status !== MatchStatus.COMPLETED) {
         throw new Error('Cannot modify a finished match');
       }
 
-      await match.update(updateData);
-      return match;
+      const updatedMatch = await Match.findByIdAndUpdate(id, updateData, { new: true });
+      return updatedMatch;
     } catch (error: any) {
       throw new Error(`Error updating match: ${error.message}`);
     }
   }
 
-  public async deleteMatch(id: number): Promise<boolean> {
+  public async deleteMatch(id: string): Promise<boolean> {
     try {
-      const match = await Match.findByPk(id);
+      const match = await Match.findById(id);
       if (!match) {
         return false;
       }
 
       // Prevent deleting matches that have started or finished
-      if (match.status === 'in_progress' || match.status === 'finished') {
+      if (match.status === MatchStatus.IN_PROGRESS || match.status === MatchStatus.COMPLETED) {
         throw new Error('Cannot delete a match that has started or finished');
       }
 
       // Check if match has statistics
-      const statsCount = await Statistics.count({ where: { match_id: id } });
-      if (statsCount > 0) {
-        throw new Error('Cannot delete match with existing statistics');
+      // Assuming Statistics model has matchId
+      if (Statistics) {
+        const statsCount = await Statistics.countDocuments({ matchId: id });
+        if (statsCount > 0) {
+          throw new Error('Cannot delete match with existing statistics');
+        }
       }
 
-      await match.destroy();
+      await match.delete();
       return true;
     } catch (error: any) {
       throw new Error(`Error deleting match: ${error.message}`);
     }
   }
 
-  public async startMatch(id: number): Promise<Match> {
+  public async startMatch(id: string): Promise<IMatchDocument> {
     try {
-      const match = await Match.findByPk(id);
+      const match = await Match.findById(id);
       if (!match) {
         throw new Error('Match not found');
       }
 
-      if (match.status !== 'scheduled') {
+      if (match.status !== MatchStatus.SCHEDULED) {
         throw new Error('Only scheduled matches can be started');
       }
 
-      await match.update({
-        status: 'in_progress',
-        actual_start_time: new Date()
-      });
+      match.status = MatchStatus.IN_PROGRESS;
+      match.startTime = new Date();
+
+      await match.save();
 
       return match;
     } catch (error: any) {
@@ -230,27 +190,26 @@ export class MatchService {
     }
   }
 
-  public async finishMatch(id: number, team1Score: number, team2Score: number): Promise<Match> {
+  public async finishMatch(id: string, homeTeamScore: number, awayTeamScore: number): Promise<IMatchDocument> {
     try {
-      const match = await Match.findByPk(id);
+      const match = await Match.findById(id);
       if (!match) {
         throw new Error('Match not found');
       }
 
-      if (match.status !== 'in_progress') {
+      if (match.status !== MatchStatus.IN_PROGRESS) {
         throw new Error('Only matches in progress can be finished');
       }
 
-      const winnerId = team1Score > team2Score ? match.team1_id : 
-                      team2Score > team1Score ? match.team2_id : null;
+      const winnerId = homeTeamScore > awayTeamScore ? match.homeTeamId :
+        awayTeamScore > homeTeamScore ? match.awayTeamId : null;
 
-      await match.update({
-        status: 'finished',
-        team1_score: team1Score,
-        team2_score: team2Score,
-        winner_id: winnerId,
-        actual_end_time: new Date()
-      });
+      match.status = MatchStatus.COMPLETED;
+      match.score = { homeTeam: homeTeamScore, awayTeam: awayTeamScore };
+      match.winnerId = winnerId as any;
+      match.endTime = new Date();
+
+      await match.save();
 
       return match;
     } catch (error: any) {
@@ -258,26 +217,22 @@ export class MatchService {
     }
   }
 
-  public async getMatchStatistics(matchId: number): Promise<Statistics[]> {
+  public async getMatchStatistics(matchId: string): Promise<any[]> {
     try {
-      const statistics = await Statistics.findAll({
-        where: { match_id: matchId },
-        include: [
-          {
-            model: Player,
-            as: 'player',
-            attributes: ['id', 'name', 'jersey_number'],
-            include: [
-              {
-                model: Team,
-                as: 'team',
-                attributes: ['id', 'name']
-              }
-            ]
+      // Assuming Statistics model exists and has matchId
+      if (!Statistics) {
+        return [];
+      }
+      const statistics = await Statistics.find({ matchId: matchId })
+        .populate({
+          path: 'playerId',
+          select: 'name jerseyNumber',
+          populate: {
+            path: 'teamId',
+            select: 'name'
           }
-        ],
-        order: [['player', 'team', 'name'], ['player', 'jersey_number']]
-      });
+        })
+        .sort({ 'playerId.name': 1 });
 
       return statistics;
     } catch (error: any) {

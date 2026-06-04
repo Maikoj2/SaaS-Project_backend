@@ -6,14 +6,13 @@ import { AuthRole } from '../../models/apiRoutes/auth/authRoutes';
 import { auth, origin } from '../../middlewares';
 import { GameFormatController } from '../../controllers/championShip/gameFormat.controller';
 import trimRequest from 'trim-request';
-import { validateCreateGameFormat } from '../../validators/championships/gameformat.validator';
-import { gameFormatValidate } from '../../validators/championships/gameFormat.validaror';
+import { gameFormatValidate } from '../../validators/championships/gameFormat.validator';
 
 const gameFormatController = new GameFormatController();
-const app: Express = express();
+const Router = express.Router();
 
 // Get all game formats
-app.get('/', [
+Router.get('/', [
     origin.checkDomain as RequestHandler,
     origin.checkTenant as RequestHandler,
     auth as RequestHandler,
@@ -26,7 +25,7 @@ app.get('/', [
 
 
 // Create game format
-app.post('/', [
+Router.post('/', [
     origin.checkDomain as RequestHandler,
     origin.checkTenant as RequestHandler,
     auth as RequestHandler,
@@ -34,10 +33,10 @@ app.post('/', [
     handleAuthError,
     roleAuthorization([AuthRole.ADMIN]),
     trimRequest.all,
-    validateCreateGameFormat
+    gameFormatValidate.create
 ], gameFormatController.create as RequestHandler);
 
-app.patch( '/:id', [
+Router.patch('/:id', [
     origin.checkDomain as RequestHandler,
     origin.checkTenant as RequestHandler,
     auth as RequestHandler,
@@ -45,7 +44,7 @@ app.patch( '/:id', [
     handleAuthError,
     roleAuthorization([AuthRole.ADMIN]),
     trimRequest.all,
-    // validateUpdateGameFormat
+    gameFormatValidate.update
 ], gameFormatController.update as RequestHandler);
 
-export default app;
+export default Router;

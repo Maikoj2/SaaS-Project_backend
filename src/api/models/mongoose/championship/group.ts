@@ -5,7 +5,7 @@ import mongoTenant from 'mongo-tenant';
 import mongoosePaginate from 'mongoose-paginate-v2';
 import { GroupStatus } from "../../../constants/championshipStatus.constants";
 
-interface ITeamRankingDocument  {
+interface ITeamRankingDocument {
     teamId: Schema.Types.ObjectId;
     position: number;
     points: number;
@@ -25,7 +25,8 @@ interface ITeamRankingDocument  {
 
 export interface IGroupDocument extends ITenantDocument {
     championshipId: Types.ObjectId;
-    groupDistributionId: Types.ObjectId;
+    phaseId: Types.ObjectId;
+    groupDistributionId?: Types.ObjectId;
     name: string;
     teams: Types.ObjectId[];
     matches?: Types.ObjectId[];
@@ -111,10 +112,15 @@ const GroupSchema = new Schema<IGroupDocument>(
             ref: 'Championship',
             required: true
         },
+        phaseId: {
+            type: Schema.Types.ObjectId,
+            ref: 'Phase',
+            required: true
+        },
         groupDistributionId: {
             type: Schema.Types.ObjectId,
             ref: 'GroupDistribution',
-            required: true
+            required: false
         },
         name: {
             type: String,

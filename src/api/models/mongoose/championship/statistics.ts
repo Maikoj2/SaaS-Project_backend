@@ -1,76 +1,74 @@
-import { model, Schema } from "mongoose";
+import { model, Schema, Types } from "mongoose";
 import { ITenantDocument, ITenantModel } from "../../../interfaces";
 import MongooseDelete from 'mongoose-delete';
 import mongoTenant from 'mongo-tenant';
 import mongoosePaginate from 'mongoose-paginate-v2';
 
-export interface IPhaseDocument extends ITenantDocument {
-    championshipId: Schema.Types.ObjectId;
-    name: string;
-    order: number;
-    previousPhaseId?: Schema.Types.ObjectId;
-    nextPhaseId?: Schema.Types.ObjectId;
-    gameFormatId: Schema.Types.ObjectId;
-    groups: Schema.Types.ObjectId[];
-    matches: Schema.Types.ObjectId[];
-    status: 'pending' | 'in_progress' | 'completed';
-    startDate?: Date;
-    endDate?: Date;
-    deletedAt?: Date;
+export interface IStatisticsDocument extends ITenantDocument {
+    matchId: Types.ObjectId;
+    playerId: Types.ObjectId;
+    teamId: Types.ObjectId;
+    points: number;
+    assists: number;
+    rebounds: number;
+    fouls: number;
+    yellowCards: number;
+    redCards: number;
+    minutesPlayed: number;
+    createdAt?: Date;
+    updatedAt?: Date;
 }
 
-export interface IPhaseModel extends ITenantModel<IPhaseDocument> {
-    byTenant(tenant: string): ITenantModel<IPhaseDocument>;
-    findByChampionship(championshipId: string): Promise<IPhaseDocument[]>;
-    findWithDetails(id: string): Promise<IPhaseDocument>;
+export interface IStatisticsModel extends ITenantModel<IStatisticsDocument> {
+    byTenant(tenant: string): ITenantModel<IStatisticsDocument>;
+    findByMatch(matchId: string): Promise<IStatisticsDocument[]>;
+    findByPlayer(playerId: string): Promise<IStatisticsDocument[]>;
 }
 
-const PhaseSchema = new Schema<IPhaseDocument>(
+const StatisticsSchema = new Schema<IStatisticsDocument>(
     {
-        championshipId: {
+        matchId: {
             type: Schema.Types.ObjectId,
-            ref: 'Championship',
+            ref: 'Match',
             required: true
         },
-        name: {
-            type: String,
+        playerId: {
+            type: Schema.Types.ObjectId,
+            ref: 'Player',
             required: true
         },
-        order: {
+        teamId: {
+            type: Schema.Types.ObjectId,
+            ref: 'Team',
+            required: true
+        },
+        points: {
             type: Number,
-            required: true
+            default: 0
         },
-        previousPhaseId: {
-            type: Schema.Types.ObjectId,
-            ref: 'Phase'
+        assists: {
+            type: Number,
+            default: 0
         },
-        nextPhaseId: {
-            type: Schema.Types.ObjectId,
-            ref: 'Phase'
+        rebounds: {
+            type: Number,
+            default: 0
         },
-        gameFormatId: {
-            type: Schema.Types.ObjectId,
-            ref: 'GameFormat',
-            required: true
+        fouls: {
+            type: Number,
+            default: 0
         },
-        groups: [{
-            type: Schema.Types.ObjectId,
-            ref: 'Group'
-        }],
-        matches: [{
-            type: Schema.Types.ObjectId,
-            ref: 'Match'
-        }],
-        status: {
-            type: String,
-            enum: ['pending', 'in_progress', 'completed'],
-            default: 'pending'
+        yellowCards: {
+            type: Number,
+            default: 0
         },
-        startDate: Date,
-        endDate: Date,
-        deletedAt: {
-            type: Date,
-            default: null
+        redCards: {
+            type: Number,
+            default: 0
+        },
+        minutesPlayed: {
+            type: Number,
+            default: 0
         }
     },
     {
@@ -80,61 +78,14 @@ const PhaseSchema = new Schema<IPhaseDocument>(
 );
 
 // Índices
-PhaseSchema.index({ championshipId: 1, order: 1 }, { unique: true });
-PhaseSchema.index({ status: 1 });
-PhaseSchema.index({ startDate: 1, endDate: 1 });
-
-// Validaciones
-PhaseSchema.pre('save', function(next) {
-    if (this.startDate && this.endDate && this.startDate > this.endDate) {
-        next(new Error('End date must be after start date'));
-        return;
-    }
-    next();
-});
-
-// Métodos estáticos
-PhaseSchema.statics.findByChampionship = function(championshipId: string) {
-    return this.find({ championshipId })
-        .sort('order')
-        .populate('gameFormatId');
-};
-
-PhaseSchema.statics.findWithDetails = function(id: string) {
-    return this.findById(id)
-        .populate([
-            {
-                path: 'groups',
-                populate: {
-                    path: 'teams'
-                }
-            },
-            {
-                path: 'matches',
-                populate: ['homeTeamId', 'awayTeamId', 'courtId']
-            },
-            'gameFormatId'
-        ]);
-};
-
-// Virtuals
-PhaseSchema.virtual('isGroupPhase').get(function() {
-    return this.groups && this.groups.length > 0;
-});
-
-PhaseSchema.virtual('progress').get(function() {
-    if (this.status === 'completed') return 100;
-    if (this.status === 'pending') return 0;
-    
-    const completedMatches = this.matches.filter((match: any) => match.status === 'completed').length;
-    return Math.round((completedMatches / this.matches.length) * 100);
-});
+StatisticsSchema.index({ matchId: 1, playerId: 1 }, { unique: true });
+StatisticsSchema.index({ playerId: 1 });
 
 // Plugins
-PhaseSchema.plugin(mongoTenant);
-PhaseSchema.plugin(mongoosePaginate);
-PhaseSchema.plugin(MongooseDelete, { overrideMethods: 'all', deletedAt: true });
+StatisticsSchema.plugin(mongoTenant);
+StatisticsSchema.plugin(mongoosePaginate);
+StatisticsSchema.plugin(MongooseDelete, { overrideMethods: 'all', deletedAt: true });
 
 // Export
-export const Phase: ITenantModel<IPhaseDocument> = model<IPhaseDocument, IPhaseModel>('Phase', PhaseSchema);
-export default Phase;
+export const Statistics: ITenantModel<IStatisticsDocument> = model<IStatisticsDocument, IStatisticsModel>('Statistics', StatisticsSchema);
+export default Statistics;

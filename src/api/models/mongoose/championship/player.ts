@@ -46,6 +46,7 @@ export enum BeachVolleyballPosition {
 export interface IPlayerDocument extends ITenantDocument {
     userId: Schema.Types.ObjectId;    // Referencia al usuario
     clubId: Schema.Types.ObjectId;
+    teamId?: Schema.Types.ObjectId;
     position: IndoorVolleyballPosition | BeachVolleyballPosition;
     isIndependent: boolean;
     eps: EPSProvider;
@@ -93,6 +94,11 @@ const PlayerSchema = new Schema<IPlayerDocument>(
         clubId: {
             type: Schema.Types.ObjectId,
             ref: 'Club',
+            required: false
+        },
+        teamId: {
+            type: Schema.Types.ObjectId,
+            ref: 'Team',
             required: false
         },
         eps: {
@@ -186,7 +192,7 @@ PlayerSchema.pre('save', async function (next) {
         if (this.isNew || this.isModified('userId')) {
             const User = model('User');
             const user = await User.findById(this.userId);
-            
+
             if (!user) {
                 throw new CustomError('User not found', 404, 'ValidationError');
             }
@@ -195,7 +201,7 @@ PlayerSchema.pre('save', async function (next) {
             logger.info('User roles:', user.role);
 
             // Verificar si el usuario tiene el rol team_member
-            const hasTeamMemberRole = Array.isArray(user.role) 
+            const hasTeamMemberRole = Array.isArray(user.role)
                 ? user.role.includes('team_member')
                 : user.role === 'team_member';
 

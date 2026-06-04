@@ -4,11 +4,13 @@ import { User } from '../../models/mongoose/user';
 import { env } from '../env.config';
 import { Logger } from '../logger/WinstonLogger';
 import { decrypt } from '../../utils';
+import { ICustomRequest } from '../../interfaces';
+import { TokenPayload } from '../../services/auth/token.service';
 
 const logger = new Logger();
 
 const opts = {
-    jwtFromRequest: (req: Request) => {
+    jwtFromRequest: (req: any) => {
         try {
             const encryptedToken = ExtractJwt.fromAuthHeaderAsBearerToken()(req);
             if (!encryptedToken) return null;
@@ -25,13 +27,27 @@ const opts = {
         }
     },
     secretOrKey: env.JWT_SECRET,
-    passReqToCallback: true as true
+    passReqToCallback: true as const
 };
 
 passport.use(
-    new JwtStrategy(opts, async (req, jwt_payload, done) => {
+    new JwtStrategy(opts, async (req: ICustomRequest, jwt_payload: TokenPayload, done) => {
         try {
-            const user = await User.findById(jwt_payload.userId)
+            const tenant = req.clientAccount;
+            if (!tenant) {
+                logger.warn('Authentication rejected: missing tenant context');
+                return done(null, false);
+            }
+
+            if (!jwt_payload.tenant || jwt_payload.tenant !== tenant) {
+                logger.warn('Authentication rejected: tenant claim mismatch', {
+                    tokenTenant: jwt_payload.tenant,
+                    requestTenant: tenant
+                });
+                return done(null, false);
+            }
+
+            const user = await User.byTenant(tenant).findById(jwt_payload.userId)
                 .select('-password');
 
             if (user) {

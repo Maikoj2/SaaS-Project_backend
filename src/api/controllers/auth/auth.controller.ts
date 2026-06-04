@@ -41,7 +41,7 @@ export class AuthController {
             );
 
         } catch (error) {
-            this.logger.error('Error en registro:', error);
+            this.logger.error('Error en registro:', error instanceof Error ? { name: error.name, message: error.message } : error);
             res.status(error instanceof CustomError ? error.statusCode : 500)
                 .json(ApiResponse.error(error instanceof CustomError ? error : new CustomError('Error registering user', 500, 'AuthControllerError')));
         }
@@ -58,16 +58,16 @@ export class AuthController {
                 password: data.password,
                 tenant: tenant as string
             });
-            this.logger.info('Token generado:', {
+            this.logger.info('User authenticated successfully', {
                 userId: result.user._id,
-                token: result.session // el token que generas
+                tenant: tenant as string,
             });
             res.status(200).json(
                 ApiResponse.success(result, 'Login exitoso')
             );
 
         } catch (error) {
-            this.logger.error('Error en login:', error);
+            this.logger.error('Error en login:', error instanceof Error ? { name: error.name, message: error.message } : error);
             res.status(error instanceof CustomError ? error.statusCode : 500)
                 .json(ApiResponse.error(error instanceof CustomError ? error : new CustomError('Error logging in', 500, 'AuthControllerError')));
         }
@@ -77,8 +77,7 @@ export class AuthController {
         try {
             const { tenant, verificationCode } = req.params;
             this.logger.info('Verifying user:', {
-                tenant,
-                verificationCode
+                tenant
             });
             
             const result = await this.authService.verifyUser(
@@ -90,7 +89,7 @@ export class AuthController {
             );
 
         } catch (error) {
-            this.logger.error('Error in verification:', error);
+            this.logger.error('Error in verification:', error instanceof Error ? { name: error.name, message: error.message } : error);
             res.status(error instanceof CustomError ? error.statusCode : 500)
                 .json(ApiResponse.error(error instanceof CustomError ? error : new CustomError('Error verifying user', 500, 'AuthControllerError')));
         }
@@ -105,7 +104,7 @@ export class AuthController {
                 ApiResponse.success({ exists: !!settings })
             );
         } catch (error) {
-            this.logger.error('Error checking settings:', error);
+            this.logger.error('Error checking settings:', error instanceof Error ? { name: error.name, message: error.message } : error);
             res.status(error instanceof CustomError ? error.statusCode : 500)
                 .json(ApiResponse.error(error instanceof CustomError ? error : new CustomError('Error to check settings', 500, 'AuthControllerError')));
         }
@@ -120,7 +119,7 @@ export class AuthController {
             );
 
         } catch (error) {
-            this.logger.error('Error refreshing token:', error);
+            this.logger.error('Error refreshing token:', error instanceof Error ? { name: error.name, message: error.message } : error);
 
             res.status(error instanceof CustomError ? error.statusCode : 500)
                 .json(ApiResponse.error(error instanceof CustomError ? error : new CustomError('Error to refresh token', 500, 'AuthControllerError')));
@@ -135,8 +134,9 @@ export class AuthController {
                 ApiResponse.success(result, 'Token updated successfully')
             );
         } catch (error) {
-            this.logger.error('Error refreshing token:', error);
-            ApiResponse.error(new CustomError('Error to refresh token', 500, 'AuthControllerError'))    
+            this.logger.error('Error refreshing token:', error instanceof Error ? { name: error.name, message: error.message } : error);
+            res.status(error instanceof CustomError ? error.statusCode : 500)
+                .json(ApiResponse.error(error instanceof CustomError ? error : new CustomError('Error to refresh token', 500, 'AuthControllerError')));
         }
     };
 
@@ -156,7 +156,7 @@ export class AuthController {
                 ApiResponse.success(result, 'RESET_EMAIL_SENT')
             );
         } catch (error) {
-            this.logger.error('Error in forgot password:', error);
+            this.logger.error('Error in forgot password:', error instanceof Error ? { name: error.name, message: error.message } : error);
             res.status(error instanceof CustomError ? error.statusCode : 500)
                 .json(ApiResponse.error(error instanceof CustomError ? error : new CustomError('Error in forgot password', 500, 'AuthControllerError')));
         }
@@ -168,10 +168,8 @@ export class AuthController {
             const {  newPassword } = req.body;
         
             const urlId = req.query.urlId as string;
-            this.logger.info('Reset password request:', {
+            this.logger.info('Password reset requested', {
                 tenant,
-                urlId,
-                newPassword
             });
             this.validateField(urlId, 'Token is missing');
             this.validateField(newPassword, 'New password is missing');
@@ -186,7 +184,7 @@ export class AuthController {
                 ApiResponse.success(result, 'PASSWORD_CHANGED')
             );
         } catch (error) {
-            this.logger.error('Error in reset password:', error);
+            this.logger.error('Error in reset password:', error instanceof Error ? { name: error.name, message: error.message } : error);
             res.status(error instanceof CustomError ? error.statusCode : 500)
                 .json(ApiResponse.error(error instanceof CustomError ? error : new CustomError('Error in reset password', 500, 'AuthControllerError')));
         }

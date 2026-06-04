@@ -12,6 +12,7 @@ import { seedClubs } from '../../seeds/clubs.seed';
 import { PluginLoader } from '../../plugin';
 import { seedCourts } from '../../seeds/courts.seed';
 import { seedMatchFormats } from '../../seeds/MatchFormat.seed';
+import { sanitizeForLog, sanitizeHeadersForLog, sanitizeUrl } from '../../utils/logSanitizer.util';
 
 
 
@@ -50,12 +51,13 @@ export class Server {
         // Archivos estáticos
         this.app.use(express.static('public'));
 
-        // Logging de requests
+        // Logging de requests (sensitive fields redacted)
         this.app.use((req, res, next) => {
-            this.logger.info(`${req.method} ${req.url}`, {
-                body: req.body,
-                query: req.query,
-                ip: req.ip
+            this.logger.info(`${req.method} ${sanitizeUrl(req.url)}`, {
+                body: sanitizeForLog((req.body ?? {}) as Record<string, unknown>),
+                query: sanitizeForLog((req.query ?? {}) as Record<string, unknown>),
+                headers: sanitizeHeadersForLog(req.headers as Record<string, unknown>),
+                ip: req.ip,
             });
             next();
         });
@@ -66,7 +68,7 @@ export class Server {
 
         // Manejo de rutas no encontradas
         this.app.use('*', (req, res) => {
-            this.logger.warn(`Ruta no encontrada: ${req.originalUrl}`);
+            this.logger.warn(`Ruta no encontrada: ${sanitizeUrl(req.originalUrl)}`);
             res.status(404).json({
                 success: false,
                 message: 'Ruta no encontrada'

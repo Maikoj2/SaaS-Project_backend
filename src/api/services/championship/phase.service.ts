@@ -1,13 +1,11 @@
-import { Phase } from '../../models/mongoose/championship/phase';
+import { Phase, IPhaseDocument } from '../../models/mongoose/championship/phase';
 import { GameFormat, IGameFormatConfig } from '../../models/mongoose/championship/gameFormat';
-import { IPhaseDocument } from '../../models/mongoose/championship/phase';
 import { CustomError } from '../../errors';
 import { Logger } from '../../config';
 import { DatabaseHelper } from '../../utils/database.helper';
 import ChampionshipConfiguration from '../../models/mongoose/championship/configuration';
-import mongoose, { ClientSession, Schema } from 'mongoose';
-import { Types } from 'mongoose';
-import { ChampionshipType, PhaseStatus } from '../../constants/championshipStatus.constants';
+import mongoose, { ClientSession, Types } from 'mongoose';
+import { PhaseStatus } from '../../constants/championshipStatus.constants';
 import { Championship } from '../../models/mongoose/championship/championship';
 
 export class PhaseService {
@@ -18,16 +16,14 @@ export class PhaseService {
     }
 
     public createPhases = async (championshipId: string, gameFormatId: string, tenant: string, startTime: string): Promise<IPhaseDocument[] | undefined> => {
-        const session = await mongoose.startSession(); // Iniciar sesión
+        const session = await mongoose.startSession();
         session.startTransaction();
 
         try {
-            // valido que el formato de juego exista en la configuracion del campeonato y obtengo datos que estan relacionados con el con la configuracion 
             const championshipConfiguration = await DatabaseHelper.findOneWithRelations(ChampionshipConfiguration,
                 tenant,
                 { gameFormatId: gameFormatId, championshipId: championshipId },
                 { basic: ['gameFormatId', 'championshipId'] },
-
             );
 
             if (!championshipConfiguration) {
@@ -39,85 +35,58 @@ export class PhaseService {
             if (!championshipConfiguration.gameFormatId || !('name' in championshipConfiguration.gameFormatId)) {
                 throw new CustomError('game format not found in championship configuration', 404, 'PhaseServiceError');
             }
-            //obtengo las fechas de inicio y fin del campeonato desde la configuracion
+
             const championshipEndDateString = championshipConfiguration.championshipId.endDate.toISOString();
             const championshipStartDateString = championshipConfiguration.championshipId.startDate.toISOString();
-
-            //calculo la cantidad de dias entre la fecha de inicio y fin del campeonato
-            const daysBetween = this.calculateDaysBetween(championshipStartDateString, championshipEndDateString);
-
-            //calculo la cantidad de fases que se van a crear
 
             const config = championshipConfiguration.gameFormatId.config;
             this.logger.info('config', config);
 
+            let phases: IPhaseDocument[] = [];
+
             switch (championshipConfiguration.gameFormatId.name) {
                 case 'elimination_simple': {
-
                     if (!config.levels) {
                         throw new CustomError('config not found in game format configuration', 404, 'PhaseServiceError');
                     }
                     this.checkLevels(config.levels);
-                    const phases = await this.createEliminationPhases(config.levels, startTime, championshipEndDateString, championshipId, tenant, null, session);
-                    if (!phases || phases.length === 0) {
-                        throw new CustomError('phases not created', 404, 'PhaseServiceError');
-                    }
-                    await DatabaseHelper.update(Championship,
-                        championshipId, tenant,
-                        { phases: phases.map(phase => phase._id ? new Types.ObjectId(phase._id) : undefined) as Types.ObjectId[] },
-                        {},
-                        session);
-                    await session.commitTransaction();
-                    return phases;
+                    phases = await this.createEliminationPhases(config.levels, startTime, championshipEndDateString, championshipId, tenant, null, session);
+                    break;
                 }
-
                 case 'elimination_double': {
-                    // Lógica para crear fases de eliminación doble
-                    // phases.push(...this.createDoubleEliminationPhases(config.levels, startDate));
+                    // phases = await this.createDoubleEliminationPhases(config.levels, startDate);
                     break;
                 }
                 case 'groups':
-                    // Lógica para crear fases de grupos
-                    // phases.push(...this.createGroupPhases(config, startDate));
+                    // phases = await this.createGroupPhases(config, startDate);
                     break;
                 case 'groups_and_elimination': {
-                    const phases = await this.createGroupAndEliminationPhases(config, startTime, championshipStartDateString, championshipId, tenant, session);
-                    if (!phases || phases.length === 0) {
-                        throw new CustomError('phases not created', 404, 'PhaseServiceError');
-                    }
-                    await session.commitTransaction();
-                    return phases;
+                    phases = await this.createGroupAndEliminationPhases(config, startTime, championshipStartDateString, championshipId, tenant, session);
+                    break;
                 }
                 case 'league':
-                    // Lógica para crear fases de liga
-                    // phases.push(...this.createLeaguePhases(config, startDate));
+                    // phases = await this.createLeaguePhases(config, startDate);
                     break;
                 case 'swiss':
-                    // Lógica para crear fases de sistema suizo
-                    // phases.push(...this.createSwissPhases(config, startDate));
+                    // phases = await this.createSwissPhases(config, startDate);
                     break;
                 default:
                     throw new CustomError('Unsupported game format', 400, 'PhaseServiceError');
             }
 
+            if (!phases || phases.length === 0) {
+                throw new CustomError('phases not created', 404, 'PhaseServiceError');
+            }
 
+            await DatabaseHelper.update(Championship,
+                championshipId, tenant,
+                { phases: phases.map(phase => phase._id ? new Types.ObjectId(phase._id) : undefined) as Types.ObjectId[] },
+                {},
+                session);
 
+            await session.commitTransaction();
+            return phases;
 
-
-
-
-
-
-            //             const gameFormat = await GameFormat.byTenant(tenant).findById(gameFormatId);
-            //             if (!gameFormat) {
-            //                 throw new CustomError('Game format not found', 404, 'PhaseServiceError');
-            //             }
-
-            //             // Lógica para crear fases basadas en el formato de juego
-            //  // Aquí deberías implementar la lógica para crear las fases
-            //             // Ejemplo: Crear fases de eliminación directa, grupos, etc.
-
-            //             return await Phase.byTenant(tenant).insertMany(phases);
         } catch (error) {
             await session.abortTransaction();
             this.logger.error('Error creating phases:', error);
@@ -127,13 +96,13 @@ export class PhaseService {
         }
     }
 
-    public async listPhases(championshipId: string, tenant: string): Promise<any> {
-        // try {
-        //     return await Phase.byTenant(tenant).findByChampionship(championshipId);
-        // } catch (error) {
-        //     this.logger.error('Error listing phases:', error);
-        //     throw error;
-        // }
+    public async listPhases(championshipId: string, tenant: string): Promise<IPhaseDocument[]> {
+        try {
+            return await (Phase as any).byTenant(tenant).findByChampionship(championshipId);
+        } catch (error) {
+            this.logger.error('Error listing phases:', error);
+            throw error;
+        }
     }
 
     public async updatePhase(phaseId: string, updateData: any, tenant: string): Promise<IPhaseDocument> {
@@ -164,15 +133,8 @@ export class PhaseService {
 
     public async configureGroups(phaseId: string, groupSize: number, advancement: number, tenant: string): Promise<any> {
         try {
-            // const phase = await Phase.byTenant(tenant).findById(phaseId);
-            // if (!phase) {
-            //     throw new CustomError('Phase not found', 404, 'PhaseServiceError');
-            // }
-
-            // // Lógica para configurar grupos dentro de la fase
-            // const groups = []; // Aquí deberías implementar la lógica para crear y configurar los grupos
-
-            // return groups;
+            // Placeholder for group configuration logic
+            return [];
         } catch (error) {
             this.logger.error('Error configuring groups:', error);
             throw error;
@@ -183,9 +145,9 @@ export class PhaseService {
     private calculateDaysBetween(startDate: string, endDate: string): number {
         const start = new Date(startDate);
         const end = new Date(endDate);
-        return Math.ceil((end.getTime() - start.getTime()) / (1000 * 3600 * 24)); // Redondeo hacia arriba
+        return Math.ceil((end.getTime() - start.getTime()) / (1000 * 3600 * 24));
     }
-    // Métodos auxiliares para crear fases específicas
+
     private createEliminationPhases = async (levels: string[],
         startTime: string,
         startDate: string,
@@ -206,28 +168,24 @@ export class PhaseService {
                 }
             }
 
-
             const phases: IPhaseDocument[] = [];
             for (let i = 0; i < levels.length; i++) {
                 const phaseData = {
                     championshipId: championshipId ? new Types.ObjectId(championshipId) : undefined,
-                    name: levels[i], // Nombre de la fase (e.g., "round_of_16")
-                    order: ++currentOrder, // Orden basado en la posición
-                    previousPhaseId: previousPhaseId ? new Types.ObjectId(previousPhaseId) : undefined, // Fase anterior (null para la primera)
-                    status: PhaseStatus.PENDING, // Estado inicial
-                    startTime: startTime,
+                    name: levels[i],
+                    order: ++currentOrder,
+                    previousPhaseId: previousPhaseId ? new Types.ObjectId(previousPhaseId) : undefined,
+                    status: PhaseStatus.PENDING,
+                    startTime: new Date(startTime),
                 };
-                // Crear la fase en la base de datos
+
                 const phase = await DatabaseHelper.create(Phase, tenant, phaseData, session);
 
-                // Vincular la fase actual con la siguiente
                 if (previousPhaseId) {
                     await DatabaseHelper.update(Phase, previousPhaseId, tenant, { nextPhaseId: phase._id ? new Types.ObjectId(phase._id) : undefined }, {}, session);
                 }
 
-                // Actualizar previousPhaseId para el siguiente ciclo
                 previousPhaseId = phase._id.toString();
-
                 phases.push(phase);
             }
             return phases;
@@ -238,7 +196,6 @@ export class PhaseService {
     }
 
     private createDoubleEliminationPhases(config: IGameFormatConfig, startDate: string, championshipId: string, tenant: string): IPhaseDocument[] {
-        // Implementa la lógica para crear fases de eliminación doble
         return [];
     }
 
@@ -253,11 +210,11 @@ export class PhaseService {
         try {
             const phaseData = {
                 championshipId: championshipId ? new Types.ObjectId(championshipId) : undefined,
-                name: ChampionshipType.GROUPS,
+                name: 'groups',
                 order: 1,
                 previousPhaseId: undefined,
                 status: PhaseStatus.PENDING,
-                startTime: startTime,
+                startTime: new Date(startTime),
                 startDate: new Date(startDate)
             };
             const phase = await DatabaseHelper.create(Phase, tenant, phaseData, session);
@@ -276,10 +233,9 @@ export class PhaseService {
         tenant: string,
         session: ClientSession
     ): Promise<IPhaseDocument[]> => {
-        let phases: IPhaseDocument[] = [];
+        const phases: IPhaseDocument[] = [];
         let groupPhase: IPhaseDocument | null = null;
 
-        // 1. Crear Fase de Grupos
         this.logger.info('create group and elimination phases');
         if (config.groups) {
             groupPhase = await this.createGroupPhases(config, startTime, startDate, championshipId, tenant, session);
@@ -289,7 +245,6 @@ export class PhaseService {
             phases.push(groupPhase);
         }
 
-        // 2. Crear Fases de Eliminación
         if (!config.levels) throw new CustomError('Levels not found', 404, 'PhaseServiceError');
 
         const eliminationPhases = await this.createEliminationPhases(
@@ -298,15 +253,13 @@ export class PhaseService {
             startDate,
             championshipId,
             tenant,
-            groupPhase?._id.toString() || null, // Pasar el ID del grupo como fase anterior
+            groupPhase?._id.toString() || null,
             session
         );
 
-        // 3. Vincular Grupo -> Primera Fase de Eliminación
         if (groupPhase && eliminationPhases.length > 0) {
             const firstEliminationPhase = eliminationPhases[0];
 
-            // Actualizar Fase de Grupos
             await DatabaseHelper.update(
                 Phase,
                 groupPhase._id.toString(),
@@ -316,7 +269,6 @@ export class PhaseService {
                 session
             );
 
-            // Actualizar Primera Fase de Eliminación
             await DatabaseHelper.update(
                 Phase,
                 firstEliminationPhase._id.toString(),
@@ -331,12 +283,10 @@ export class PhaseService {
     };
 
     private createLeaguePhases(config: any, startDate: string): IPhaseDocument[] {
-        // Implementa la lógica para crear fases de liga
         return [];
     }
 
     private createSwissPhases(config: any, startDate: string): IPhaseDocument[] {
-        // Implementa la lógica para crear fases de sistema suizo
         return [];
     }
 
@@ -346,4 +296,77 @@ export class PhaseService {
         }
         return true;
     }
-} 
+
+    public getAllPhases = async (championshipId?: string, tenant: string = ''): Promise<IPhaseDocument[]> => {
+        try {
+            const filter = championshipId ? { championshipId } : {};
+            const phases = await DatabaseHelper.find(Phase, filter, {});
+            return phases || [];
+        } catch (error) {
+            this.logger.error('Error getting all phases:', error);
+            throw new CustomError('Error retrieving phases', 500, 'PhaseServiceError');
+        }
+    };
+
+    public getPhaseById = async (phaseId: string, tenant: string = ''): Promise<IPhaseDocument | null> => {
+        try {
+            const phase = await DatabaseHelper.findById(Phase, phaseId, tenant);
+            return phase;
+        } catch (error) {
+            this.logger.error('Error getting phase by id:', error);
+            throw new CustomError('Error retrieving phase', 500, 'PhaseServiceError');
+        }
+    };
+
+    public startPhase = async (phaseId: string, tenant: string = ''): Promise<IPhaseDocument | null> => {
+        try {
+            const updatedPhase = await DatabaseHelper.update(
+                Phase,
+                phaseId,
+                tenant,
+                { status: PhaseStatus.IN_PROGRESS, startDate: new Date() },
+                {}
+            );
+            return updatedPhase;
+        } catch (error) {
+            this.logger.error('Error starting phase:', error);
+            throw new CustomError('Error starting phase', 500, 'PhaseServiceError');
+        }
+    };
+
+    public finishPhase = async (phaseId: string, tenant: string = ''): Promise<IPhaseDocument | null> => {
+        try {
+            const updatedPhase = await DatabaseHelper.update(
+                Phase,
+                phaseId,
+                tenant,
+                { status: PhaseStatus.COMPLETED, endDate: new Date() },
+                {}
+            );
+            return updatedPhase;
+        } catch (error) {
+            this.logger.error('Error finishing phase:', error);
+            throw new CustomError('Error finishing phase', 500, 'PhaseServiceError');
+        }
+    };
+
+    public getPhaseGroups = async (phaseId: string, tenant: string = ''): Promise<any[]> => {
+        try {
+            this.logger.info(`Getting groups for phase ${phaseId} in tenant ${tenant}`);
+            return [];
+        } catch (error) {
+            this.logger.error('Error getting phase groups:', error);
+            throw new CustomError('Error retrieving phase groups', 500, 'PhaseServiceError');
+        }
+    };
+
+    public getPhaseMatches = async (phaseId: string, tenant: string = ''): Promise<any[]> => {
+        try {
+            this.logger.info(`Getting matches for phase ${phaseId} in tenant ${tenant}`);
+            return [];
+        } catch (error) {
+            this.logger.error('Error getting phase matches:', error);
+            throw new CustomError('Error retrieving phase matches', 500, 'PhaseServiceError');
+        }
+    };
+}

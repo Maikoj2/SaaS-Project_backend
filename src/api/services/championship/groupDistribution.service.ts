@@ -274,10 +274,10 @@ export class GroupDistributionService {
     private teamsDistributionSerpentine(numberOfGroups: number, totalTeams: number, teams: string[]): DistributionGroups {
 
 
-        let groupDistribution: DistributionGroups = {};
+        const groupDistribution: DistributionGroups = {};
         // Generar posiciones dinámicamente
-        let positions = this.generarPosiciones(Math.ceil(totalTeams / numberOfGroups));
-        let groupNames = Array.from(
+        const positions = this.generarPosiciones(Math.ceil(totalTeams / numberOfGroups));
+        const groupNames = Array.from(
             { length: numberOfGroups },
             (_, i) => `${String.fromCharCode(65 + i)}`
         );
@@ -293,7 +293,7 @@ export class GroupDistributionService {
         // Recorrer por filas (posiciones)
         for (let positionIndex = 0; positionIndex < positions.length; positionIndex++) {
             // Determinar el orden de los grupos según la dirección
-            let groupsIndex = directionRight
+            const groupsIndex = directionRight
                 ? Array.from({ length: numberOfGroups }, (_, i) => i)
                 : Array.from({ length: numberOfGroups }, (_, i) => numberOfGroups - 1 - i);
 

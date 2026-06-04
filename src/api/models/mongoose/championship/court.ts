@@ -1,4 +1,4 @@
-import { model, Schema } from "mongoose";
+import { model, Schema, Types } from "mongoose";
 import { ITenantDocument, ITenantModel } from "../../../interfaces";
 import MongooseDelete from 'mongoose-delete';
 import mongoTenant from 'mongo-tenant';
@@ -6,6 +6,7 @@ import mongoosePaginate from 'mongoose-paginate-v2';
 
 // Interfaces
 export interface ICourtDocument extends ITenantDocument {
+    championshipId?: Types.ObjectId;
     name: string;
     type: 'indoor' | 'beach';
     status: 'available' | 'occupied' | 'maintenance';
@@ -20,7 +21,7 @@ export interface ICourtDocument extends ITenantDocument {
         technician?: string;
     }[];
     schedule?: {
-        matchId: Schema.Types.ObjectId;
+        matchId: Types.ObjectId;
         startTime: Date;
         endTime: Date;
     }[];
@@ -48,10 +49,14 @@ const ScheduleSchema = new Schema({
 
 const CourtSchema = new Schema<ICourtDocument>(
     {
-        
-        name: { 
-            type: String, 
-            required: true 
+        championshipId: {
+            type: Schema.Types.ObjectId,
+            ref: 'Championship',
+            required: false
+        },
+        name: {
+            type: String,
+            required: true
         },
         type: {
             type: String,
@@ -63,9 +68,9 @@ const CourtSchema = new Schema<ICourtDocument>(
             enum: ['available', 'occupied', 'maintenance'],
             default: 'available'
         },
-        capacity: { 
-            type: Number, 
-            required: true 
+        capacity: {
+            type: Number,
+            required: true
         },
         location: {
             type: String
@@ -81,9 +86,9 @@ const CourtSchema = new Schema<ICourtDocument>(
         }],
         schedule: [ScheduleSchema],
         maintenanceHistory: [MaintenanceSchema],
-        deletedAt: { 
-            type: Date, 
-            default: null 
+        deletedAt: {
+            type: Date,
+            default: null
         }
     },
     {
@@ -97,7 +102,7 @@ CourtSchema.index({ status: 1 });
 CourtSchema.index({ name: 1 }, { unique: true });
 
 // Métodos estáticos
-CourtSchema.statics.findAvailable = function() {
+CourtSchema.statics.findAvailable = function () {
     return this.find({ status: 'available' });
 };
 

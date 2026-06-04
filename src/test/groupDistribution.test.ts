@@ -82,10 +82,10 @@ class GroupDistributor {
         const equipos = this.shuffleArray(this.generateTeamsNames(cantidadEquipos));
         console.log('Equipos generados y mezclados:', equipos);
 
-        let grupos: GruposDistribuidos = {};
+        const grupos: GruposDistribuidos = {};
         // Generar posiciones dinámicamente
-        let posiciones = this.generarPosiciones(Math.ceil(cantidadEquipos / cantidadGrupos));
-        let nombresGrupos = Array.from(
+        const posiciones = this.generarPosiciones(Math.ceil(cantidadEquipos / cantidadGrupos));
+        const nombresGrupos = Array.from(
             { length: cantidadGrupos },
             (_, i) => `Grupo ${String.fromCharCode(65 + i)}`
         );
@@ -125,10 +125,10 @@ class GroupDistributor {
         const equipos = this.generateTeamsNames(cantidadEquipos);
         console.log('Equipos generados:', equipos);
 
-        let grupos: DistributionGroups = {};
+        const grupos: DistributionGroups = {};
         // Generar posiciones dinámicamente
-        let posiciones = this.generarPosiciones(Math.ceil(cantidadEquipos / cantidadGrupos));
-        let nombresGrupos = Array.from(
+        const posiciones = this.generarPosiciones(Math.ceil(cantidadEquipos / cantidadGrupos));
+        const nombresGrupos = Array.from(
             { length: cantidadGrupos },
             (_, i) => `Grupo ${String.fromCharCode(65 + i)}`
         );
@@ -146,7 +146,7 @@ class GroupDistributor {
             console.log(`\nProcesando fila ${puestoIndex}, dirección: ${direccionDerecha ? 'derecha' : 'izquierda'}`);
 
             // Determinar el orden de los grupos según la dirección
-            let gruposIndex = direccionDerecha
+            const gruposIndex = direccionDerecha
                 ? Array.from({ length: cantidadGrupos }, (_, i) => i)
                 : Array.from({ length: cantidadGrupos }, (_, i) => cantidadGrupos - 1 - i);
 
@@ -177,10 +177,10 @@ class GroupDistributor {
         const equipos = this.generateTeamsNames(cantidadEquipos);
         console.log('Equipos generados:', equipos);
 
-        let grupos: GruposDistribuidos = {};
+        const grupos: GruposDistribuidos = {};
         // Generar posiciones dinámicamente
-        let posiciones = this.generarPosiciones(Math.ceil(cantidadEquipos / cantidadGrupos));
-        let nombresGrupos = Array.from(
+        const posiciones = this.generarPosiciones(Math.ceil(cantidadEquipos / cantidadGrupos));
+        const nombresGrupos = Array.from(
             { length: cantidadGrupos },
             (_, i) => `Grupo ${String.fromCharCode(65 + i)}`
         );

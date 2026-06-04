@@ -1,76 +1,83 @@
-// src/api/validators/gameFormat.validator.ts
-import { check } from 'express-validator';
-import { validate } from '../../middlewares';
+import { check, query } from "express-validator";
+import { validate } from "../../middlewares";
 
-export const gameFormatValidators = {
-    formatType: [
-        check('formatType')
+export const gameFormatValidate = {
+    getAll: [
+        query('page')
+            .optional()
+            .isInt({ min: 1 })
+            .withMessage('Page must be a positive integer'),
+
+        query('limit')
+            .optional()
+            .isInt({ min: 1, max: 100 })
+            .withMessage('Limit must be between 1 and 100'),
+
+        query('sort')
+            .optional()
+            .isString()
+            .isIn(['name', 'createdAt'])
+            .withMessage('Invalid sort field'),
+
+
+        query('order')
+            .optional()
+            .isIn(['1', '-1'])
+            .withMessage('Order must be 1 or -1'),
+
+        validate
+    ],
+    create: [
+        check('name')
             .exists()
             .withMessage('MISSING')
             .notEmpty()
             .withMessage('IS_EMPTY')
-            .isIn(['single_set', 'best_of_2', 'best_of_3', 'custom'])
-            .withMessage('INVALID_FORMAT_TYPE'),
-    ],
-
-    description: [
+            .isString()
+            .withMessage('IS_NOT_STRING')
+            .isLength({ min: 3, max: 100 })
+            .withMessage('NAME_LENGTH_3_100')
+            .trim(),
         check('description')
             .exists()
             .withMessage('MISSING')
             .notEmpty()
             .withMessage('IS_EMPTY')
-            .isLength({ max: 200 })
-            .withMessage('DESCRIPTION_TOO_LONG'),
-    ],
-
-    sets: [
-        check('sets')
+            .isString()
+            .withMessage('IS_NOT_STRING')
+            .isLength({ min: 3, max: 100 })
+            .withMessage('DESCRIPTION_LENGTH_3_100')
+            .trim(),
+        check('config')
             .exists()
             .withMessage('MISSING')
-            .isInt({ min: 1, max: 5 })
-            .withMessage('SETS_BETWEEN_1_AND_5'),
+            .isObject()
+            .withMessage('IS_NOT_OBJECT'),
+        validate
     ],
-
-    pointsPerSet: [
-        check('pointsPerSet')
-            .exists()
-            .withMessage('MISSING')
-            .isInt({ min: 15, max: 30 })
-            .withMessage('POINTS_BETWEEN_15_AND_30'),
-    ],
-
-    tiebreakerPoints: [
-        check('tiebreakerPoints')
-            .exists()
-            .withMessage('MISSING')
-            .isInt({ min: 1, max: 25 })
-            .withMessage('TIEBREAKER_BETWEEN_1_AND_25'),
-    ],
-
-    maxPointsPerSet: [
-        check('maxPointsPerSet')
-            .exists()
-            .withMessage('MISSING')
-            .isInt({ min: 25, max: 40 })
-            .withMessage('MAX_POINTS_BETWEEN_25_AND_40'),
-    ],
-
-    minAdvantage: [
-        check('minAdvantage')
-            .exists()
-            .withMessage('MISSING')
-            .isBoolean()
-            .withMessage('MUST_BE_BOOLEAN'),
-    ],
-};
-
-export const validateCreateGameFormat = [
-    ...gameFormatValidators.formatType,
-    ...gameFormatValidators.description,
-    ...gameFormatValidators.sets,
-    ...gameFormatValidators.pointsPerSet,
-    ...gameFormatValidators.tiebreakerPoints,
-    ...gameFormatValidators.maxPointsPerSet,
-    ...gameFormatValidators.minAdvantage,
-    validate,
-];
+    update: [
+        check('name')
+            .optional()
+            .notEmpty()
+            .withMessage('IS_EMPTY')
+            .isString()
+            .withMessage('IS_NOT_STRING')
+            .isLength({ min: 3, max: 100 })
+            .withMessage('NAME_LENGTH_3_100')
+            .trim(),
+        check('description')
+            .optional()
+            .notEmpty()
+            .withMessage('IS_EMPTY')
+            .isString()
+            .withMessage('IS_NOT_STRING')
+            .isLength({ min: 3, max: 100 })
+            .withMessage('DESCRIPTION_LENGTH_3_100')
+            .trim(),
+        check('config')
+            .optional()
+            .isObject()
+            .withMessage('IS_NOT_OBJECT'),
+        validate
+    ]
+}

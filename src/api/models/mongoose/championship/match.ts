@@ -23,8 +23,9 @@ export interface IMatchDocument extends ITenantDocument {
     homeTeamId: Types.ObjectId;
     awayTeamId: Types.ObjectId;
     courtId?: Types.ObjectId;
+    refereeId?: Types.ObjectId;
     statistics: Types.ObjectId[];
-    round?: String;
+    round?: string;
     score?: IScore;
     status: MatchStatus;
     startTime?: Date;
@@ -85,6 +86,10 @@ const MatchSchema = new Schema<IMatchDocument>(
             ref: 'Court',
             required: true
         },
+        refereeId: {
+            type: Schema.Types.ObjectId,
+            ref: 'Referee'
+        },
         round: String,
         statistics: [{
             type: Schema.Types.ObjectId,
@@ -92,7 +97,7 @@ const MatchSchema = new Schema<IMatchDocument>(
         }],
         score: ScoreSchema,
         status: {
-            type: String, 
+            type: String,
             enum: Object.values(MatchStatus),
             default: MatchStatus.SCHEDULED
         },
@@ -112,7 +117,7 @@ MatchSchema.index({ startTime: 1 });
 MatchSchema.index({ status: 1 });
 
 // Validaciones
-MatchSchema.pre('save', function(next) {
+MatchSchema.pre('save', function (next) {
     if (this.homeTeamId === this.awayTeamId) {
         next(new Error('Home team and away team must be different'));
         return;
@@ -121,13 +126,13 @@ MatchSchema.pre('save', function(next) {
 });
 
 // Métodos estáticos
-MatchSchema.statics.findByPhase = function(phaseId: string) {
+MatchSchema.statics.findByPhase = function (phaseId: string) {
     return this.find({ phaseId })
         .sort('startTime')
         .populate(['homeTeamId', 'awayTeamId', 'courtId']);
 };
 
-MatchSchema.statics.findByGroup = function(groupId: string) {
+MatchSchema.statics.findByGroup = function (groupId: string) {
     return this.find({ groupId })
         .sort('startTime')
         .populate(['homeTeamId', 'awayTeamId', 'courtId']);
