@@ -1,6 +1,6 @@
 
 import { Types } from 'mongoose';
-import { Match } from '../models/mongoose/championschip/match';
+import { Match } from '../models/mongoose/championship/match';
 
 export class MatchUtils {
     /**
@@ -141,10 +141,10 @@ export class MatchUtils {
     static async getChampionshipStats(championshipId: string) {
         try {
             return await Match.aggregate([
-                { 
-                    $match: { 
-                        championshipId: new Types.ObjectId(championshipId) 
-                    } 
+                {
+                    $match: {
+                        championshipId: new Types.ObjectId(championshipId)
+                    }
                 },
                 {
                     $group: {
@@ -186,7 +186,7 @@ export class MatchUtils {
             match.status = 'in_progress';
         }
     }
-} 
+}
 
 
 

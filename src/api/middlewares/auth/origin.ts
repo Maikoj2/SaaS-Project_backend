@@ -3,6 +3,7 @@ import { parse } from 'psl';
 
 import { Logger } from '../../config/logger';
 import { IUserCustomRequest } from '../../interfaces';
+import { ApiResponse } from '../../responses';
 
 const getExpeditiousCache = require('express-expeditious');
 const redisEngine = require('expeditious-engine-redis');
@@ -10,7 +11,7 @@ const redisEngine = require('expeditious-engine-redis');
 let cache: any = null;
 const logger = new Logger();
 
-const parseDomain = (data: RegExpExecArray) => {    
+const parseDomain = (data: RegExpExecArray) => {
     try {
         return data[1]
     } catch (error) {
@@ -22,29 +23,37 @@ const parseDomain = (data: RegExpExecArray) => {
 const checkDomain = async (req: IUserCustomRequest, res: Response, next: NextFunction) => {
     try {
         const origin = req.get('origin');
-        
+
+        if (!origin) {
+            return res.status(400).json(
+                ApiResponse.error('The origin must be specified for determining the tenant ')
+            )
+        }
         const re = /^(?:https?:)?(?:\/\/)?(?:[^@\n]+@)?(?:www\.)?([^:\/\n]+)/ig;
-        if (!origin) throw new Error('The origin must be specified');
-        
         const result = re.exec(origin);
         const rawDomain = result ? parseDomain(result) : null;
         const clean = rawDomain ? parse(rawDomain) : null;
+        const subDomain = (clean && 'subdomain' in clean) ? clean.subdomain : null;
 
-        (clean && 'subdomain' in clean) ?
-            req.clientAccount = clean.subdomain || undefined : req.clientAccount = undefined;
-            
-        logger.debug('Domain check completed', { 
-            origin, 
-            clientAccount: req.clientAccount 
-        });
-        if (!req.clientAccount) {
-            throw new Error('Tenant not found');
+        if (!subDomain) {
+            return res.status(400).json(
+                ApiResponse.error('The subdomain must be specified for determining the tenant ')
+            )
         }
+
+        req.clientAccount = subDomain;
+        logger.debug('Domain check completed', {
+            origin,
+            clientAccount: req.clientAccount
+        });
+
         next();
     } catch (error) {
         logger.error('Error processing clientAccount:', error);
         req.clientAccount = undefined;
-        next();
+        res.status(500).json(
+            ApiResponse.error('internal server error to process the indenfy request ')
+        )
     }
 }
 

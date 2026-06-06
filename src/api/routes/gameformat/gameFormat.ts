@@ -1,18 +1,19 @@
 // src/api/routes/gameFormats/gameFormats.ts
-import express, { Express, RequestHandler } from 'express';
+import { Router, RequestHandler } from 'express';
 import { requireAuth, handleAuthError } from '../../config/auth';
 import { roleAuthorization } from '../../middlewares/auth/roleAuthorization.middleware';
-import { AuthRole } from '../../models/apiRoutes/auth/authRoutes';
+
 import { auth, origin } from '../../middlewares';
-import { GameFormatController } from '../../controllers/championShip/gameFormat.controller';
+import { GameFormatController } from '../../controllers/championship/gameFormat.controller';
 import trimRequest from 'trim-request';
 import { validateCreateGameFormat } from '../../validators/championships/gameformat.validator';
+import { AuthRole } from '../../constants/apiRoutes';
 
 const gameFormatController = new GameFormatController();
-const app: Express = express();
+const router: Router = Router();
 
 // Get all game formats
-// app.get('/', [
+// router.get('/', [
 //     origin.checkDomain as RequestHandler,
 //     origin.checkTenant as RequestHandler,
 //     auth as RequestHandler,
@@ -23,7 +24,7 @@ const app: Express = express();
 // ], gameFormatController.getAll as RequestHandler);
 
 // Create game format
-app.post('/', [
+router.post('/', [
     origin.checkDomain as RequestHandler,
     origin.checkTenant as RequestHandler,
     auth as RequestHandler,
@@ -36,4 +37,4 @@ app.post('/', [
 
 // ... otras rutas según necesites
 
-export default app;
+export default router;

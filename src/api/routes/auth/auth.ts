@@ -1,19 +1,19 @@
-import express, { Express, Request, RequestHandler, Response } from "express";
+import { Router, RequestHandler } from "express";
 import trimRequest from 'trim-request'
 import { origin } from "../../middlewares";
-import { AuthRole, AuthRoute } from "../../models/apiRoutes/auth/authRoutes";
 import { authValidation } from "../../validators";
 import { AuthController } from "../../controllers";
 import { handleAuthError, requireAuth } from "../../config";
 import { roleAuthorization } from "../../middlewares/auth/roleAuthorization.middleware";
 import { auth } from "../../middlewares/auth.middleware";
 import { ValidationChain } from "express-validator";
+import { AuthRole, AuthRoute } from "../../constants/apiRoutes";
 
-const app: Express = express();
+const router: Router = Router();
 const authController = new AuthController();
 
 // auth route to verify user by tenant and verification id
-app.post(
+router.post(
     AuthRoute.VERIFY,
     [
         origin.checkDomain as RequestHandler,
@@ -25,23 +25,23 @@ app.post(
 )
 
 // auth route to register user
-app.post(
+router.post(
     AuthRoute.REGISTER,
     [
         origin.checkDomain as RequestHandler,
         origin.checkTenant as RequestHandler,
         trimRequest.all,
-        ...authValidation.register as ValidationChain[]
+        ...authValidation.register
     ],
     authController.register as RequestHandler
 )
 
 // auth route to login user
-app.post(
+router.post(
     AuthRoute.LOGIN,
     [
         origin.checkDomain as RequestHandler,
-        // origin.checkTenant, 
+        origin.checkTenant as RequestHandler,
         trimRequest.all,
         ...authValidation.login as ValidationChain[]
     ],
@@ -49,7 +49,7 @@ app.post(
 )
 
 // auth route to check if user exists
-app.get(
+router.get(
     AuthRoute.CHECK,
     [
         origin.checkDomain as RequestHandler,
@@ -60,7 +60,7 @@ app.get(
 )
 
 // auth route to verify token
-app.get(
+router.get(
     AuthRoute.TOKEN,
     [
         auth as RequestHandler,
@@ -79,9 +79,9 @@ app.get(
     ],
     authController.verifyToken as RequestHandler
 )
- 
+
 // auth route to forgot password
-app.post(
+router.post(
     AuthRoute.FORGOT,
     [
         origin.checkDomain as RequestHandler,
@@ -93,7 +93,7 @@ app.post(
 )
 
 // auth route to reset password
-app.post(
+router.post(
     AuthRoute.RESET,
     [
         origin.checkDomain as RequestHandler,
@@ -105,10 +105,9 @@ app.post(
 )
 
 // auth route to refresh token
-app.post(
+router.post(
     AuthRoute.REFRESH,
     [
-        auth as RequestHandler,
         origin.checkDomain as RequestHandler,
         origin.checkTenant as RequestHandler,
         trimRequest.all
@@ -118,4 +117,4 @@ app.post(
 
 // TODO: auth route to login with google, facebook 
 
-export default app
+export default router

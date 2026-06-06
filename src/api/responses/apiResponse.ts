@@ -7,6 +7,13 @@ interface IApiResponse<T = any> {
     error?: any;
 }
 
+export interface IApiError {
+    statusCode?: number;
+    name?: string;
+    details?: any[];
+    message?: string;
+}
+
 export const ApiResponse = {
     success: <T>(data: T, message?: string): IApiResponse<T> => ({
         success: true,
@@ -14,7 +21,7 @@ export const ApiResponse = {
         message
     }),
 
-    error: (error: AuthError | string): IApiResponse => {
+    error: (error: AuthError | IApiError | string): IApiResponse => {
         if (error instanceof AuthError) {
             return {
                 success: false,
@@ -22,6 +29,17 @@ export const ApiResponse = {
                 error: {
                     statusCode: error.statusCode,
                     name: error.name
+                }
+            };
+        }
+        if (typeof error === 'object' && error !== null) {
+            return {
+                success: false,
+                message: error.message || 'Error',
+                error: {
+                    statusCode: error.statusCode || 500,
+                    name: error.name || 'Error',
+                    details: error.details
                 }
             };
         }

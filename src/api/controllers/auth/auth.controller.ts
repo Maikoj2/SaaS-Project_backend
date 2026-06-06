@@ -10,7 +10,7 @@ import { ApiResponse } from '../../responses';
 
 import { IUserCustomRequest } from '../../interfaces';
 import { SettingsService } from '../../services/setting/settings.service';
-import GameFormat from '../../models/mongoose/championschip/gameFormat';
+import GameFormat from '../../models/mongoose/championship/gameFormat';
 import { DatabaseHelper } from '../../utils/database.helper';
 import { gameFormats } from '../../seeds/gameFormats.seed';
 
@@ -34,7 +34,7 @@ export class AuthController {
                 password: req.body.password,
                 tenant: req.clientAccount as string
             };
-            
+
 
             const result = await this.authService.registerUser(registerData);
 
@@ -82,7 +82,7 @@ export class AuthController {
                 tenant,
                 verificationCode
             });
-            
+
             const result = await this.authService.verifyUser(
                 tenant,
                 verificationCode
@@ -157,11 +157,11 @@ export class AuthController {
             const { email } = req.body;
             const result = await this.authService.forgotPassword(
                 email,
-                tenant as string ,
+                tenant as string,
                 locale,
                 req
             );
-            
+
             res.status(200).json(
                 ApiResponse.success(result, 'RESET_EMAIL_SENT')
             );
@@ -175,8 +175,8 @@ export class AuthController {
     public resetPassword = async (req: IUserCustomRequest, res: Response): Promise<void> => {
         try {
             const tenant = req.clientAccount as string;
-            const {  newPassword } = req.body;
-        
+            const { newPassword } = req.body;
+
             const urlId = req.query.urlId as string;
             this.logger.info('Reset password request:', {
                 tenant,
@@ -185,13 +185,13 @@ export class AuthController {
             });
             this.validateField(urlId, 'Token is missing');
             this.validateField(newPassword, 'New password is missing');
-    
+
             const result = await this.authService.resetPassword(
                 urlId,
                 newPassword,
                 tenant
             );
-    
+
             res.status(200).json(
                 ApiResponse.success(result, 'PASSWORD_CHANGED')
             );
@@ -206,6 +206,6 @@ export class AuthController {
         if (!field) {
             throw new AuthError(message, 404);
         }
-    } 
-    
+    }
+
 } 

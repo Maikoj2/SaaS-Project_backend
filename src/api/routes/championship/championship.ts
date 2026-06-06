@@ -1,21 +1,21 @@
-import express, { Express, RequestHandler } from 'express';
-import { ChampionshipsRoutes } from '../../models/apiRoutes/championship/championshipsRoutes';
+import { Router, RequestHandler } from 'express';
 import { origin } from '../../middlewares';
 import { auth } from '../../middlewares/auth.middleware';
 import { handleAuthError, requireAuth } from '../../config';
 import { roleAuthorization } from '../../middlewares/auth/roleAuthorization.middleware';
-import { AuthRole } from '../../models';
-import { ChampionshipController } from '../../controllers/championShip/championship.controller';
+import { ChampionshipController } from '../../controllers/championship/championship.controller';
 import trimRequest from 'trim-request';
-import { validateCreateChampionship, validateCreateChampionshipConfiguration } from '../../validators/championships/campionship.validator';
+import { validateCreateChampionship, validateCreateChampionshipConfiguration } from '../../validators/championships/championship.validator';
+import { ChampionshipsRoutes } from '../../constants/apiRoutes/championship/championshipsRoutes';
+import { AuthRole } from '../../constants/apiRoutes';
 
 
 const championshipController = new ChampionshipController();
-const app: Express = express();
+const router: Router = Router();
 
 
 // create championship
-app.post(ChampionshipsRoutes.CHAMPIONSHIPS,[
+router.post(ChampionshipsRoutes.CHAMPIONSHIPS, [
     origin.checkDomain as RequestHandler,
     origin.checkTenant as RequestHandler,
     auth as RequestHandler,
@@ -31,7 +31,7 @@ app.post(ChampionshipsRoutes.CHAMPIONSHIPS,[
 ], championshipController.create as RequestHandler);
 
 // get all championships
-app.get(ChampionshipsRoutes.CHAMPIONSHIPS,[
+router.get(ChampionshipsRoutes.CHAMPIONSHIPS, [
     origin.checkDomain as RequestHandler,
     origin.checkTenant as RequestHandler,
     auth as RequestHandler,
@@ -45,4 +45,4 @@ app.get(ChampionshipsRoutes.CHAMPIONSHIPS,[
 
 
 
-export default app;
+export default router;

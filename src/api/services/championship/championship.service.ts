@@ -1,7 +1,7 @@
 import { nanoid } from "nanoid";
-import { Championship } from "../../models/mongoose/championschip/championship";
-import { IChampionshipDocument } from "../../models/mongoose/championschip/championship";
-import { InvitationLink } from "../../models/mongoose/championschip/invitationLink";
+import { Championship } from "../../models/mongoose/championship/championship";
+import { IChampionshipDocument } from "../../models/mongoose/championship/championship";
+import { InvitationLink } from "../../models/mongoose/championship/invitationLink";
 import { DatabaseHelper } from "../../utils/database.helper";
 import { Types } from "mongoose";
 
@@ -54,12 +54,12 @@ export class ChampionshipService {
                     }]
                 }
             );
-                
+
 
             if (!populatedChampionship) {
                 throw new Error('Championship not found');
             }
-    
+
             return populatedChampionship;
         } catch (error: any) {
             throw new Error(`Error updating championship status: ${error.message}`);

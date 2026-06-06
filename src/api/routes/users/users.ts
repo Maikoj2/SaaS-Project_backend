@@ -1,99 +1,90 @@
-import express, { Express, RequestHandler } from 'express';
-;
+import { Router, RequestHandler } from 'express';
 import { requireAuth } from '../../config/auth/index.js';
 import { handleAuthError } from '../../config/auth/index.js';
 import { roleAuthorization } from '../../middlewares/auth/roleAuthorization.middleware.js';
-import { AuthRole } from '../../models/apiRoutes/auth/authRoutes.js';
 import { origin } from '../../middlewares/index.js';
 
 import trimRequest from 'trim-request';
 import { userValidation } from '../../validators/user/user.validate.js';
 import { UserController } from '../../controllers/users/user.controller.js';
-import { UsersRoute } from '../../models/apiRoutes/users/userRoutes.ts.js';
+
 import { auth } from '../../middlewares/auth.middleware.js';
+import { UsersRoute } from '../../constants/apiRoutes/users/userRoutes.ts.js';
+import { AuthRole } from '../../constants/apiRoutes/index.js';
 
 const userController = new UserController();
 
 
-const app: Express = express();
+const router: Router = Router();
 // Get all users
-app.get(UsersRoute.USERS, [
+router.get(UsersRoute.USERS, [
     origin.checkDomain as RequestHandler,
     origin.checkTenant as RequestHandler,
     auth as RequestHandler,
-    requireAuth,
-    handleAuthError,
     roleAuthorization([
         AuthRole.ADMIN,
         AuthRole.ORGANIZER
-    ]),
-    trimRequest.all,
-    userValidation.getUsers,
+    ]) as RequestHandler,
+    trimRequest.all as RequestHandler,
+    ...userValidation.getUsers,
 ],
     userController.getUsers as RequestHandler
 );
 
 // Get user by id
-app.get(UsersRoute.GET_USER_BY_ID, [
+router.get(UsersRoute.GET_USER_BY_ID, [
     origin.checkDomain as RequestHandler,
     origin.checkTenant as RequestHandler,
     auth as RequestHandler,
-    requireAuth,
-    handleAuthError,
     roleAuthorization([
         AuthRole.ADMIN,
         AuthRole.ORGANIZER,
         AuthRole.TEAM_MEMBER
-    ]),
+    ]) as RequestHandler,
     trimRequest.all,
-    userValidation.getUserById,
+    ...userValidation.getUserById,
 
 ],
     userController.getUserById as RequestHandler
 );
 
 // Create user
-app.post(UsersRoute.USERS, [
+router.post(UsersRoute.USERS, [
     origin.checkDomain as RequestHandler,
     origin.checkTenant as RequestHandler,
     auth as RequestHandler,
-    requireAuth,
-    handleAuthError,
-    userValidation.createUser,
+    trimRequest.all as RequestHandler,
+    ...userValidation.createUser,
 ],
     userController.createUser as RequestHandler
 );
 
 // Update user
-app.patch(UsersRoute.UPDATE_USER, [
+router.patch(UsersRoute.UPDATE_USER, [
     origin.checkDomain as RequestHandler,
     origin.checkTenant as RequestHandler,
     auth as RequestHandler,
-    requireAuth,
-    handleAuthError,
     roleAuthorization([
         AuthRole.ADMIN,
-    ]),
+    ]) as RequestHandler,
     trimRequest.all,
-    userValidation.updateUser,
+    ...userValidation.updateUser,
 ],
     userController.updateUser as RequestHandler
 );
 
 // Delete user
-app.delete(UsersRoute.DELETE_USER, [
+router.delete(UsersRoute.DELETE_USER, [
     origin.checkDomain as RequestHandler,
     origin.checkTenant as RequestHandler,
     auth as RequestHandler,
-    requireAuth,
     roleAuthorization([
         AuthRole.ADMIN,
-    ]),
-    handleAuthError,
+    ]) as RequestHandler,
     trimRequest.all,
-    userValidation.deleteUser,
+    ...userValidation.deleteUser,
 ],
     userController.deleteUser as RequestHandler
 );
 
-export default app;
+export default router;

@@ -1,21 +1,22 @@
-import express, { Express, Request, RequestHandler, Response } from 'express';
+import { Router, RequestHandler } from 'express';
 import { origin } from '../../middlewares';
 // import { ApiResponse } from '../../responses';
-import { PluginsRoute } from '../../models/apiRoutes/plugins/pluginsRoutes';
 import { handleAuthError, requireAuth } from '../../config/passport/passport';
 import { ApiResponse } from '../../responses';
 import trimRequest from 'trim-request';
-import { AuthRole } from '../../models/apiRoutes/auth/authRoutes';
 import { auth } from '../../middlewares/auth.middleware';
 import { roleAuthorization } from '../../middlewares/auth/roleAuthorization.middleware';
 import { PluginsController } from '../../controllers/plugins/plugins.controller';
+import { PluginsRoute } from '../../constants/apiRoutes/plugins/pluginsRoutes';
+import { AuthRole } from '../../constants/apiRoutes';
+import app from '../profile/profile';
 
-const app: Express = express();
+const router: Router = Router();
 const pluginsController = new PluginsController();
 // const validator = new PluginsValidator();
 
 // Get all plugins
-app.get(PluginsRoute.PLUGINS,
+router.get(PluginsRoute.PLUGINS,
     [
         origin.checkDomain as RequestHandler,
         origin.checkTenant as RequestHandler,
@@ -32,7 +33,7 @@ app.get(PluginsRoute.PLUGINS,
 );
 
 // // Get single plugin
-// app.get(`${PluginsRoute.PLUGINS}/:id`,
+// router.get(`${PluginsRoute.PLUGINS}/:id`,
 //     [
 //         origin.checkDomain as RequestHandler,
 //         origin.checkTenant as RequestHandler,
@@ -45,7 +46,7 @@ app.get(PluginsRoute.PLUGINS,
 // );
 
 // // Create plugin
-// app.post(PluginsRoute.PLUGINS,
+// router.post(PluginsRoute.PLUGINS,
 //     [
 //         origin.checkDomain as RequestHandler,
 //         origin.checkTenant as RequestHandler,
@@ -58,7 +59,7 @@ app.get(PluginsRoute.PLUGINS,
 // );
 
 // // Activate plugin
-// app.post(`${PluginsRoute.PLUGINS}/:id/active`,
+// router.post(`${PluginsRoute.PLUGINS}/:id/active`,
 //     [
 //         origin.checkDomain as RequestHandler,
 //         origin.checkTenant as RequestHandler,
@@ -71,7 +72,7 @@ app.get(PluginsRoute.PLUGINS,
 // );
 
 // // Update plugin
-// app.patch(`${PluginsRoute.PLUGINS}/:id`,
+// router.patch(`${PluginsRoute.PLUGINS}/:id`,
 //     [
 //         origin.checkDomain as RequestHandler,
 //         origin.checkTenant as RequestHandler,
@@ -84,7 +85,7 @@ app.get(PluginsRoute.PLUGINS,
 // );
 
 // // Disable plugin
-// app.delete(`${PluginsRoute.PLUGINS}/:id/disabled`,
+// router.delete(`${PluginsRoute.PLUGINS}/:id/disabled`,
 //     [
 //         origin.checkDomain as RequestHandler,
 //         origin.checkTenant as RequestHandler,
@@ -97,7 +98,7 @@ app.get(PluginsRoute.PLUGINS,
 // );
 
 // // Delete plugin
-// app.delete(`${PluginsRoute.PLUGINS}/:id`,
+// router.delete(`${PluginsRoute.PLUGINS}/:id`,
 //     [
 //         origin.checkDomain as RequestHandler,
 //         origin.checkTenant as RequestHandler,
@@ -110,7 +111,7 @@ app.get(PluginsRoute.PLUGINS,
 // );
 
 // // Plugin events
-// app.get(`${PluginsRoute.PLUGINS}/:id/events/:action`,
+// router.get(`${PluginsRoute.PLUGINS}/:id/events/:action`,
 //     [
 //         origin.checkDomain as RequestHandler,
 //         origin.checkTenant as RequestHandler,
@@ -121,7 +122,7 @@ app.get(PluginsRoute.PLUGINS,
 //     controller.actionForPlugin
 // );
 
-// app.post(`${PluginsRoute.PLUGINS}/:id/events/:action`,
+// router.post(`${PluginsRoute.PLUGINS}/:id/events/:action`,
 //     [
 //         origin.checkDomain as RequestHandler,
 //         origin.checkTenant as RequestHandler,
@@ -133,7 +134,7 @@ app.get(PluginsRoute.PLUGINS,
 // );
 
 // // Public plugin route
-// app.post(`${PluginsRoute.PLUGINS}/public/:id/events/:action`,
+// router.post(`${PluginsRoute.PLUGINS}/public/:id/events/:action`,
 //     [
 //         origin.checkDomain as RequestHandler,
 //         origin.checkTenant as RequestHandler,
@@ -143,4 +144,4 @@ app.get(PluginsRoute.PLUGINS,
 //     controller.actionForPublic
 // );
 
-export default app;
+export default router;

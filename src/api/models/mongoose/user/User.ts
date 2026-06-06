@@ -6,6 +6,7 @@ import mongoTenant from "mongo-tenant";
 import mongoose_delete from "mongoose-delete";
 import { PasswordUtil } from "../../../utils";
 import { ITenantDocument, ITenantModel } from '../../../interfaces/model.interface';
+import { AuthRole } from "../../../constants/apiRoutes";
 
 export interface IUserDocument extends ITenantDocument {
     name: string;
@@ -14,7 +15,7 @@ export interface IUserDocument extends ITenantDocument {
     stepper: any[];
     email: string;
     password: string;
-    role: 'admin' | 'organizer' | 'referee' | 'team_member' | 'viewer';
+    role: AuthRole;
     verification?: string;
     verified: boolean;
     tag: any[];
@@ -123,7 +124,7 @@ const GenSalt = (user: any, SALT_FACTOR: number, next: CallbackWithoutResultAndO
     })
 }
 
-UserSchema.methods.comparePassword = function(passwordAttempt: string): Promise<boolean> {
+UserSchema.methods.comparePassword = function (passwordAttempt: string): Promise<boolean> {
     return PasswordUtil.comparePassword(passwordAttempt, this.password);
 }
 

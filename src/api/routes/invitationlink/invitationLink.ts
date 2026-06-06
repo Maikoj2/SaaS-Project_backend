@@ -1,16 +1,16 @@
 import { RequestHandler, Router } from 'express';
-import { InvitationLinkController } from '../../controllers/championShip/invitationLink.controller';
+import { InvitationLinkController } from '../../controllers/championship/invitationLink.controller';
 ;
 
 
 import trimRequest from 'trim-request';
-import { AuthRole } from '../../models';
 import { origin } from '../../middlewares';
 import { auth } from '../../middlewares/auth.middleware';
 import { handleAuthError, requireAuth } from '../../config';
 import { roleAuthorization } from '../../middlewares/auth/roleAuthorization.middleware';
 import { validateGenerateInvitationLink, validateUseInvitationLink } from '../../validators/championships/generatelink.validator';
-import { InvitationLinkRoutes } from '../../models/apiRoutes/invitationlinkroutes.ts/invitationlinkRoutes';
+import { InvitationLinkRoutes } from '../../constants/apiRoutes/invitationlinkroutes.ts/invitationlinkRoutes';
+import { AuthRole } from '../../constants/apiRoutes';
 
 const router = Router();
 const controller = new InvitationLinkController();
@@ -34,7 +34,7 @@ router.post(InvitationLinkRoutes.USE_LINK, [
     auth as RequestHandler,
     requireAuth as RequestHandler,
     handleAuthError as RequestHandler,
-    ...validateUseInvitationLink ,
+    ...validateUseInvitationLink,
     trimRequest.all as RequestHandler,
 ] as RequestHandler[], controller.useInvitationLink as RequestHandler);
 

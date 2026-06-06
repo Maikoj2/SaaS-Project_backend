@@ -94,18 +94,18 @@ const PlanSchema = new Schema<IPlan>({
 
 // Helpers
 const getInitialTemplate = (): { html: string } => {
-    // try {
-        
+    try {
+
         const filePath = path.resolve(__dirname, '../../../templates/initial_invoice.html');
         console.log(filePath);
         return {
             html: readFileSync(filePath, 'utf-8')
         };
-    // } catch (error) {
-    //     // return {
-    //     //     html: '<div class="invoice-template">Plantilla básica</div>'
-    //     // };
-    // }
+    } catch (error) {
+        return {
+            html: '<div class="invoice-template">Plantilla básica</div>'
+        };
+    }
 };
 
 const getBasicPlan = (): IPlan => ({
@@ -116,62 +116,62 @@ const getBasicPlan = (): IPlan => ({
 
 // Main Schema
 const SettingsSchema = new Schema<ISettingsDocument, ISettingsModel>({
-    name: { 
+    name: {
         type: String,
-        default: null 
+        default: null
     },
-    owner: { 
+    owner: {
         type: String,
-        required: true 
+        required: true
     },
-    currencySymbol: { 
+    currencySymbol: {
         type: String,
-        default: null 
+        default: null
     },
-    currency: { 
+    currency: {
         type: String,
-        default: null 
+        default: null
     },
-    logo: { 
+    logo: {
         type: String,
-        default: null 
+        default: null
     },
-    plugins: { 
+    plugins: {
         type: [Object],
-        default: [] 
+        default: []
     },
-    tax: { 
+    tax: {
         type: [Object],
-        default: [] 
+        default: []
     },
-    taxOffset: { 
+    taxOffset: {
         type: [Object],
-        default: [] 
+        default: []
     },
-    language: { 
+    language: {
         type: String,
         enum: Object.values(Language),
-        default: Language.SpanishES 
+        default: Language.SpanishES
     },
-    invoiceDesign: { 
+    invoiceDesign: {
         type: Object,
-        default: getInitialTemplate() 
+        default: getInitialTemplate()
     },
-    purchaseDesign: { 
+    purchaseDesign: {
         type: Object,
-        default: getInitialTemplate() 
+        default: getInitialTemplate()
     },
-    invoiceFormat: { 
+    invoiceFormat: {
         type: String,
-        default: '%%%%%' 
+        default: '%%%%%'
     },
-    payment: { 
+    payment: {
         type: CardSchema,
-        default: null 
+        default: null
     },
-    planDate: { 
+    planDate: {
         type: PlanSchema,
-        default: getBasicPlan() 
+        default: getBasicPlan()
     },
     deletedAt: { type: Date, default: null }
 }, {
@@ -189,7 +189,7 @@ SettingsSchema.index({ owner: 1 });
 SettingsSchema.index({ language: 1 });
 
 // Métodos
-SettingsSchema.methods.toJSON = function() {
+SettingsSchema.methods.toJSON = function () {
     const obj = this.toObject();
     delete obj.payment?.cardToken;
     delete obj.payment?.cardPlaceholder;

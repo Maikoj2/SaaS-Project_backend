@@ -14,7 +14,6 @@ export class Server {
     private readonly app: Application;
     private readonly port: string;
     private readonly logger: Logger;
-    private readonly db: DatabaseConnection;
     private routeLoader: RouteLoader;
     private server: any; // Para almacenar la instancia del servidor HTTP
 
@@ -22,9 +21,7 @@ export class Server {
         this.app = express();
         this.port = env.PORT || '8000';
         this.logger = new Logger();
-        this.db = new DatabaseConnection();
         this.routeLoader = new RouteLoader();
-
         this.setupMiddlewares();
         this.setupRoutes();
         this.setupErrorHandling();
@@ -36,17 +33,17 @@ export class Server {
         this.app.use(express.json());
         this.app.use(bodyParser.urlencoded({ extended: true }));
 
-         // Inicializar Passport
-         this.app.use(passport.initialize());
-        
-        
+        // Inicializar Passport
+        this.app.use(passport.initialize());
+
+
         // Archivos estáticos
         this.app.use(express.static('public'));
 
         // Logging de requests
         this.app.use((req, res, next) => {
             this.logger.info(`${req.method} ${req.url}`, {
-                body: req.body,
+                body: req.body,  //borrar luego no lo puedo dejar aqui
                 query: req.query,
                 ip: req.ip
             });
@@ -56,7 +53,7 @@ export class Server {
 
     private setupRoutes(): void {
         this.app.use(env.API_PREFIX, this.routeLoader.loadRoutes());
-        
+
         // Manejo de rutas no encontradas
         this.app.use('*', (req, res) => {
             this.logger.warn(`Ruta no encontrada: ${req.originalUrl}`);
@@ -73,17 +70,10 @@ export class Server {
 
     public async start(): Promise<void> {
         try {
-            // Conectar a la base de datos
-            await this.db.connect();
-            this.logger.info('Conexión a base de datos establecida');
-
             // Iniciar servidor
             this.server = this.app.listen(this.port, () => {
                 this.logger.info(`Servidor corriendo en puerto ${this.port}`);
             });
-
-            // Manejo de señales de terminación
-            this.setupGracefulShutdown();
 
         } catch (error) {
             this.logger.error('Error iniciando servidor:', error);
@@ -91,31 +81,6 @@ export class Server {
         }
     }
 
-    private setupGracefulShutdown(): void {
-        process.on('SIGTERM', async () => {
-            await this.shutdown('SIGTERM');
-        });
-
-        process.on('SIGINT', async () => {
-            await this.shutdown('SIGINT');
-        });
-    }
-
-    private async shutdown(signal: string): Promise<void> {
-        this.logger.info(`${signal} recibido. Iniciando apagado graceful...`);
-
-        try {
-            // Cerrar conexión a base de datos
-            await this.db.closeConnection();
-            this.logger.info('Conexión a base de datos cerrada');
-
-            // Cerrar servidor
-            process.exit(0);
-        } catch (error) {
-            this.logger.error('Error durante el apagado:', error);
-            process.exit(1);
-        }
-    }
 
     public getApp(): Application {
         return this.app;

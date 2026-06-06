@@ -1,6 +1,6 @@
 import { Injectable } from "@decorators/di";
 import { DatabaseHelper } from "../../utils/database.helper";
-import GameFormat, { IGameFormatDocument } from "../../models/mongoose/championschip/gameFormat";
+import GameFormat, { IGameFormatDocument } from "../../models/mongoose/championship/gameFormat";
 
 @Injectable()
 export class GameFormatService {

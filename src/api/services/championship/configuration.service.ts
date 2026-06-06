@@ -1,8 +1,8 @@
-import { ChampionshipConfiguration } from "../../models/mongoose/championschip/configuration";
+import { ChampionshipConfiguration } from "../../models/mongoose/championship/configuration";
 
-import { Championship } from "../../models/mongoose/championschip/championship";
-import { GameFormat } from "../../models/mongoose/championschip/gameFormat";
-import { IConfigurationDocument } from "../../models/mongoose/championschip/configuration";
+import { Championship } from "../../models/mongoose/championship/championship";
+import { GameFormat } from "../../models/mongoose/championship/gameFormat";
+import { IConfigurationDocument } from "../../models/mongoose/championship/configuration";
 import { Logger } from "../../config";
 import { DatabaseHelper } from "../../utils/database.helper";
 
@@ -58,11 +58,11 @@ export class ConfigurationService {
                 }
             );
 
-        
 
-            this.logger.info('Configuration created:', { 
+
+            this.logger.info('Configuration created:', {
                 configId: configuration._id,
-                championshipId: championship._id 
+                championshipId: championship._id
             });
 
             return configuration;
@@ -78,7 +78,7 @@ export class ConfigurationService {
                 ChampionshipConfiguration,
                 tenant,
                 { championshipId },
-                { 
+                {
                     throwError: true,
                     errorMessage: 'Configuration not found for this championship'
                 }
@@ -99,7 +99,7 @@ export class ConfigurationService {
             );
 
             if (!configuration) {
-                throw  new Error('Configuration not found');
+                throw new Error('Configuration not found');
             }
 
             return configuration;

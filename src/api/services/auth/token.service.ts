@@ -12,12 +12,12 @@ interface TokenPayload {
 
 @Injectable()
 export class TokenService {
-    private readonly ACCESS_TOKEN_EXPIRY = env.JWT_EXPIRATION_IN_MINUTES;
-    private readonly REFRESH_TOKEN_EXPIRY = env.JWT_REFRESH_SECRET;
+    private readonly ACCESS_TOKEN_EXPIRY = env.JWT_EXPIRATION_IN_MINUTES
+    private readonly REFRESH_TOKEN_EXPIRY = env.JWT_REFRESH_EXPIRATION;
 
     public generateToken(userId: string): string {
         const tokens = this.generateTokens(userId);
-        
+
         // Encriptar los tokens en un solo string como antes
         const tokenData = {
             accessToken: tokens.accessToken,
@@ -27,12 +27,11 @@ export class TokenService {
         return encrypt(JSON.stringify(tokenData));
     }
 
-    public  getUserIdFromToken(encryptedToken: string): string {
+    public getUserIdFromToken(encryptedToken: string): string {
         try {
             // Desencriptar el token
             const decrypted = decrypt(encryptedToken);
             const tokens = JSON.parse(decrypted);
-            
             // Verificar el access token
             const decoded = jwt.verify(tokens.accessToken, env.JWT_SECRET) as TokenPayload;
             return decoded.userId;
@@ -61,10 +60,10 @@ export class TokenService {
             // Desencriptar tokens actuales
             const decrypted = decrypt(encryptedToken);
             const tokens = JSON.parse(decrypted);
-            
+
             // Verificar refresh token
             const decoded = jwt.verify(
-                tokens.refreshToken, 
+                tokens.refreshToken,
                 env.JWT_REFRESH_SECRET
             ) as TokenPayload;
 
@@ -74,7 +73,7 @@ export class TokenService {
 
             // Generar nuevos tokens
             const newTokens = this.generateTokens(decoded.userId);
-            
+
             // Encriptar y retornar
             return encrypt(JSON.stringify(newTokens));
 
@@ -87,9 +86,9 @@ export class TokenService {
         try {
             const decrypted = decrypt(encryptedToken);
             const tokens = JSON.parse(decrypted);
-            
+
             return verify(
-                tokens.accessToken, 
+                tokens.accessToken,
                 env.JWT_SECRET
             ) as TokenPayload;
         } catch (error) {
@@ -99,7 +98,7 @@ export class TokenService {
 
     public verifyResetToken(token: string): string {
         try {
-            const decoded = verify(token,env.JWT_SECRET) as { userId: string };
+            const decoded = verify(token, env.JWT_SECRET) as { userId: string };
             return decoded.userId;
         } catch (error) {
             throw new AuthError('Invalid or expired token', 401);

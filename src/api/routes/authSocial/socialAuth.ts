@@ -1,17 +1,17 @@
-import express,{Express, RequestHandler}from 'express';
-import { AuthSocialRoute } from '../../models/apiRoutes/auth/authRoutes';
+import { Router, RequestHandler } from 'express';
 import { AuthSocialController } from '../../controllers/auth/authSocial.controller';
 import { origin } from '../../middlewares';
+import { AuthSocialRoute } from '../../constants/apiRoutes';
 
 
 
-const app: Express = express();
+const router: Router = Router();
 const authSocialController = new AuthSocialController();
 
 
 // TODO: Social Auth routes - Pending Production Setup
 /*
-app.get(AuthSocialRoute.FACEBOOK, 
+router.get(AuthSocialRoute.FACEBOOK, 
     [
         origin.checkDomain as RequestHandler,
         origin.checkTenant as RequestHandler,
@@ -30,4 +30,4 @@ app.get(AuthSocialRoute.FACEBOOK,
 //    - FACEBOOK_APP_SECRET
 //    - FACEBOOK_CALLBACK_URL
 
-export default app;
+export default router;
