@@ -18,7 +18,7 @@ export const authValidation = {
     register: [
         ...validateField('name', true),
         ...requiredEmail,
-        ...password('password', false),
+        ...password('password', true),
         ...validateField('userReferred', false),
         validate
     ],

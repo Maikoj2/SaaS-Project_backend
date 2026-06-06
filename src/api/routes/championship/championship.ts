@@ -1,4 +1,4 @@
-import express, { Express, RequestHandler } from 'express';
+import { Router, RequestHandler } from 'express';
 import { origin } from '../../middlewares';
 import { auth } from '../../middlewares/auth.middleware';
 import { handleAuthError, requireAuth } from '../../config';
@@ -11,11 +11,11 @@ import { AuthRole } from '../../constants/apiRoutes';
 
 
 const championshipController = new ChampionshipController();
-const app: Express = express();
+const router: Router = Router();
 
 
 // create championship
-app.post(ChampionshipsRoutes.CHAMPIONSHIPS, [
+router.post(ChampionshipsRoutes.CHAMPIONSHIPS, [
     origin.checkDomain as RequestHandler,
     origin.checkTenant as RequestHandler,
     auth as RequestHandler,
@@ -31,7 +31,7 @@ app.post(ChampionshipsRoutes.CHAMPIONSHIPS, [
 ], championshipController.create as RequestHandler);
 
 // get all championships
-app.get(ChampionshipsRoutes.CHAMPIONSHIPS, [
+router.get(ChampionshipsRoutes.CHAMPIONSHIPS, [
     origin.checkDomain as RequestHandler,
     origin.checkTenant as RequestHandler,
     auth as RequestHandler,
@@ -45,4 +45,4 @@ app.get(ChampionshipsRoutes.CHAMPIONSHIPS, [
 
 
 
-export default app;
+export default router;

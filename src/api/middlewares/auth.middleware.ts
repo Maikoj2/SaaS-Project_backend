@@ -2,57 +2,70 @@ import { Response, NextFunction } from 'express';
 import { IUserCustomRequest } from '../interfaces';
 import { AuthError } from '../errors/AuthError';
 import { TokenService } from '../services/auth/token.service';
+import { ApiResponse } from '../responses';
+import { DatabaseHelper } from '../utils/database.helper';
+import { User } from '../models';
 
 const tokenService = new TokenService();
 
 export const auth = async (req: IUserCustomRequest, res: Response, next: NextFunction) => {
     try {
+        const tenant = req.clientAccount;
+        if (!tenant) {
+            return res.status(401).json(
+                ApiResponse.error("The tenant can't be found")
+            );
+        }
         const token = req.headers.authorization?.replace('Bearer ', '');
-        
+
         if (!token) {
-            throw new AuthError('Token not provided', 401);
+            return res.status(401).json(
+                ApiResponse.error({
+                    message: 'No se proporcionó el token de acceso.',
+                    statusCode: 401,
+                    name: 'AuthError'
+                })
+            );
         }
 
         try {
-            // Intenta verificar el access token
+            // try to verify sign and expiration of jwt 
+
             const userId = tokenService.getUserIdFromToken(token);
+            // search user by tenant 
+            const user = await DatabaseHelper.findById(User, userId, tenant, { select: ['-password'] });
+            console.log('user', user);
+
+            if (!user) {
+                return res.status(401).json(
+                    ApiResponse.error({
+                        message: 'the user not exist or is inactive or in blocked',
+                        statusCode: 401,
+                        name: 'AuthError',
+                        details: [{ code: 'USER_NOT_FOUND' }]
+                    })
+                );
+            }
             req.id = userId;
+            req.user = user;
             next();
         } catch (error) {
-            // Si es ruta de refresh, permite continuar
-            if (req.path.includes('/refresh-token')) {
-                req.token = token;
-                next();
-                return;
-            }
-
-            // Para otras rutas, intenta refresh automático
-            try {
-                const newToken = await tokenService.refreshTokens(token);
-                const userId = tokenService.getUserIdFromToken(newToken);
-                
-                return res.status(200).json({
-                    status: 'warning',
-                    code: 'TOKEN_REFRESHED',
-                    message: 'Your session was about to expire and has been renewed',
-                    newToken: `Bearer ${newToken}`,
-                    shouldRefresh: true
-                });
-            } catch (refreshError) {
-                return res.status(401).json({
-                    status: 'error',
-                    code: 'ACCESS_TOKEN_EXPIRED',
-                    message: 'Your access token has expired',
-                    shouldRefresh: true
-                });
-            }
+            return res.status(401).json(
+                ApiResponse.error({
+                    message: 'the access token has expired or is invalid',
+                    statusCode: 401,
+                    name: 'AuthError',
+                    details: [{ code: 'ACCESS_TOKEN_EXPIRED' }]
+                })
+            );
         }
     } catch (error) {
-        return res.status(401).json({
-            status: 'error',
-            code: 'INVALID_TOKEN',
-            message: error instanceof Error ? error.message : 'Token inválido',
-            shouldRefresh: false
-        });
+        return res.status(401).json(
+            ApiResponse.error({
+                message: 'invalid authorization format',
+                statusCode: 401,
+                name: 'AuthError'
+            })
+        );
     }
 }; 

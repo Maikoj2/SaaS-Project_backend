@@ -1,5 +1,5 @@
 import dotenv from 'dotenv';
-import { DatabaseConnection, Logger } from './api/config';
+import { databaseConnection, DatabaseConnection, Logger } from './api/config';
 import { Server } from './api/models';
 
 
@@ -8,13 +8,12 @@ async function bootstrap() {
     try {
         dotenv.config();
         const logger = new Logger();
-        const db = new DatabaseConnection();
-        await db.connect();
-        
+        await databaseConnection.connect();
+
         const server = new Server();
         await server.start();
-        
-        setupGracefulShutdown(server, db, logger);
+
+        setupGracefulShutdown(server, databaseConnection, logger);
     } catch (error) {
         const logger = new Logger();
         logger.error('Error fatal iniciando aplicación:', error);
@@ -23,13 +22,13 @@ async function bootstrap() {
 }
 
 function setupGracefulShutdown(
-    server: Server, 
-    db: DatabaseConnection, 
+    server: Server,
+    db: DatabaseConnection,
     logger: Logger
 ): void {
     const shutdown = async (signal: string) => {
         logger.info(`${signal} recibido. Iniciando apagado graceful...`);
-        
+
         try {
             // Cerrar servidor
             await server.close();

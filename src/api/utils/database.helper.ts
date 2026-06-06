@@ -397,7 +397,7 @@ export class DatabaseHelper {
      */
     private static cleanPaginationID<T extends Document>(items: PaginateResult<T>): PaginateResult<T> {
         items.docs = items.docs.map(item => {
-            const doc = item.toObject();
+            const doc = typeof item.toObject === 'function' ? item.toObject() : { ...item };
             delete doc.__v;
             delete doc.id;
             return doc;
