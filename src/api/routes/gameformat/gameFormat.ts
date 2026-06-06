@@ -2,11 +2,12 @@
 import express, { Express, RequestHandler } from 'express';
 import { requireAuth, handleAuthError } from '../../config/auth';
 import { roleAuthorization } from '../../middlewares/auth/roleAuthorization.middleware';
-import { AuthRole } from '../../models/apiRoutes/auth/authRoutes';
+
 import { auth, origin } from '../../middlewares';
-import { GameFormatController } from '../../controllers/championShip/gameFormat.controller';
+import { GameFormatController } from '../../controllers/championship/gameFormat.controller';
 import trimRequest from 'trim-request';
 import { validateCreateGameFormat } from '../../validators/championships/gameformat.validator';
+import { AuthRole } from '../../constants/apiRoutes';
 
 const gameFormatController = new GameFormatController();
 const app: Express = express();

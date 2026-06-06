@@ -3,14 +3,15 @@ import express, { Express, RequestHandler } from 'express';
 import { requireAuth } from '../../config/auth/index.js';
 import { handleAuthError } from '../../config/auth/index.js';
 import { roleAuthorization } from '../../middlewares/auth/roleAuthorization.middleware.js';
-import { AuthRole } from '../../models/apiRoutes/auth/authRoutes.js';
 import { origin } from '../../middlewares/index.js';
 
 import trimRequest from 'trim-request';
 import { userValidation } from '../../validators/user/user.validate.js';
 import { UserController } from '../../controllers/users/user.controller.js';
-import { UsersRoute } from '../../models/apiRoutes/users/userRoutes.ts.js';
+
 import { auth } from '../../middlewares/auth.middleware.js';
+import { UsersRoute } from '../../constants/apiRoutes/users/userRoutes.ts.js';
+import { AuthRole } from '../../constants/apiRoutes/index.js';
 
 const userController = new UserController();
 

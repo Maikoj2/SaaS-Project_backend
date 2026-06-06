@@ -1,5 +1,5 @@
 import { nanoid } from 'nanoid';
-import { InvitationLink } from '../../models/mongoose/championschip/invitationLink';
+import { InvitationLink } from '../../models/mongoose/championship/invitationLink';
 import { DatabaseHelper } from '../../utils/database.helper';
 import { env } from '../../config/env.config';
 
@@ -55,11 +55,11 @@ export class InvitationLinkService {
             tenant,
             { code, isActive: true }
         );
-    
+
         if (!invitationLink) {
             throw new Error('Enlace de invitación no válido o expirado');
         }
-    
+
         // Validar fecha de expiración
         if (invitationLink.expiresAt < new Date()) {
             await DatabaseHelper.findOneAndUpdate(
@@ -70,7 +70,7 @@ export class InvitationLinkService {
             );
             throw new Error('The invitation link has expired');
         }
-    
+
         // Validar número máximo de usos
         if (invitationLink.usedCount >= invitationLink.maxUses) {
             await DatabaseHelper.findOneAndUpdate(
@@ -81,7 +81,7 @@ export class InvitationLinkService {
             );
             throw new Error('The link has reached the maximum number of uses allowed');
         }
-    
+
         // Incrementar el contador de usos
         await DatabaseHelper.findOneAndUpdate(
             InvitationLink,
@@ -89,7 +89,7 @@ export class InvitationLinkService {
             { code },
             { $inc: { usedCount: 1 } }
         );
-    
+
         return invitationLink.championshipId;
     }
 

@@ -1,7 +1,7 @@
-import express,{Express, RequestHandler}from 'express';
-import { AuthSocialRoute } from '../../models/apiRoutes/auth/authRoutes';
+import express, { Express, RequestHandler } from 'express';
 import { AuthSocialController } from '../../controllers/auth/authSocial.controller';
 import { origin } from '../../middlewares';
+import { AuthSocialRoute } from '../../constants/apiRoutes';
 
 
 

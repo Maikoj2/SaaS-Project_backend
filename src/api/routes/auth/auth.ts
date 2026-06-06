@@ -1,13 +1,13 @@
 import express, { Express, Request, RequestHandler, Response } from "express";
 import trimRequest from 'trim-request'
 import { origin } from "../../middlewares";
-import { AuthRole, AuthRoute } from "../../models/apiRoutes/auth/authRoutes";
 import { authValidation } from "../../validators";
 import { AuthController } from "../../controllers";
 import { handleAuthError, requireAuth } from "../../config";
 import { roleAuthorization } from "../../middlewares/auth/roleAuthorization.middleware";
 import { auth } from "../../middlewares/auth.middleware";
 import { ValidationChain } from "express-validator";
+import { AuthRole, AuthRoute } from "../../constants/apiRoutes";
 
 const app: Express = express();
 const authController = new AuthController();
@@ -79,7 +79,7 @@ app.get(
     ],
     authController.verifyToken as RequestHandler
 )
- 
+
 // auth route to forgot password
 app.post(
     AuthRoute.FORGOT,

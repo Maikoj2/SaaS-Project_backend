@@ -1,14 +1,14 @@
 import express, { Express, Request, RequestHandler, Response } from 'express';
 import { origin } from '../../middlewares';
 // import { ApiResponse } from '../../responses';
-import { PluginsRoute } from '../../models/apiRoutes/plugins/pluginsRoutes';
 import { handleAuthError, requireAuth } from '../../config/passport/passport';
 import { ApiResponse } from '../../responses';
 import trimRequest from 'trim-request';
-import { AuthRole } from '../../models/apiRoutes/auth/authRoutes';
 import { auth } from '../../middlewares/auth.middleware';
 import { roleAuthorization } from '../../middlewares/auth/roleAuthorization.middleware';
 import { PluginsController } from '../../controllers/plugins/plugins.controller';
+import { PluginsRoute } from '../../constants/apiRoutes/plugins/pluginsRoutes';
+import { AuthRole } from '../../constants/apiRoutes';
 
 const app: Express = express();
 const pluginsController = new PluginsController();

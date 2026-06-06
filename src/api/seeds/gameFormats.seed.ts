@@ -1,4 +1,4 @@
-import GameFormat from "../models/mongoose/championschip/gameFormat";
+import GameFormat from "../models/mongoose/championship/gameFormat";
 
 // src/api/seeds/gameFormats.seed.ts
 export const gameFormats = [

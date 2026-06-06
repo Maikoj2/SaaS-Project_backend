@@ -1,13 +1,12 @@
 import express, { Express, RequestHandler } from 'express';
 import { ProfileController } from '../../controllers/';
 import { auth, origin } from '../../middlewares';
-import { AuthRole } from '../../models/apiRoutes/auth/authRoutes';
 import { roleAuthorization } from '../../middlewares/auth/roleAuthorization.middleware';
 import { handleAuthError, requireAuth } from '../../config';
-import { ProfileRoute } from '../../models/apiRoutes';
 import { changePasswordValidation, profileValidation } from '../../validators';
 import trimRequest from 'trim-request';
 import { stepperValidation } from '../../validators/user/profile.validate';
+import { AuthRole, ProfileRoute } from '../../constants/apiRoutes';
 
 const app: Express = express();
 const profileController = new ProfileController();
@@ -53,7 +52,7 @@ app.patch(ProfileRoute.PROFILE,
     profileController.updateProfile as RequestHandler
 )
 // change the password of the user
-app.post(ProfileRoute.CHANGE_PASSWORD,[
+app.post(ProfileRoute.CHANGE_PASSWORD, [
     origin.checkDomain as RequestHandler,
     origin.checkTenant as RequestHandler,
     auth as RequestHandler,
@@ -68,14 +67,14 @@ app.post(ProfileRoute.CHANGE_PASSWORD,[
     ]) as RequestHandler,
     trimRequest.all,
     changePasswordValidation.changePassword
-], profileController.changePassword as RequestHandler )
+], profileController.changePassword as RequestHandler)
 // update the stepper of the user
 app.patch(ProfileRoute.STEPPER, [
     auth as RequestHandler,
     requireAuth,
     handleAuthError,
     trimRequest.all,
-    stepperValidation.stepper 
+    stepperValidation.stepper
 ], profileController.updateStepper as RequestHandler)
 
 export default app;

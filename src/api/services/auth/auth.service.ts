@@ -26,7 +26,7 @@ import { ApiResponse } from '../../responses';
 import { lookup } from 'geoip-lite';
 import moment from 'moment';
 import { gameFormats } from '../../seeds/gameFormats.seed';
-import GameFormat from '../../models/mongoose/championschip/gameFormat';
+import GameFormat from '../../models/mongoose/championship/gameFormat';
 
 
 
@@ -473,7 +473,7 @@ export class AuthService {
     private seedGameFormats = async (tenant: string) => {
         try {
             for (const format of gameFormats) {
-                
+
                 await DatabaseHelper.findOneAndUpdate(
                     GameFormat,
                     tenant,
