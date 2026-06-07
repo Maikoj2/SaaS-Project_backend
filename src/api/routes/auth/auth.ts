@@ -8,6 +8,8 @@ import { roleAuthorization } from "../../middlewares/auth/roleAuthorization.midd
 import { auth } from "../../middlewares/auth.middleware";
 import { ValidationChain } from "express-validator";
 import { AuthRole, AuthRoute } from "../../constants/apiRoutes";
+import { permissionAuthorization } from "../../middlewares/auth/permissionAuthorization.middleware";
+import { AuthPermission } from "../../constants/permissions";
 
 const router: Router = Router();
 const authController = new AuthController();
@@ -64,14 +66,8 @@ router.get(
     AuthRoute.TOKEN,
     [
         auth as RequestHandler,
-        requireAuth,
-        handleAuthError,
-        roleAuthorization([
-            AuthRole.ADMIN,
-            AuthRole.ORGANIZER,
-            AuthRole.REFEREE,
-            AuthRole.TEAM_MEMBER,
-            AuthRole.VIEWER
+        permissionAuthorization([
+            AuthPermission.PROFILE_READ,
         ]) as RequestHandler,
         origin.checkDomain as RequestHandler,
         origin.checkTenant as RequestHandler,

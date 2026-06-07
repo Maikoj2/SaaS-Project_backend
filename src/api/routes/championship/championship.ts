@@ -1,13 +1,12 @@
 import { Router, RequestHandler } from 'express';
 import { origin } from '../../middlewares';
 import { auth } from '../../middlewares/auth.middleware';
-import { handleAuthError, requireAuth } from '../../config';
-import { roleAuthorization } from '../../middlewares/auth/roleAuthorization.middleware';
 import { ChampionshipController } from '../../controllers/championship/championship.controller';
 import trimRequest from 'trim-request';
 import { validateCreateChampionship, validateCreateChampionshipConfiguration } from '../../validators/championships/championship.validator';
 import { ChampionshipsRoutes } from '../../constants/apiRoutes/championship/championshipsRoutes';
-import { AuthRole } from '../../constants/apiRoutes';
+import { permissionAuthorization } from '../../middlewares/auth/permissionAuthorization.middleware';
+import { AuthPermission } from '../../constants/permissions';
 
 
 const championshipController = new ChampionshipController();
@@ -19,14 +18,9 @@ router.post(ChampionshipsRoutes.CHAMPIONSHIPS, [
     origin.checkDomain as RequestHandler,
     origin.checkTenant as RequestHandler,
     auth as RequestHandler,
-    requireAuth,
-    handleAuthError,
-    roleAuthorization([
-        AuthRole.ADMIN,
-        AuthRole.ORGANIZER
-    ]),
-    validateCreateChampionship,
-    validateCreateChampionshipConfiguration,
+    permissionAuthorization([AuthPermission.CHAMPIONSHIP_CREATE]) as RequestHandler,
+    ...validateCreateChampionship,
+    ...validateCreateChampionshipConfiguration,
     trimRequest.all,
 ], championshipController.create as RequestHandler);
 
@@ -35,12 +29,7 @@ router.get(ChampionshipsRoutes.CHAMPIONSHIPS, [
     origin.checkDomain as RequestHandler,
     origin.checkTenant as RequestHandler,
     auth as RequestHandler,
-    requireAuth,
-    handleAuthError,
-    roleAuthorization([
-        AuthRole.ADMIN,
-        AuthRole.ORGANIZER
-    ]),
+    permissionAuthorization([AuthPermission.CHAMPIONSHIP_READ]) as RequestHandler,
 ], championshipController.getActive as RequestHandler);
 
 

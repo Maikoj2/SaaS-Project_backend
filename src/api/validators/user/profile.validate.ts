@@ -10,9 +10,9 @@ export const profileValidation = {
         ...validateField("city", true),
         ...validateField("country", true),
 
-        optionalSocialUrl("urlTwitter", SocialUrlValidator.validateTwitterUrl, "twitter"),
-        optionalSocialUrl("urlFacebook", SocialUrlValidator.validateFacebookUrl, "facebook"),
-        optionalSocialUrl("urlInstagram", SocialUrlValidator.validateInstagramUrl, "instagram"),
+        ...optionalSocialUrl("urlTwitter", SocialUrlValidator.validateTwitterUrl, "twitter"),
+        ...optionalSocialUrl("urlFacebook", SocialUrlValidator.validateFacebookUrl, "facebook"),
+        ...optionalSocialUrl("urlInstagram", SocialUrlValidator.validateInstagramUrl, "instagram"),
 
         validate,
     ],
