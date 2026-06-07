@@ -69,9 +69,9 @@ export class ChampionshipService {
     /**
      * Registrar equipo en campeonato
      */
-    async registerTeam(championshipId: string, teamId: string): Promise<IChampionshipDocument> {
+    async registerTeam(championshipId: string, teamId: string, tenant: string): Promise<IChampionshipDocument> {
         try {
-            const championship = await Championship.findById(championshipId);
+            const championship = await DatabaseHelper.findById(Championship, championshipId, tenant);
             if (!championship) {
                 throw new Error('Championship not found');
             }
@@ -103,9 +103,9 @@ export class ChampionshipService {
         first: string;
         second: string;
         third: string;
-    }): Promise<IChampionshipDocument> {
+    }, tenant: string): Promise<IChampionshipDocument> {
         try {
-            const championship = await Championship.findById(championshipId);
+            const championship = await DatabaseHelper.findById(Championship, championshipId, tenant);
             if (!championship) {
                 throw new Error('Championship not found');
             }

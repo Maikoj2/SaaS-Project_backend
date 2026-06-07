@@ -13,9 +13,11 @@ export class GroupService {
         groupDistributionId: string;
         name: string;
         teamIds: string[];
+        tenant: string;
     }): Promise<IGroupDocument> {
         try {
-            const group = new Group({
+            const tenantBoundGroup = Group.byTenant(data.tenant);
+            const group = new tenantBoundGroup({
                 groupDistributionId: new Types.ObjectId(data.groupDistributionId),
                 name: data.name,
                 teams: data.teamIds.map(id => new Types.ObjectId(id)),

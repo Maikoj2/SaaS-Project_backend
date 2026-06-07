@@ -8,7 +8,7 @@ import { ApiResponse } from '../../responses';
 const getExpeditiousCache = require('express-expeditious');
 const redisEngine = require('expeditious-engine-redis');
 
-let cache: any = null;
+const tenantCaches: Map<string, any> = new Map();
 const logger = new Logger();
 
 const parseDomain = (data: RegExpExecArray) => {
@@ -59,11 +59,19 @@ const checkDomain = async (req: IUserCustomRequest, res: Response, next: NextFun
 
 const checkTenant = async (req: IUserCustomRequest, res: Response, next: NextFunction) => {
     try {
+        const tenant = req.clientAccount
+        if (!tenant) {
+            return res.status(400).json(
+                ApiResponse.error('The tenant must be specified for determining the tenant ')
+            )
+        }
         if (process.env.USE_REDIS === 'true') {
-            if (!cache) {
-                logger.info('Initializing Redis cache for tenant:', req.clientAccount);
-                cache = getExpeditiousCache({
-                    namespace: req.clientAccount,
+            // if not exist a istance id reddis cache create a instance
+
+            if (!tenantCaches.has(tenant)) {
+                logger.info('Initializing Redis cache for tenant:', tenant);
+                const tenantCacheInstance = getExpeditiousCache({
+                    namespace: tenant,
                     defaultTld: '5 Minutes',
                     sessionAware: false,
                     engine: redisEngine({
@@ -71,9 +79,13 @@ const checkTenant = async (req: IUserCustomRequest, res: Response, next: NextFun
                         port: process.env.REDIS_PORT
                     })
                 })
-                cache.withNamespace(req.clientAccount)
+                tenantCacheInstance.withNamespace(tenant)
                     .withTtlForStatus('1 minute', 404)
+
+                tenantCaches.set(tenant, tenantCacheInstance)
             }
+            const cacheMiddleware = tenantCaches.get(tenant)
+            return cacheMiddleware(req, res, next);
         }
         next()
     } catch (error) {

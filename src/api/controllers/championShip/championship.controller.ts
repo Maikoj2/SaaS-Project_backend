@@ -26,11 +26,11 @@ export class ChampionshipController {
             if (!tenant) {
                 throw new Error('Tenant not found');
             }
-            
-            const { 
-                name, 
-                description, 
-                startDate, 
+
+            const {
+                name,
+                description,
+                startDate,
                 endDate,
                 maxTeams,
                 gameFormatId,
@@ -48,9 +48,9 @@ export class ChampionshipController {
                 startDate,
                 endDate,
                 status: 'draft',
-                idCreatorChampionship: req.user?._id as any 
+                idCreatorChampionship: req.user?._id as any
             });
-        
+
             const configuration = await this.configurationService.create(tenant, {
                 championshipId: championship._id as any,
                 maxTeams,
@@ -82,11 +82,15 @@ export class ChampionshipController {
             );
         }
     }
-    
-    public registerTeam = async (req: Request, res: Response) => {
+
+    public registerTeam = async (req: IUserCustomRequest, res: Response) => {
         try {
+            const tenant = req.clientAccount as string;
+            if (!tenant) {
+                throw new Error('Tenant not found');
+            }
             const { championshipId, teamId } = req.params;
-            const championship = await this.championshipService.registerTeam(championshipId, teamId);
+            const championship = await this.championshipService.registerTeam(championshipId, teamId, tenant);
             res.status(200).json(
                 ApiResponse.success(championship, 'Team registered successfully')
             );
