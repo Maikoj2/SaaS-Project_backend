@@ -25,7 +25,7 @@ const opts = {
         }
     },
     secretOrKey: env.JWT_SECRET,
-    passReqToCallback: true as true
+    passReqToCallback: true as const
 };
 
 passport.use(

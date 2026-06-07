@@ -29,7 +29,7 @@ const checkDomain = async (req: IUserCustomRequest, res: Response, next: NextFun
                 ApiResponse.error('The origin must be specified for determining the tenant ')
             )
         }
-        const re = /^(?:https?:)?(?:\/\/)?(?:[^@\n]+@)?(?:www\.)?([^:\/\n]+)/ig;
+        const re = /^(?:https?:)?(?:\/\/)?(?:[^@\n]+@)?(?:www\.)?([^:/\n]+)/ig;
         const result = re.exec(origin);
         const rawDomain = result ? parseDomain(result) : null;
         const clean = rawDomain ? parse(rawDomain) : null;
