@@ -20,8 +20,6 @@ export class ChampionshipService {
                 championshipData
             );
             return championship;
-
-
         } catch (error: any) {
             throw new Error(`Error creating championship: ${error.message}`);
         }
