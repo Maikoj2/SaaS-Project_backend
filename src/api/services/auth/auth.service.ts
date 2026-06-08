@@ -13,7 +13,7 @@ import { Logger } from '../../config/logger/WinstonLogger';
 import { PasswordUtil } from '../../utils';
 import { AuthResponse, IUserCustomRequest, RegisterDTO } from '../../interfaces';
 import { DatabaseHelper } from '../../utils/database.helper';
-import Settings from '../../models/mongoose/setting/setting';
+import Settings, { ISettingsDocument } from '../../models/mongoose/setting/setting';
 import { v4 as uuidv4 } from 'uuid';
 import { referred } from '../../models/mongoose';
 import { EmailService } from '../email/email.service';
@@ -27,6 +27,7 @@ import { lookup } from 'geoip-lite';
 import moment from 'moment';
 import { gameFormats } from '../../seeds/gameFormats.seed';
 import GameFormat from '../../models/mongoose/championship/gameFormat';
+import { IUserDocument } from '../../models/mongoose/user/User';
 
 
 
@@ -67,50 +68,70 @@ export class AuthService {
         if (existingTenant) {
             throw new AuthError('Tenant already exists', 422);
         }
+
         // Verificar email existente
         const existingUser = await DatabaseHelper.exists(User, tenant, { email: email.toLowerCase() });
 
         if (existingUser) {
             throw new AuthError('Email already registered', 422);
         }
+
+        let user: IUserDocument | undefined;
+        let settings: ISettingsDocument | undefined;
         // Encriptar la contraseña usando PasswordUtil
         const hashedPassword = await PasswordUtil.hashPassword(password);
         // Crear usuario con código de verificación
         const verificationCode = uuidv4();
-        const user = await DatabaseHelper.create(User, tenant, {
-            name,
-            email: email.toLowerCase(),
-            password: hashedPassword,
-            verification: verificationCode,
-            verified: false
-        });
-        await this.emailService.sendVerificationEmail({
-            email: user.email,
-            name: user.name,
-            verificationCode: verificationCode,
-            tenant,
-            locale: data.locale || 'es'
-        });
-        // Crear settings
-        await this.settingsService.createSettings({
-            name,
-            tenant,
-            ownerId: user._id.toString()
-        });
-        await this.seedGameFormats(tenant);
-        await this.pluginService.activePlugins(['excelImport', 'pdfReport', 'liveResults', 'socialSharing'], tenant)
-        // Generar token y respuesta
+        try {
+            user = await DatabaseHelper.create(User, tenant, {
+                name,
+                email: email.toLowerCase(),
+                password: hashedPassword,
+                verification: verificationCode,
+                verified: false
+            });
+            await this.emailService.sendVerificationEmail({
+                email: user.email,
+                name: user.name,
+                verificationCode: verificationCode,
+                tenant,
+                locale: data.locale || 'es'
+            });
+            // Crear settings
+            settings = await this.settingsService.createSettings({
+                name,
+                tenant,
+                ownerId: user._id.toString()
+            });
+            await this.seedGameFormats(tenant);
+            await this.pluginService.activePlugins(['excelImport', 'pdfReport', 'liveResults', 'socialSharing'], tenant)
+            // Generar token y respuesta
 
-        const userInfo = this.formatUserResponse(user);
-        const token = this.tokenService.generateToken(user._id.toString());
-        await this.registerUserReferred(userReferred as string, user, tenant)
-        const settings = await this.settingsService.getSettings(tenant);
+            const userInfo = this.formatUserResponse(user);
+            const token = this.tokenService.generateToken(user._id.toString());
+            await this.registerUserReferred(userReferred as string, user, tenant)
+            await this.settingsService.getSettings(tenant);
+            return {
+                session: `Bearer ${token}`,
+                user: userInfo,
+                settings
+            };
+        } catch (error: any) {
+            this.logger.error('Error in authentication process', error);
+            // ROLLBACK: Corregimos los parámetros intercambiados
+            if (settings) {
+                await DatabaseHelper.delete(Settings, settings._id.toString(), tenant, { throwError: false });
+            }
+            if (user) {
+                await DatabaseHelper.delete(User, user._id.toString(), tenant, { throwError: false });
+            }
+            if (error instanceof AuthError) {
+                throw error;
+            }
+            throw new AuthError('Internal server error', 500);
+        }
 
-        return {
-            session: `Bearer ${token}`,
-            user: userInfo,
-            settings
-        };
+
     }
 
     // public methods

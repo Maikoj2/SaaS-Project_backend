@@ -11,6 +11,8 @@ import { UserController } from '../../controllers/users/user.controller.js';
 import { auth } from '../../middlewares/auth.middleware.js';
 import { UsersRoute } from '../../constants/apiRoutes/users/userRoutes.ts.js';
 import { AuthRole } from '../../constants/apiRoutes/index.js';
+import { permissionAuthorization } from '../../middlewares/auth/permissionAuthorization.middleware.js';
+import { AuthPermission } from '../../constants/permissions.js';
 
 const userController = new UserController();
 
@@ -21,9 +23,8 @@ router.get(UsersRoute.USERS, [
     origin.checkDomain as RequestHandler,
     origin.checkTenant as RequestHandler,
     auth as RequestHandler,
-    roleAuthorization([
-        AuthRole.ADMIN,
-        AuthRole.ORGANIZER
+    permissionAuthorization([
+        AuthPermission.USER_READ
     ]) as RequestHandler,
     trimRequest.all as RequestHandler,
     ...userValidation.getUsers,
@@ -36,10 +37,8 @@ router.get(UsersRoute.GET_USER_BY_ID, [
     origin.checkDomain as RequestHandler,
     origin.checkTenant as RequestHandler,
     auth as RequestHandler,
-    roleAuthorization([
-        AuthRole.ADMIN,
-        AuthRole.ORGANIZER,
-        AuthRole.TEAM_MEMBER
+    permissionAuthorization([
+        AuthPermission.USER_READ_DETAIL
     ]) as RequestHandler,
     trimRequest.all,
     ...userValidation.getUserById,
@@ -53,6 +52,9 @@ router.post(UsersRoute.USERS, [
     origin.checkDomain as RequestHandler,
     origin.checkTenant as RequestHandler,
     auth as RequestHandler,
+    permissionAuthorization([
+        AuthPermission.USER_CREATE
+    ]) as RequestHandler,
     trimRequest.all as RequestHandler,
     ...userValidation.createUser,
 ],
@@ -64,8 +66,8 @@ router.patch(UsersRoute.UPDATE_USER, [
     origin.checkDomain as RequestHandler,
     origin.checkTenant as RequestHandler,
     auth as RequestHandler,
-    roleAuthorization([
-        AuthRole.ADMIN,
+    permissionAuthorization([
+        AuthPermission.USER_UPDATE
     ]) as RequestHandler,
     trimRequest.all,
     ...userValidation.updateUser,
@@ -78,8 +80,8 @@ router.delete(UsersRoute.DELETE_USER, [
     origin.checkDomain as RequestHandler,
     origin.checkTenant as RequestHandler,
     auth as RequestHandler,
-    roleAuthorization([
-        AuthRole.ADMIN,
+    permissionAuthorization([
+        AuthPermission.USER_DELETE
     ]) as RequestHandler,
     trimRequest.all,
     ...userValidation.deleteUser,

@@ -6,4 +6,6 @@ export const ChampionshipsRoutes = {
     CHAMPIONSHIPS_ID_PHASES_ID: '/:id/phases/:phaseId',
     CHAMPIONSHIPS_ID_PHASES_ID_MATCHES: '/:id/phases/:phaseId/matches',
     CHAMPIONSHIPS_ID_PHASES_ID_MATCHES_ID: '/:id/phases/:phaseId/matches/:matchId',
+    CHAMPIONSHIPS_ID_TEAMS: '/:id/teams',
+    CHAMPIONSHIPS_ID_CONFIGURATION: '/:idConfiguration/configuration'
 }

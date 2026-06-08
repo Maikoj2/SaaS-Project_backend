@@ -1,6 +1,8 @@
 import { check, CustomValidator } from "express-validator";
 import { MongooseHelper } from "../../utils/mongoose.helper";
 import { validate } from "../../middlewares";
+import { ChampionshipStatus } from "../../constants/championship.constants";
+import { ChampionshipService } from "../../services/championship/championship.service";
 
 // Validador de fecha
 const validateDate: CustomValidator = (value, { req }) => {
@@ -22,7 +24,7 @@ const validateEndDate: CustomValidator = (value, { req }) => {
 };
 
 // Validador de IDs de MongoDB
-const validateMongoIds: CustomValidator = async (value) => {
+export const validateMongoIds: CustomValidator = async (value) => {
     if (!Array.isArray(value)) return true;
 
     for (const id of value) {
@@ -149,7 +151,7 @@ export const championshipConfigurationValidators = {
 };
 
 // Validadores compuestos para diferentes operaciones
-export const validateCreateChampionship = [
+export const validateCreateChampionship: any[] = [
     ...championshipValidators.name,
     ...championshipValidators.description,
     ...championshipValidators.startDate,
@@ -163,7 +165,7 @@ export const validateCreateChampionship = [
     validate,
 ];
 
-export const validateUpdateChampionship = [
+export const validateUpdateChampionship: any[] = [
     check('name').optional(),
     ...championshipValidators.description,
     ...championshipValidators.startDate,
@@ -177,7 +179,7 @@ export const validateUpdateChampionship = [
     validate,
 ];
 
-export const validateCreateChampionshipConfiguration = [
+export const validateCreateChampionshipConfiguration: any[] = [
     ...championshipConfigurationValidators.maxTeams,
     ...championshipConfigurationValidators.gameFormat,
     check('tieBreakerCriteria.setRatio')
@@ -200,6 +202,60 @@ export const validateCreateChampionshipConfiguration = [
     ...championshipConfigurationValidators.setDurationLimit,
     ...championshipConfigurationValidators.registrationDeadline,
     ...championshipConfigurationValidators.registrationFee,
+    validate,
+];
+
+
+export const validateUpdateChampionshipStatus: any[] = [
+    check('status')
+        .exists()
+        .withMessage('MISSING')
+        .notEmpty()
+        .withMessage('IS_EMPTY')
+        .isIn(ChampionshipStatus)
+        .withMessage('INVALID_STATUS'),
+    check('id')
+        .exists()
+        .withMessage('MISSING')
+        .notEmpty()
+        .withMessage('IS_EMPTY')
+        .isMongoId()
+        .withMessage('INVALID_ID_FORMAT'),
+    validate,
+];
+
+export const validateRegisterTeam: any[] = [
+    check('championshipId')
+        .exists()
+        .withMessage('MISSING')
+        .notEmpty()
+        .withMessage('IS_EMPTY')
+        .isMongoId()
+        .withMessage('INVALID_ID_FORMAT')
+        .custom(async (value, { req }) => {
+            const championshipService = new ChampionshipService();
+            const tenant = req.clientAccount as string;
+            const championship = await championshipService.findById(value, tenant);
+            if (!championship) {
+                throw new Error('CHAMPIONSHIP_NOT_FOUND');
+            }
+            return true;
+        }),
+    check('teamId')
+        .exists()
+        .withMessage('MISSING')
+        .notEmpty()
+        .withMessage('IS_EMPTY')
+        .isMongoId()
+        .withMessage('INVALID_ID_FORMAT'),
+    // .custom(async (value, { req }) => {
+    //     const teamService = new TeamService();
+    //     const team = await teamService.findById(req.tenant, value);
+    //     if (!team) {
+    //         throw new Error('TEAM_NOT_FOUND');
+    //     }
+    //     return true;
+    // }),//TODO: implement team validation
     validate,
 ];
 

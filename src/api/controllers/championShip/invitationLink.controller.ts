@@ -42,14 +42,14 @@ export class InvitationLinkController {
             );
         }
     }
-    
+
     public useInvitationLink = async (req: IUserCustomRequest, res: Response) => {
         try {
             const { code } = req.body;
             const tenant = req.clientAccount as string;
-    
+
             const championshipId = await this.invitationLinkService.validateAndUpdateUsage(tenant, code);
-            
+
             // Continuar con el proceso de registro...
             res.status(200).json({
                 success: true,
@@ -58,7 +58,7 @@ export class InvitationLinkController {
         } catch (error) {
             this.logger.error('Error using invitation link:', error);
             return res.status(400).json(
-                ApiResponse.error('error using invitation link')
+                ApiResponse.error(error instanceof Error ? error.message : 'Error using invitation link')
             );
         }
     }

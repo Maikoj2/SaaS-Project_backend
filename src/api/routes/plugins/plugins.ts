@@ -1,15 +1,11 @@
 import { Router, RequestHandler } from 'express';
 import { origin } from '../../middlewares';
-// import { ApiResponse } from '../../responses';
-import { handleAuthError, requireAuth } from '../../config/passport/passport';
-import { ApiResponse } from '../../responses';
 import trimRequest from 'trim-request';
 import { auth } from '../../middlewares/auth.middleware';
-import { roleAuthorization } from '../../middlewares/auth/roleAuthorization.middleware';
 import { PluginsController } from '../../controllers/plugins/plugins.controller';
 import { PluginsRoute } from '../../constants/apiRoutes/plugins/pluginsRoutes';
-import { AuthRole } from '../../constants/apiRoutes';
-import app from '../profile/profile';
+import { permissionAuthorization } from '../../middlewares/auth/permissionAuthorization.middleware';
+import { AuthPermission } from '../../constants/permissions';
 
 const router: Router = Router();
 const pluginsController = new PluginsController();
@@ -21,12 +17,7 @@ router.get(PluginsRoute.PLUGINS,
         origin.checkDomain as RequestHandler,
         origin.checkTenant as RequestHandler,
         auth as RequestHandler,
-        requireAuth as RequestHandler,
-        handleAuthError,
-        roleAuthorization([
-            AuthRole.ADMIN,
-            AuthRole.ORGANIZER
-        ]) as RequestHandler,
+        permissionAuthorization([AuthPermission.PLUGIN_MANAGE]) as RequestHandler,
         trimRequest.all as RequestHandler
     ],
     pluginsController.getItems as RequestHandler

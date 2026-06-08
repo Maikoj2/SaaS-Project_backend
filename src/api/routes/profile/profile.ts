@@ -7,6 +7,8 @@ import { changePasswordValidation, profileValidation } from '../../validators';
 import trimRequest from 'trim-request';
 import { stepperValidation } from '../../validators/user/profile.validate';
 import { AuthRole, ProfileRoute } from '../../constants/apiRoutes';
+import { permissionAuthorization } from '../../middlewares/auth/permissionAuthorization.middleware';
+import { AuthPermission } from '../../constants/permissions';
 
 const router: Router = Router();
 const profileController = new ProfileController();
@@ -17,14 +19,8 @@ router.get(ProfileRoute.PROFILE,
         origin.checkDomain as RequestHandler,
         origin.checkTenant as RequestHandler,
         auth as RequestHandler,
-        requireAuth,
-        handleAuthError,
-        roleAuthorization([
-            AuthRole.ADMIN,
-            AuthRole.ORGANIZER,
-            AuthRole.REFEREE,
-            AuthRole.TEAM_MEMBER,
-            AuthRole.VIEWER
+        permissionAuthorization([
+            AuthPermission.PROFILE_READ,
         ]) as RequestHandler,
         trimRequest.all,
     ],
@@ -37,17 +33,11 @@ router.patch(ProfileRoute.PROFILE,
         origin.checkDomain as RequestHandler,
         origin.checkTenant as RequestHandler,
         auth as RequestHandler,
-        requireAuth,
-        handleAuthError,
-        roleAuthorization([
-            AuthRole.ADMIN,
-            AuthRole.ORGANIZER,
-            AuthRole.REFEREE,
-            AuthRole.TEAM_MEMBER,
-            AuthRole.VIEWER
+        permissionAuthorization([
+            AuthPermission.PROFILE_UPDATE,
         ]) as RequestHandler,
         trimRequest.all,
-        profileValidation.updateProfile
+        ...profileValidation.updateProfile
     ],
     profileController.updateProfile as RequestHandler
 )
@@ -56,25 +46,20 @@ router.post(ProfileRoute.CHANGE_PASSWORD, [
     origin.checkDomain as RequestHandler,
     origin.checkTenant as RequestHandler,
     auth as RequestHandler,
-    requireAuth,
-    handleAuthError,
-    roleAuthorization([
-        AuthRole.ADMIN,
-        AuthRole.ORGANIZER,
-        AuthRole.REFEREE,
-        AuthRole.TEAM_MEMBER,
-        AuthRole.VIEWER
+    permissionAuthorization([
+        AuthPermission.PROFILE_UPDATE,
     ]) as RequestHandler,
     trimRequest.all,
-    changePasswordValidation.changePassword
+    ...changePasswordValidation.changePassword
 ], profileController.changePassword as RequestHandler)
 // update the stepper of the user
 router.patch(ProfileRoute.STEPPER, [
     auth as RequestHandler,
-    requireAuth,
-    handleAuthError,
+    permissionAuthorization([
+        AuthPermission.PROFILE_UPDATE,
+    ]) as RequestHandler,
     trimRequest.all,
-    stepperValidation.stepper
-], profileController.updateStepper as RequestHandler)
+    ...stepperValidation.stepper
+], profileController.updateStepper as RequestHandler);
 
 export default router;

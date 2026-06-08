@@ -4,12 +4,29 @@ import { ITenantDocument, ITenantModel } from '../interfaces/model.interface';
 import { PaginationOptions } from '../interfaces';
 import { Logger } from '../config/logger/WinstonLogger';
 import { Request } from 'express';
-import { FindOptions, UpdateOptions, PopulateOptions, QueryOptions } from '../interfaces/IhelperDatabase';
+import { FindOptions, UpdateOptions, PopulateOptions, QueryOptions, SelectOption } from '../interfaces/IhelperDatabase';
 
 
 
 export class DatabaseHelper {
     private static logger = new Logger();
+
+    private static applySelect(query: any, select: SelectOption | undefined) {
+        if (!select) return;
+        if (Array.isArray(select)) {
+            if (select.length > 0) {
+                query.select(select);
+            }
+        } else if (typeof select === 'string') {
+            if (select.trim().length > 0) {
+                query.select(select);
+            }
+        } else if (typeof select === 'object') {
+            if (Object.keys(select).length > 0) {
+                query.select(select);
+            }
+        }
+    }
 
     static async find<T extends ITenantDocument>(
         model: Model<T>,
@@ -17,7 +34,7 @@ export class DatabaseHelper {
         options: FindOptions = {}
     ): Promise<T[]>{
         const {
-            select = [],
+            select,
             deleted = false,
             throwError = false,
             errorMessage = 'Documents not found'
@@ -26,9 +43,7 @@ export class DatabaseHelper {
         try {
             const docQuery = model.find(query);
             
-            if (select.length > 0) {
-                docQuery.select(select);
-            }
+            DatabaseHelper.applySelect(docQuery, select);
     
             const docs = await docQuery;
             
@@ -59,7 +74,7 @@ export class DatabaseHelper {
         options: FindOptions = {}
     ): Promise<T | null> {
         const {
-            select = [],
+            select,
             throwError = false,
             errorMessage = 'Document not found'
         } = options;
@@ -67,7 +82,7 @@ export class DatabaseHelper {
         try {
 
             const docQuery = model.byTenant(tenant).findOne(query);
-            if (select.length > 0) docQuery.select(select);
+            DatabaseHelper.applySelect(docQuery, select);
 
             const doc = await docQuery;
 
@@ -92,7 +107,7 @@ export class DatabaseHelper {
         options: UpdateOptions = {}
     ): Promise<T | null> {
         const {
-            select = [],
+            select,
             throwError = true,
             errorMessage = 'Document not found',
             runValidators = true
@@ -100,16 +115,27 @@ export class DatabaseHelper {
 
         try {
 
+            const updateOptions: any = {
+                new: true,
+                runValidators,
+            };
+
+            if (select) {
+                if (Array.isArray(select) && select.length > 0) {
+                    updateOptions.select = select;
+                } else if (typeof select === 'string' && select.trim().length > 0) {
+                    updateOptions.select = select;
+                } else if (typeof select === 'object' && Object.keys(select).length > 0) {
+                    updateOptions.select = select;
+                }
+            }
+
             const doc = await model.byTenant(tenant)
                 .findByIdAndUpdate(
                     id,
                     updateData,
-                    {
-                        new: true,
-                        runValidators,
-                        select: select.length > 0 ? select : undefined
-                    }
-                );
+                    updateOptions
+                ) as T | null;
 
             if (!doc && throwError) {
                 this.logger.warn('Document not found for update:', {
@@ -313,7 +339,7 @@ export class DatabaseHelper {
         options: FindOptions = {}
     ): Promise<T | null> {
         const {
-            select = [],
+            select,
             throwError = false,
             errorMessage = 'Document not found'
         } = options;
@@ -322,9 +348,7 @@ export class DatabaseHelper {
             let docQuery: Query<T | null, T> = model.byTenant(tenant).findOne(query);
 
             // Aplicar select si existe
-            if (select.length > 0) {
-                docQuery = docQuery.select(select.join(' '));
-            }
+            DatabaseHelper.applySelect(docQuery, select);
 
             // Populate básico
             if (relations.basic?.length) {

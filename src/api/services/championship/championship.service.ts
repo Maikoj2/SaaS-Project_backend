@@ -4,10 +4,18 @@ import { IChampionshipDocument } from "../../models/mongoose/championship/champi
 import { InvitationLink } from "../../models/mongoose/championship/invitationLink";
 import { DatabaseHelper } from "../../utils/database.helper";
 import { Types } from "mongoose";
+import ChampionshipConfiguration, { IConfigurationDocument } from "../../models/mongoose/championship/configuration";
 
 
 
 type ChampionshipStatus = 'draft' | 'registration' | 'in_progress' | 'completed' | 'canceled';
+const selectFields = ['id', 'name', 'startDate', 'endDate', 'status', 'teams', 'courts', 'description', 'registrations', 'idCreatorChampionship'];
+const selectFieldsCreator = ['name', 'email'];
+const selectFieldsChampionship = ['status', 'teams'];
+const selectFieldsConfiguration = ['maxTeams', 'gameFormatId', 'tieBreakerCriteria'];
+const selectFieldsGameFormat = ['name', 'description'];
+const selectFieldsCourts = ['name', 'description', 'status'];
+
 export class ChampionshipService {
     /**
      * Crear nuevo campeonato
@@ -20,8 +28,6 @@ export class ChampionshipService {
                 championshipData
             );
             return championship;
-
-
         } catch (error: any) {
             throw new Error(`Error creating championship: ${error.message}`);
         }
@@ -69,9 +75,9 @@ export class ChampionshipService {
     /**
      * Registrar equipo en campeonato
      */
-    async registerTeam(championshipId: string, teamId: string): Promise<IChampionshipDocument> {
+    async registerTeam(championshipId: string, teamId: string, tenant: string): Promise<IChampionshipDocument> {
         try {
-            const championship = await Championship.findById(championshipId);
+            const championship = await DatabaseHelper.findById(Championship, championshipId, tenant);
             if (!championship) {
                 throw new Error('Championship not found');
             }
@@ -103,9 +109,9 @@ export class ChampionshipService {
         first: string;
         second: string;
         third: string;
-    }): Promise<IChampionshipDocument> {
+    }, tenant: string): Promise<IChampionshipDocument> {
         try {
-            const championship = await Championship.findById(championshipId);
+            const championship = await DatabaseHelper.findById(Championship, championshipId, tenant);
             if (!championship) {
                 throw new Error('Championship not found');
             }
@@ -158,9 +164,9 @@ export class ChampionshipService {
     /**
      * Obtener campeonatos paginados
      */
-    async getPaginated(page: number, limit: number) {
+    async getPaginated(page: number, limit: number, tenant: string) {
         try {
-            return await Championship.paginate(
+            return await Championship.byTenant(tenant).paginate(
                 {},
                 {
                     page,
@@ -174,6 +180,9 @@ export class ChampionshipService {
         }
     }
 
+    /**
+     * Generar enlace de invitación
+     */
     async generateLink(tenant: string, championshipId: string, maxUses: number, expiresAt: Date) {
         const code = nanoid(10); // genera un código único de 10 caracteres
 
@@ -195,11 +204,88 @@ export class ChampionshipService {
             expiresAt: invitationLink.expiresAt
         };
     }
+    /**
+     * Obtener campeonatos por rango de fechas
+     */
+    async findByDateRange(startDate: Date, endDate: Date, tenant: string) {
+        try {
+            return await Championship.byTenant(tenant).find({
+                startDate: { $gte: startDate },
+                endDate: { $lte: endDate }
+            });
+        } catch (error: any) {
+            throw new Error(`Error getting championships by date range: ${error.message}`);
+        }
+    }
+    /**
+     * Obtener campeonato por ID
+     */
+    async findById(id: string, tenant: string): Promise<IChampionshipDocument | null> {
+        const championship = await DatabaseHelper.findOneWithRelations(
+            Championship,
+            tenant,
+            { _id: id },
+            {
+                basic: ['idCreatorChampionship'],
+                nested: [{
+                    path: 'idCreatorChampionship',
+                    select: selectFieldsCreator.join(' ')
+                }]
+            }
+        );
+        if (!championship) {
+            throw new Error('Championship not found');
+        }
+        return championship;
+    }
 
-    async findByDateRange(startDate: Date, endDate: Date) {
-        return await Championship.find({
-            startDate: { $gte: startDate },
-            endDate: { $lte: endDate }
-        });
+    /**
+     * Actualizar configuración del campeonato
+     */
+    async updateConfiguration(championshipConfigurationId: string, tenant: string, configuration: Partial<IConfigurationDocument>) {
+        const championshipConfiguration = await DatabaseHelper.findOne(
+            ChampionshipConfiguration,
+            tenant,
+            { _id: championshipConfigurationId }
+        );
+        if (!championshipConfiguration) {
+            throw new Error('Championship configuration not found');
+        }
+
+
+        return await DatabaseHelper.update(
+            ChampionshipConfiguration,
+            championshipConfiguration._id.toString(),
+            tenant,
+            configuration,
+            {
+                new: true,              // return the updated document
+                runValidators: true,    // run validators from the schema
+                select: ['-_id -updatedAt -createdAt']
+            }
+        );
+    }
+    /**
+     * Obtener configuración del campeonato por ID
+     */
+    async getConfigurationById(championshipConfigurationId: string, tenant: string) {
+        return await DatabaseHelper.findOneWithRelations(
+            ChampionshipConfiguration,
+            tenant,
+            { _id: championshipConfigurationId },
+            {
+                basic: ['championshipId', 'gameFormatId', 'courts'],
+                nested: [{
+                    path: 'championshipId',
+                    select: selectFieldsChampionship.join(' ')
+                }, {
+                    path: 'gameFormatId',
+                    select: selectFieldsGameFormat.join(' ')
+                }, {
+                    path: 'courts',
+                    select: selectFieldsCourts.join(' ')
+                }]
+            }
+        );
     }
 } 
