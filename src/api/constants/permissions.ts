@@ -6,6 +6,8 @@ export enum AuthPermission {
     CHAMPIONSHIP_READ = 'championship:read',
     CHAMPIONSHIP_UPDATE = 'championship:update',
     CHAMPIONSHIP_DELETE = 'championship:delete',
+    CHAMPIONSHIP_REGISTER_TEAM = 'championship:register-team',
+
     // users
     USER_CREATE = 'user:create',
     USER_READ = 'user:read',
@@ -32,6 +34,7 @@ export const RolePermissions: Record<AuthRole, AuthPermission[]> = {
         AuthPermission.CHAMPIONSHIP_CREATE,
         AuthPermission.CHAMPIONSHIP_READ,
         AuthPermission.CHAMPIONSHIP_UPDATE,
+        AuthPermission.CHAMPIONSHIP_REGISTER_TEAM,
         AuthPermission.GAME_FORMAT_READ,
         AuthPermission.INVITATION_LINK_CREATE,
         AuthPermission.INVITATION_LINK_READ,
