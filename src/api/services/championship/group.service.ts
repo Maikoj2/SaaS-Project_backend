@@ -139,11 +139,19 @@ export class GroupService {
     /**
      * Obtener clasificación del grupo
      */
-    async getGroupStandings(groupId: string) {
+    async getGroupStandings(groupId: string, tenant: string) {
         try {
-            const group = await Group.findById(groupId)
-                .populate('teams')
-                .populate('rankings.teamId');
+            const group = await DatabaseHelper.findOneWithRelations(
+                Group,
+                tenant,
+                { _id: groupId },
+                {
+                    nested: [
+                        { path: 'teams', select: '_id name logo' },
+                        { path: 'rankings.teamId' }
+                    ]
+                }
+            );
 
             if (!group) throw new Error('Group not found');
 

@@ -158,9 +158,9 @@ export class ChampionshipService {
     /**
      * Obtener campeonatos paginados
      */
-    async getPaginated(page: number, limit: number) {
+    async getPaginated(page: number, limit: number, tenant: string) {
         try {
-            return await Championship.paginate(
+            return await Championship.byTenant(tenant).paginate(
                 {},
                 {
                     page,
@@ -196,8 +196,8 @@ export class ChampionshipService {
         };
     }
 
-    async findByDateRange(startDate: Date, endDate: Date) {
-        return await Championship.find({
+    async findByDateRange(startDate: Date, endDate: Date, tenant: string) {
+        return await Championship.byTenant(tenant).find({
             startDate: { $gte: startDate },
             endDate: { $lte: endDate }
         });

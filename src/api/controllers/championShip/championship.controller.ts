@@ -7,6 +7,9 @@ import { Injectable } from '@decorators/di';
 import { ConfigurationService } from '../../services/championship/configuration.service';
 import { Types } from 'mongoose';
 import { AuthError } from '../../errors/AuthError';
+import Championship, { IChampionshipDocument } from '../../models/mongoose/championship/championship';
+import { DatabaseHelper } from '../../utils/database.helper';
+import ChampionshipConfiguration, { IConfigurationDocument } from '../../models/mongoose/championship/configuration';
 
 @Injectable()
 export class ChampionshipController {
@@ -21,28 +24,30 @@ export class ChampionshipController {
     }
 
     public create = async (req: IUserCustomRequest, res: Response) => {
-        try {
-            const tenant = req.clientAccount as string;
-            if (!tenant) {
-                throw new Error('Tenant not found');
-            }
+        const tenant = req.clientAccount as string;
+        if (!tenant) {
+            throw new Error('Tenant not found');
+        }
+        let configuration: IConfigurationDocument | undefined;
+        let championship: IChampionshipDocument | undefined;
+        const {
+            name,
+            description,
+            startDate,
+            endDate,
+            maxTeams,
+            gameFormatId,
+            tieBreakerCriteria,
+            customRules,
+            matchDurationLimit,
+            setDurationLimit,
+            registrationDeadline,
+            registrationFee
+        } = req.body;
 
-            const {
-                name,
-                description,
-                startDate,
-                endDate,
-                maxTeams,
-                gameFormatId,
-                tieBreakerCriteria,
-                customRules,
-                matchDurationLimit,
-                setDurationLimit,
-                registrationDeadline,
-                registrationFee
-            } = req.body;
-            console.log(req.body);
-            const championship = await this.championshipService.create(tenant, {
+        try {
+            // create championship
+            championship = await this.championshipService.create(tenant, {
                 name,
                 description,
                 startDate,
@@ -51,7 +56,9 @@ export class ChampionshipController {
                 idCreatorChampionship: req.user?._id as any
             });
 
-            const configuration = await this.configurationService.create(tenant, {
+
+            // create configuration
+            configuration = await this.configurationService.create(tenant, {
                 championshipId: championship._id as any,
                 maxTeams,
                 gameFormatId: gameFormatId as any,
@@ -62,23 +69,29 @@ export class ChampionshipController {
                 registrationDeadline,
                 registrationFee
             });
+
+
+            // update championship status
             const updatedChampionship = await this.championshipService.updateStatus(
                 championship._id.toString(),
                 tenant,
                 'registration'
             );
 
-
-
-
             res.status(201).json({
                 championship: updatedChampionship,
                 configuration
             });
         } catch (error) {
-            this.logger.error('Error creating championship:', error);
+            this.logger.error('Error creating championship, initialing rollback', error);
+            if (configuration)
+                await DatabaseHelper.delete(ChampionshipConfiguration, configuration._id.toString(), tenant, { throwError: false });
+
+            if (championship)
+                await DatabaseHelper.delete(Championship, championship._id.toString(), tenant, { throwError: false });
+
             res.status(500).json(
-                ApiResponse.error('Error creating championship')
+                ApiResponse.error(error instanceof Error ? error.message : 'Error creating championship, ')
             );
         }
     }
@@ -96,8 +109,8 @@ export class ChampionshipController {
             );
         } catch (error) {
             this.logger.error('Error registering team:', error);
-            res.status(500).json(
-                ApiResponse.error('Error registering team')
+            res.status(400).json(
+                ApiResponse.error(error instanceof Error ? error.message : 'Error registering team')
             );
         }
     }
