@@ -1,7 +1,4 @@
 import { Router, RequestHandler } from 'express';
-import { requireAuth } from '../../config/auth/index.js';
-import { handleAuthError } from '../../config/auth/index.js';
-import { roleAuthorization } from '../../middlewares/auth/roleAuthorization.middleware.js';
 import { origin } from '../../middlewares/index.js';
 
 import trimRequest from 'trim-request';
@@ -10,7 +7,6 @@ import { UserController } from '../../controllers/users/user.controller.js';
 
 import { auth } from '../../middlewares/auth.middleware.js';
 import { UsersRoute } from '../../constants/apiRoutes/users/userRoutes.ts.js';
-import { AuthRole } from '../../constants/apiRoutes/index.js';
 import { permissionAuthorization } from '../../middlewares/auth/permissionAuthorization.middleware.js';
 import { AuthPermission } from '../../constants/permissions.js';
 

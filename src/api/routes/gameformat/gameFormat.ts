@@ -12,15 +12,13 @@ const gameFormatController = new GameFormatController();
 const router: Router = Router();
 
 // Get all game formats
-// router.get('/', [
-//     origin.checkDomain as RequestHandler,
-//     origin.checkTenant as RequestHandler,
-//     auth as RequestHandler,
-//     requireAuth,
-//     handleAuthError,
-//     roleAuthorization([AuthRole.ADMIN, AuthRole.ORGANIZER]),
-//     trimRequest.all
-// ], gameFormatController.getAll as RequestHandler);
+router.get('/', [
+    origin.checkDomain as RequestHandler,
+    origin.checkTenant as RequestHandler,
+    auth as RequestHandler,
+    permissionAuthorization([AuthPermission.GAME_FORMAT_READ]) as RequestHandler,
+    trimRequest.all
+], gameFormatController.getAll as RequestHandler);
 
 // Create game format
 router.post('/', [

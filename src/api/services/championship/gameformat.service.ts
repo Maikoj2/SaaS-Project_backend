@@ -1,6 +1,7 @@
 import { Injectable } from "@decorators/di";
 import { DatabaseHelper } from "../../utils/database.helper";
 import GameFormat, { IGameFormatDocument } from "../../models/mongoose/championship/gameFormat";
+import { PaginateOptions } from "mongoose";
 
 @Injectable()
 export class GameFormatService {
@@ -21,4 +22,20 @@ export class GameFormatService {
             throw new Error(`Error creating championship: ${error.message}`);
         }
     }
+
+    public async getAll(tenant: string, options: PaginateOptions) {
+        try {
+            const query = { deleted: false };
+            const gameFormatsOptions = {
+                ...options,
+                select: []
+            };
+            const gameFormats = await DatabaseHelper.find(GameFormat, query, gameFormatsOptions);
+            return gameFormats;
+        } catch (error: any) {
+            throw new Error(`Error getting game formats: ${error.message}`);
+        }
+    }
+
+
 }

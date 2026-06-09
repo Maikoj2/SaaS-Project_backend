@@ -3,25 +3,11 @@ import { MongooseHelper } from "../../utils/mongoose.helper";
 import { validate } from "../../middlewares";
 import { ChampionshipStatus } from "../../constants/championship.constants";
 import { ChampionshipService } from "../../services/championship/championship.service";
+import { validateDate, validateEndDate } from "../../utils/dateValidator";
 
-// Validador de fecha
-const validateDate: CustomValidator = (value, { req }) => {
-    const date = new Date(value);
-    if (date < new Date()) {
-        throw new Error('DATE_MUST_BE_FUTURE');
-    }
-    return true;
-};
 
-// Validador de fecha fin
-const validateEndDate: CustomValidator = (value, { req }) => {
-    const endDate = new Date(value);
-    const startDate = new Date(req.body.startDate);
-    if (endDate <= startDate) {
-        throw new Error('END_DATE_MUST_BE_AFTER_START');
-    }
-    return true;
-};
+
+
 
 // Validador de IDs de MongoDB
 export const validateMongoIds: CustomValidator = async (value) => {

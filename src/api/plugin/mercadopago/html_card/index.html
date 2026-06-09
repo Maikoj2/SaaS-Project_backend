@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
+    <title>Pago referenciado</title>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" integrity="sha384-JcKb8q3iqJ61gNV9KGb8thSsNjpSL0n8PARn9HuZOnIxN0hoP+VmmDGMN5t9UJ0Z" crossorigin="anonymous">
+    <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js" integrity="sha384-DfXdz2htPH0lsSSs5nCTpuj/zy4C+OGpamoFVy38MVBnE+IbbVYUew+OrCXaRkfj" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.1/dist/umd/popper.min.js" integrity="sha384-9/reFTGAW83EW2RDu2S0VKaIzap3H66lZH81PoYlFhbGU+6BZp6G7niu735Sk7lN" crossorigin="anonymous"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js" integrity="sha384-B4gt1jrGC7Jh4AgTPSdUtOBvfO8shuf57BaghqFfPlYxofvL8/KUEfYiJOMMV+rV" crossorigin="anonymous"></script>
+</head>
+<body>
+    <div class="container">
+        <div class="col-12 text-center">
+            <h3>Pago referenciado</h3>
+        </div>
+        <div class="col-12 text-center" style="margin-top:20px">
+            <form action="%URL_NOTIFICATION%" method="POST"> 
+                <script
+                  src="https://www.mercadopago.com.%REGION%/integrations/v1/web-tokenize-checkout.js"          
+                  data-public-key="%PUBLIC_KEY%"
+                  data-transaction-amount="%AMOUNT%">
+                </script>
+            </form>
+        </div>
+        <div class="col-12 text-center" style="margin-top:20px">
+            <img src="https://imgmp.mlstatic.com/org-img/banners/ar/medios/785X40.jpg" 
+                title="Mercado Pago - Medios de pago" alt="Mercado Pago - Medios de pago" 
+                width="785" height="40"/>
+        </div>
+    </div>    
+</body>
+</html>

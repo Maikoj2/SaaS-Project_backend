@@ -1,0 +1,14 @@
+{
+  "name": "MercadoPago",
+  "version": "0.0.1",
+  "description": "Integración con mercadopago, cobre con tarjeta de credito o debito o mediante oxxo",
+  "author": "leifer33@gmail.com",
+  "path": "mercadopago",
+  "features": {
+    "keys": {
+      "clientID": null,
+      "secretID": null,
+      "mode": "test"
+    }
+  }
+}

@@ -22,13 +22,13 @@ export class RouteLoader {
         try {
             const routePath = path.join(this.routesPath, dirName, file);
             const routeName = this.removeExtension(file);
-            
+
             // Importar la ruta
             const route = require(routePath).default;
-            
+
             // Registrar la ruta
             this.router.use(`/${routeName}`, route);
-            
+
             this.logger.info(`Ruta cargada: /${routeName}`);
         } catch (error) {
             const errorMessage = error instanceof Error ? error.message : 'Error desconocido';

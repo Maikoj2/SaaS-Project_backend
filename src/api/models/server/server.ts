@@ -2,11 +2,12 @@ import express, { Application } from 'express';
 import cors from 'cors';
 import bodyParser from 'body-parser';
 import { DatabaseConnection, Logger } from '../../config';
-import { RouteLoader } from '../../routes';
+import routes from '../../routes';
 import { errorMiddleware } from '../../middlewares';
 import { env } from '../../config/env.config';
 import '../../config/passport/passport'
 import passport from 'passport';
+import { seedGameFormats } from '../../seeds/gameFormats.seed';
 
 
 
@@ -14,14 +15,12 @@ export class Server {
     private readonly app: Application;
     private readonly port: string;
     private readonly logger: Logger;
-    private routeLoader: RouteLoader;
     private server: any; // Para almacenar la instancia del servidor HTTP
 
     constructor() {
         this.app = express();
         this.port = env.PORT || '8000';
         this.logger = new Logger();
-        this.routeLoader = new RouteLoader();
         this.setupMiddlewares();
         this.setupRoutes();
         this.setupErrorHandling();
@@ -52,7 +51,7 @@ export class Server {
     }
 
     private setupRoutes(): void {
-        this.app.use(env.API_PREFIX, this.routeLoader.loadRoutes());
+        this.app.use(env.API_PREFIX, routes);
 
         // Manejo de rutas no encontradas
         this.app.use('*', (req, res) => {
@@ -71,6 +70,8 @@ export class Server {
     public async start(): Promise<void> {
         try {
             // Iniciar servidor
+            await seedGameFormats('miapp');
+            this.logger.info('Formatos de juego inicializados');
             this.server = this.app.listen(this.port, () => {
                 this.logger.info(`Servidor corriendo en puerto ${this.port}`);
             });

@@ -4,6 +4,9 @@ import { parse } from 'psl';
 import { Logger } from '../../config/logger';
 import { IUserCustomRequest } from '../../interfaces';
 import { ApiResponse } from '../../responses';
+import { DatabaseHelper } from '../../utils/database.helper';
+import { Settings } from '../../models';
+import { AuthRoute } from '../../constants/apiRoutes';
 
 const getExpeditiousCache = require('express-expeditious');
 const redisEngine = require('expeditious-engine-redis');
@@ -64,6 +67,15 @@ const checkTenant = async (req: IUserCustomRequest, res: Response, next: NextFun
             return res.status(400).json(
                 ApiResponse.error('The tenant must be specified for determining the tenant ')
             )
+        }
+        const isRegisterRoute = req.path === AuthRoute.REGISTER || req.originalUrl.endsWith(AuthRoute.REGISTER);
+        if (!isRegisterRoute) {
+            const tenantExists = await DatabaseHelper.exists(Settings, tenant, {});
+            if (!tenantExists) {
+                return res.status(404).json(
+                    ApiResponse.error('Tenant not found or not initialized')
+                );
+            }
         }
         if (process.env.USE_REDIS === 'true') {
             // if not exist a istance id reddis cache create a instance

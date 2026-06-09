@@ -42,5 +42,10 @@ export const env = cleanEnv(process.env, {
     EMAIL_FROM_ADDRESS: str(),
     COMPANY_NAME: str(),
     FRONTEND_URL: str(),
-    FRONTEND_URL_DEV: str()
+    FRONTEND_URL_DEV: str(),
+    FRONTEND_URL_TENANT: str({ default: 'http://__TENANT__.localhost:3000' }),
+    BACKEND_URL: str({ default: 'http://localhost:8000' }),
+    MP_MODE: str({ choices: ['sandbox', 'production'], default: 'sandbox' }),
+    MP_ACCESS_TOKEN: str({ default: '' }),
+    MP_CLIENT_ID: str({ default: '' })
 }); 
