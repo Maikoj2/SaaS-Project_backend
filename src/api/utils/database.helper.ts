@@ -29,28 +29,29 @@ export class DatabaseHelper {
     }
 
     static async find<T extends ITenantDocument>(
-        model: Model<T>,
+        model: ITenantModel<T>,
+        tenant: string,
         query: Record<string, any>,
         options: FindOptions = {}
-    ): Promise<T[]>{
+    ): Promise<T[]> {
         const {
             select,
             deleted = false,
             throwError = false,
             errorMessage = 'Documents not found'
         } = options;
-    
+
         try {
-            const docQuery = model.find(query);
-            
+            const docQuery = model.byTenant(tenant).find(query);
+
             DatabaseHelper.applySelect(docQuery, select);
-    
+
             const docs = await docQuery;
-            
+
             if (!docs.length && throwError) {
                 throw new AuthError(errorMessage, 404);
             }
-    
+
             return docs;
         } catch (error) {
             if (error instanceof AuthError) throw error;
@@ -296,7 +297,7 @@ export class DatabaseHelper {
                 sort = { createdAt: -1 },
                 select = []
             } = options;
-    
+
             const paginateOptions: PaginateOptions = {
                 page,
                 limit,
@@ -305,17 +306,17 @@ export class DatabaseHelper {
                 lean: true,
                 populate: []
             };
-    
+
             if (relations) {
                 paginateOptions.populate = [
                     ...(relations.basic?.map(path => ({ path })) || []),
                     ...(relations.nested || [])
                 ];
             }
-    
+
             const result = await model.byTenant(tenant).paginate(query, paginateOptions);
             console.log('Result:', result);
-            
+
             return this.cleanPaginationID(result);
         } catch (error) {
             throw new AuthError(
@@ -392,10 +393,10 @@ export class DatabaseHelper {
             basic?: string[];
             nested?: PopulateOptions[];
         }
-    ): Promise<T > {
+    ): Promise<T> {
         try {
             const doc = await model.byTenant(tenant).create(data);
-    
+
             if (relations) {
                 const docWithRelations = await model.byTenant(tenant)
                     .findById(doc._id)
@@ -405,7 +406,7 @@ export class DatabaseHelper {
                     ]);
                 return docWithRelations as T;
             }
-    
+
             return doc;
         } catch (error) {
             throw new AuthError(

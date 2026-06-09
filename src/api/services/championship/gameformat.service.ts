@@ -30,7 +30,7 @@ export class GameFormatService {
                 ...options,
                 select: []
             };
-            const gameFormats = await DatabaseHelper.find(GameFormat, query, gameFormatsOptions);
+            const gameFormats = await DatabaseHelper.find(GameFormat, tenant, query, gameFormatsOptions);
             return gameFormats;
         } catch (error: any) {
             throw new Error(`Error getting game formats: ${error.message}`);

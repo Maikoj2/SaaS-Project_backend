@@ -22,9 +22,9 @@ export class PluginLoader {
                 path.join(this.routesPath, file, 'info.json'),
                 'utf8'
             );
-            
+
             const pluginInfo = JSON.parse(data);
-            
+
             const pluginData = {
                 name: pluginInfo.name,
                 description: pluginInfo.description,
@@ -86,10 +86,11 @@ export class PluginLoader {
         }
     }
 
-    public async getActivePlugins(_id: string): Promise<IPluginDocument[]> {
+    public async getActivePlugins(_id: string, tenant: string): Promise<IPluginDocument[]> {
         try {
             return await DatabaseHelper.find(
                 Plugin,
+                tenant,
                 { _id: _id, deleted: false }
             );
         } catch (error) {
