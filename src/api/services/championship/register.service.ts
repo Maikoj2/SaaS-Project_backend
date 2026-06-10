@@ -127,7 +127,6 @@ export class RegistrationService {
                 select: ['code', 'championshipId', 'maxUses', 'usedCount', 'expiresAt']
             }
         );
-        console.log(invitationLink);
 
         if (!invitationLink) {
             throw new CustomError('Invalid or expired code invitation link');
@@ -165,8 +164,8 @@ export class RegistrationService {
     ): Promise<IRegistrationDocument> {
         const registration = await DatabaseHelper.findById(
             Registration,
-            tenant,
-            registrationId
+            registrationId,
+            tenant
         );
 
         if (!registration) {
