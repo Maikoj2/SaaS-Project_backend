@@ -5,6 +5,7 @@ import { InvitationLink } from "../../models/mongoose/championship/invitationLin
 import { DatabaseHelper } from "../../utils/database.helper";
 import { Types } from "mongoose";
 import ChampionshipConfiguration, { IConfigurationDocument } from "../../models/mongoose/championship/configuration";
+import { CustomError } from "../../errors";
 
 
 
@@ -96,7 +97,18 @@ export class ChampionshipService {
 
 
             championship.registeredTeams.push(teamId);
-            return await championship.save();
+            const updatedChampionship = await DatabaseHelper.update(
+                Championship,
+                championshipId,
+                tenant,
+                {
+                     $push: { registeredTeams: teamId }
+                } as any
+            );
+            if (!updatedChampionship)
+                throw new Error('Championship error updating ');
+
+            return updatedChampionship
         } catch (error: any) {
             throw new Error(`Error registering team: ${error.message}`);
         }
@@ -126,7 +138,21 @@ export class ChampionshipService {
             championship.thirdPlace = winners.third;
             championship.status = 'completed';
 
-            return await championship.save();
+            const updatedChampionship = await DatabaseHelper.update(
+                Championship,
+                championshipId,
+                tenant,
+                {
+                    winner: winners.first,
+                    runnerUp: winners.second,
+                    thirdPlace: winners.third,
+                    status: 'completed'
+                } as any
+            );
+            if (!updatedChampionship) {
+                throw new Error('Error updating championship');
+            }
+            return updatedChampionship;
         } catch (error: any) {
             throw new Error(`Error setting winners: ${error.message}`);
         }
@@ -148,14 +174,16 @@ export class ChampionshipService {
                     limit: 100
                 },
                 {
-                    basic: ['gameFormat', 'registeredTeams'],
+                    // Nombres correctos de relaciones en tu esquema de Campeonato:
+                    basic: ['teams', 'registrations'],
                     nested: []
                 }
             );
-            if (!championships || !championships.items) {
+
+            if (!championships || !championships.docs) {
                 throw new Error('No championships found');
             }
-            return championships.items as IChampionshipDocument[];
+            return championships.docs as IChampionshipDocument[];
         } catch (error: any) {
             throw new Error(`Error getting active championships: ${error.message}`);
         }
@@ -288,4 +316,27 @@ export class ChampionshipService {
             }
         );
     }
+    /**
+    * Agregar un nuevo registrationId a un campeonato
+    */
+    async addRegistrationId(championshipId: string, tenant: string, registrationId: string): Promise<IChampionshipDocument> {
+        try {
+            const updatedChampionship = await DatabaseHelper.findOneAndUpdate(
+                Championship,
+                tenant,
+                { _id: championshipId },
+                { $push: { registrations: registrationId } }, // Usar $push para agregar al array
+                { new: true } // Retornar el documento actualizado
+            );
+
+            if (!updatedChampionship) {
+                throw new CustomError('Championship not found', 404, 'ChampionshipServiceError');
+            }
+
+            return updatedChampionship;
+        } catch (error: any) {
+            throw new CustomError(error instanceof Error ? error.message : 'Error adding registrationId', 500, 'ChampionshipServiceError');
+        }
+    }
+
 } 

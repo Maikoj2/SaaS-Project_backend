@@ -20,6 +20,7 @@ export class InvitationLinkController {
             const { maxUses, expiresAt } = req.body;
             const tenant = req.clientAccount as string;
 
+
             // Verificar si ya existe un enlace activo
             const existingLink = await this.invitationLinkService.findActiveLink(tenant, championshipId);
             if (existingLink) {
@@ -48,17 +49,18 @@ export class InvitationLinkController {
             const { code } = req.body;
             const tenant = req.clientAccount as string;
 
-            const championshipId = await this.invitationLinkService.validateAndUpdateUsage(tenant, code);
+            const result = await this.invitationLinkService.validateAndUpdateUsage(tenant, code);
 
-            // Continuar con el proceso de registro...
-            res.status(200).json({
-                success: true,
-                championshipId
-            });
-        } catch (error) {
+            res.status(200).json(ApiResponse.success({
+                championshipId: result.championshipId,
+                maxUses: result.maxUses,
+                usedCount: result.usedCount,
+                expiresAt: result.expiresAt
+            }, 'Link used successfully'));
+        } catch (error: any) {
             this.logger.error('Error using invitation link:', error);
             return res.status(400).json(
-                ApiResponse.error(error instanceof Error ? error.message : 'Error using invitation link')
+                ApiResponse.error(error.message)
             );
         }
     }
@@ -69,6 +71,8 @@ export class InvitationLinkController {
             const tenant = req.clientAccount as string;
 
             const link = await this.invitationLinkService.findActiveLink(tenant, championshipId);
+            this.logger.debug('Link encontrado:', link);
+
             if (!link) {
                 return res.status(404).json(
                     ApiResponse.error('No hay enlaces de invitación activos')
@@ -91,12 +95,12 @@ export class InvitationLinkController {
 
             await this.invitationLinkService.deactivateLink(tenant, championshipId);
             res.status(200).json(
-                ApiResponse.success('Enlace desactivado correctamente')
+                ApiResponse.success('Invitation link deactivated successfully')
             );
         } catch (error) {
             this.logger.error('Error deactivating link:', error);
             res.status(500).json(
-                ApiResponse.error('Error al desactivar el enlace')
+                ApiResponse.error('Error deactivating invitation link')
             );
         }
     }

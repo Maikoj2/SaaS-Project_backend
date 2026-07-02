@@ -26,7 +26,7 @@ export class PluginService {
             }
 
             // Mapear solo los paths de los plugins
-            return plugins.map((plugin:any) => plugin.plugin.path);
+            return plugins.map((plugin: any) => plugin.plugin.path);
 
         } catch (error) {
             this.logger.error('Error obteniendo plugins:', error);
@@ -37,16 +37,14 @@ export class PluginService {
     public async activePlugins(plugins: string[], tenant: string): Promise<void> {
         try {
             // Buscar plugins por nombre
-            const list = await DatabaseHelper.find(Plugin,{
+            const list = await DatabaseHelper.find(Plugin, tenant, {
                 name: { $in: plugins }
             }) || [];
 
             // Activar cada plugin
-            await Promise.all(list.map(async (plugin:any) => {
+            await Promise.all(list.map(async (plugin: any) => {
                 await this.pluginSetting(plugin, tenant);
             }));
-
-            console.log('Plugins activated:', list);
         } catch (error) {
             throw new AuthError('Error activating plugins', 500);
         }
@@ -56,7 +54,7 @@ export class PluginService {
             if (!plugin || !tenant) {
                 throw new AuthError('Plugin or tenant not provided', 400);
             }
-    
+
             await DatabaseHelper.findOneAndUpdate(
                 PluginSetting,
                 tenant,

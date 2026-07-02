@@ -61,8 +61,7 @@ export class AuthController {
                 tenant: tenant as string
             });
             this.logger.info('Token generado:', {
-                userId: result.user._id,
-                token: result.session // el token que generas
+                userId: result.user._id
             });
             res.status(200).json(
                 ApiResponse.success(result, 'Login exitoso')
@@ -180,8 +179,7 @@ export class AuthController {
             const urlId = req.query.urlId as string;
             this.logger.info('Reset password request:', {
                 tenant,
-                urlId,
-                newPassword
+                urlId
             });
             this.validateField(urlId, 'Token is missing');
             this.validateField(newPassword, 'New password is missing');

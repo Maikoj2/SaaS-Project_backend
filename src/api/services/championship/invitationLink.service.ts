@@ -2,7 +2,9 @@ import { nanoid } from 'nanoid';
 import { InvitationLink } from '../../models/mongoose/championship/invitationLink';
 import { DatabaseHelper } from '../../utils/database.helper';
 import { env } from '../../config/env.config';
+import { Logger } from '../../config';
 
+const logger = new Logger()
 export class InvitationLinkService {
     async generateLink(tenant: string, championshipId: any, maxUses: number, expiresAt: Date) {
 
@@ -26,15 +28,15 @@ export class InvitationLinkService {
                 invitationLink: `${baseUrl}/register?code=${code}`,
                 expiresAt: invitationLink.expiresAt
             };
-        } catch (error) {
-            console.error('Error detallado:', {
-                error,
+        } catch (error: any) {
+            logger.debug('Error detallado:', {
+                error: error.message,
                 championshipId,
                 tenant,
                 maxUses,
                 expiresAt
             });
-            throw error;
+            throw new Error(`Error creating championship: ${error.message}`);
         }
     }
 
@@ -57,7 +59,7 @@ export class InvitationLinkService {
         );
 
         if (!invitationLink) {
-            throw new Error('Enlace de invitación no válido o expirado');
+            throw new Error('the link is not valid or expired');
         }
 
         // Validar fecha de expiración
@@ -83,14 +85,22 @@ export class InvitationLinkService {
         }
 
         // Incrementar el contador de usos
-        await DatabaseHelper.findOneAndUpdate(
+        const link = await DatabaseHelper.findOneAndUpdate(
             InvitationLink,
             tenant,
             { code },
             { $inc: { usedCount: 1 } }
         );
+        if (!link) {
+            throw new Error('Error updating link usage');
+        }
 
-        return invitationLink.championshipId;
+        return {
+            championshipId: link.championshipId,
+            maxUses: link.maxUses,
+            usedCount: link.usedCount + 1,
+            expiresAt: link.expiresAt
+        };
     }
 
     async deactivateLink(tenant: string, championshipId: string) {

@@ -9,6 +9,7 @@ import { AuthService } from '../../services/auth/auth.service';
 import { DatabaseHelper } from '../../utils/database.helper';
 import { User } from '../../models';
 import { AuthError } from '../../errors';
+import { listInitOptions } from '../../utils/listInitOptions';
 
 export class UserController {
     private readonly userService: UserService;
@@ -78,7 +79,7 @@ export class UserController {
     public getUsers = async (req: IUserCustomRequest, res: Response): Promise<void> => {
         try {
             const tenant = req.clientAccount as string;
-            const options = this.listInitOptions(req);
+            const options = listInitOptions(req);
             const user = await this.userService.getUsers(tenant, options);
 
             res.status(200).json(
@@ -192,26 +193,6 @@ export class UserController {
     }
 
 
-    // private methods
-    private listInitOptions = (req: IUserCustomRequest) => {
-        const order = parseInt(req.query.order?.toString() || '-1', 10);
-        const sort = req.query.sort?.toString() || 'createdAt';
-        const sortBy = this.buildSort(sort, order);
-        const page = parseInt(req.query.page?.toString() || '1', 10);
-        const limit = parseInt(req.query.limit?.toString() || '15', 10);
-
-        return {
-            sort: sortBy,
-            lean: true,
-            page,
-            limit
-        };
-    };
-    private buildSort = (sort: string, order: number): Record<string, 1 | -1> => {
-        const sortBy: Record<string, 1 | -1> = {};
-        sortBy[sort] = order === 1 ? 1 : -1;
-        return sortBy;
-    };
 
 
 

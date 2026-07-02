@@ -54,6 +54,8 @@ router.post(ProfileRoute.CHANGE_PASSWORD, [
 ], profileController.changePassword as RequestHandler)
 // update the stepper of the user
 router.patch(ProfileRoute.STEPPER, [
+    origin.checkDomain as RequestHandler,
+    origin.checkTenant as RequestHandler,
     auth as RequestHandler,
     permissionAuthorization([
         AuthPermission.PROFILE_UPDATE,

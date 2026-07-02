@@ -197,8 +197,6 @@ export class AuthService {
                 }
             );
 
-            console.log('User verified successfully:', updatedUser);
-
             return {
                 verified: true,
                 message: 'User successfully verified'
@@ -347,11 +345,6 @@ export class AuthService {
         await this.checkLoginAttemptsAndBlockExpires(user);
         // Verificar contraseña
         const isPasswordMatch = await PasswordUtil.comparePassword(data.password, user.password);
-        this.logger.info('Resultado de comparación:', {
-            isPasswordMatch,
-            passwordLength: data.password.length,
-            hashLength: user.password.length
-        });
         if (!isPasswordMatch) {
             await this.passwordsDoNotMatch(user);
             throw new AuthError('Invalid credentials', 401);

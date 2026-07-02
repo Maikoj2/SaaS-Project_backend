@@ -97,7 +97,6 @@ const getInitialTemplate = (): { html: string } => {
     try {
 
         const filePath = path.resolve(__dirname, '../../../templates/initial_invoice.html');
-        console.log(filePath);
         return {
             html: readFileSync(filePath, 'utf-8')
         };
