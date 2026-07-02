@@ -45,8 +45,6 @@ export class PluginService {
             await Promise.all(list.map(async (plugin: any) => {
                 await this.pluginSetting(plugin, tenant);
             }));
-
-            console.log('Plugins activated:', list);
         } catch (error) {
             throw new AuthError('Error activating plugins', 500);
         }

@@ -12,6 +12,7 @@ export class RouteLoader {
         this.router = Router();
         this.logger = new Logger();
         this.routesPath = __dirname;
+        console.log('routesPath', this.routesPath);
     }
 
     private removeExtension(fileName: string): string {

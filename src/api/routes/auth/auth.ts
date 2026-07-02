@@ -65,12 +65,12 @@ router.get(
 router.get(
     AuthRoute.TOKEN,
     [
+        origin.checkDomain as RequestHandler,
+        origin.checkTenant as RequestHandler,
         auth as RequestHandler,
         permissionAuthorization([
             AuthPermission.PROFILE_READ,
         ]) as RequestHandler,
-        origin.checkDomain as RequestHandler,
-        origin.checkTenant as RequestHandler,
         trimRequest.all
     ],
     authController.verifyToken as RequestHandler

@@ -42,7 +42,6 @@ export class Server {
         // Logging de requests
         this.app.use((req, res, next) => {
             this.logger.info(`${req.method} ${req.url}`, {
-                body: req.body,  //borrar luego no lo puedo dejar aqui
                 query: req.query,
                 ip: req.ip
             });

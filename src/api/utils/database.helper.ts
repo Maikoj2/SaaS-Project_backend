@@ -315,7 +315,6 @@ export class DatabaseHelper {
             }
 
             const result = await model.byTenant(tenant).paginate(query, paginateOptions);
-            console.log('Result:', result);
 
             return this.cleanPaginationID(result);
         } catch (error) {

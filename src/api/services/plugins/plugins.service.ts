@@ -1,6 +1,6 @@
 import { FilterQuery } from "mongoose";
 import { Logger } from "../../config";
-import { PaginationOptions } from "../../interfaces";
+import { IUserCustomRequest, PaginationOptions } from "../../interfaces";
 import { IPluginDocument, Plugin } from "../../models";
 import { DatabaseHelper } from "../../utils/database.helper";
 import { Request } from "express";
@@ -14,9 +14,13 @@ export class PluginsService {
         this.logger = new Logger();
     }
 
-    public async getPlugins(req: Request, query: FilterQuery<IPluginDocument>) {
+    public async getPlugins(req: IUserCustomRequest, query: FilterQuery<IPluginDocument>) {
         try {
-            const plugins = await DatabaseHelper.getWithOutTenant(req, Plugin, query);
+            const tenant = req.clientAccount as string;
+            if (!tenant) {
+                throw new Error('Tenant not found');
+            }
+            const plugins = await DatabaseHelper.getItems(Plugin, tenant, query);
             return plugins;
         } catch (error) {
             this.logger.error(error instanceof Error ? error.message : 'Error getting plugins');

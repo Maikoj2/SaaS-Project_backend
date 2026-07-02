@@ -70,7 +70,6 @@ export class ProfileService {
             if (!user) {
                 throw new Error('Profile not found');
             }
-            console.log(user);
 
             const isMatch = await PasswordUtil.comparePassword(oldPassword, user.password);
 

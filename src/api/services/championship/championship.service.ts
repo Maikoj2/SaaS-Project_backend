@@ -97,7 +97,18 @@ export class ChampionshipService {
 
 
             championship.registeredTeams.push(teamId);
-            return await championship.save();
+            const updatedChampionship = await DatabaseHelper.update(
+                Championship,
+                championshipId,
+                tenant,
+                {
+                     $push: { registeredTeams: teamId }
+                } as any
+            );
+            if (!updatedChampionship)
+                throw new Error('Championship error updating ');
+
+            return updatedChampionship
         } catch (error: any) {
             throw new Error(`Error registering team: ${error.message}`);
         }
@@ -127,7 +138,21 @@ export class ChampionshipService {
             championship.thirdPlace = winners.third;
             championship.status = 'completed';
 
-            return await championship.save();
+            const updatedChampionship = await DatabaseHelper.update(
+                Championship,
+                championshipId,
+                tenant,
+                {
+                    winner: winners.first,
+                    runnerUp: winners.second,
+                    thirdPlace: winners.third,
+                    status: 'completed'
+                } as any
+            );
+            if (!updatedChampionship) {
+                throw new Error('Error updating championship');
+            }
+            return updatedChampionship;
         } catch (error: any) {
             throw new Error(`Error setting winners: ${error.message}`);
         }

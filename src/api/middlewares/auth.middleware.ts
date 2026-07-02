@@ -34,7 +34,6 @@ export const auth = async (req: IUserCustomRequest, res: Response, next: NextFun
             const userId = tokenService.getUserIdFromToken(token);
             // search user by tenant 
             const user = await DatabaseHelper.findById(User, userId, tenant, { select: ['-password'] });
-            console.log('user', user);
 
             if (!user) {
                 return res.status(401).json(

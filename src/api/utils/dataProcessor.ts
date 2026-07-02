@@ -80,12 +80,6 @@ export class DataProcessor {
     }
 
     static processAddress(updateData: UserInputData): any {
-        console.log('Valores de dirección recibidos:', {
-            street: updateData.street,
-            city: updateData.city,
-            country: updateData.country,
-            department: updateData.department
-        });
         const addressFields: Address = {
             street: updateData.street || '',
             city: updateData.city || '',
