@@ -96,7 +96,6 @@ export class ChampionshipService {
             }
 
 
-            championship.registeredTeams.push(teamId);
             const updatedChampionship = await DatabaseHelper.update(
                 Championship,
                 championshipId,
@@ -132,12 +131,6 @@ export class ChampionshipService {
             if (championship.status !== 'draft') {
                 throw new Error('Championship must be in progress to set winners');
             }
-
-            championship.winner = winners.first;
-            championship.runnerUp = winners.second;
-            championship.thirdPlace = winners.third;
-            championship.status = 'completed';
-
             const updatedChampionship = await DatabaseHelper.update(
                 Championship,
                 championshipId,

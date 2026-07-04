@@ -4,6 +4,7 @@ import MongooseDelete from 'mongoose-delete';
 import mongoTenant from 'mongo-tenant';
 import mongoosePaginate from 'mongoose-paginate-v2';
 
+
 // Interfaces
 export interface IPlayerStats {
     gamesPlayed: number;
@@ -13,14 +14,41 @@ export interface IPlayerStats {
     serves: number;
     aces: number;
 }
+export enum EPSProvider {
+    SURA = 'sura',
+    NUEVA_EPS = 'nueva_eps',
+    SANITAS = 'sanitas',
+    COMPENSAR = 'compensar',
+    FAMISANAR = 'famisanar',
+    SALUD_TOTAL = 'salud_total',
+    ALIANSALUD = 'aliansalud',
+    COOMEVA = 'coomeva',
+    MEDIMAS = 'medimas',
+    // Puedes agregar más según necesites
+}
+export enum IndoorVolleyballPosition {
+    SETTER = 'SETTER',
+    OUTSIDE = 'OUTSIDE',
+    MIDDLE = 'MIDDLE',
+    OPPOSITE = 'OPPOSITE',
+    LIBERO = 'LIBERO'
+}
+
+export enum BeachVolleyballPosition {
+    BLOCKER = 'BLOCKER',
+    DEFENDER = 'DEFENDER',
+}
 
 export interface IPlayerDocument extends ITenantDocument {
     userId: Schema.Types.ObjectId;    // Referencia al usuario
-    teamId: Schema.Types.ObjectId;
-    name: string;
-    position: string;
+    clubId: Schema.Types.ObjectId;
+    position: IndoorVolleyballPosition | BeachVolleyballPosition;
+    isIndependent: boolean;
+    eps: EPSProvider;
+    age?: number;
     number?: number;
     status: 'active' | 'inactive' | 'injured' | 'suspended';
+    gender: 'male' | 'female';
     dateOfBirth?: Date;
     height?: number;
     weight?: number;
@@ -38,9 +66,6 @@ export interface IPlayerDocument extends ITenantDocument {
 
 export interface IPlayerModel extends ITenantModel<IPlayerDocument> {
     byTenant(tenant: string): ITenantModel<IPlayerDocument>;
-    findActiveByTeam(teamId: string): Promise<IPlayerDocument[]>;
-    updateStats(playerId: string, stats: Partial<IPlayerStats>): Promise<IPlayerDocument>;
-    findByUserId(userId: string): Promise<IPlayerDocument>;
 }
 
 // Schema
@@ -59,31 +84,40 @@ const PlayerSchema = new Schema<IPlayerDocument>(
             type: Schema.Types.ObjectId,
             ref: 'User',
             required: true,
-            unique: true
         },
-        teamId: { 
-            type: Schema.Types.ObjectId, 
-            ref: 'Team', 
-            required: true 
+        clubId: {
+            type: Schema.Types.ObjectId,
+            ref: 'Club',
+            required: false
         },
-        name: { 
-            type: String, 
-            required: true 
+        eps: {
+            type: String,
+            enum: Object.values(EPSProvider),
+            required: true
         },
-        position: { 
-            type: String, 
+        position: {
+            type: String,
             required: true,
-            enum: ['setter', 'outside', 'middle', 'opposite', 'libero']
+            enum: {
+                values: ['BLOCKER', 'DEFENDER', 'SETTER', 'OUTSIDE', 'MIDDLE', 'OPPOSITE', 'LIBERO'],
+                message: '{VALUE} is not a valid volleyball position'
+            }
         },
         number: {
             type: Number,
             min: 1,
-            max: 99
+            max: 99,
+            unique: false
         },
-        status: { 
-            type: String, 
-            enum: ['active', 'inactive', 'injured', 'suspended'], 
-            default: 'active' 
+        status: {
+            type: String,
+            enum: ['active', 'inactive', 'injured', 'suspended'],
+            default: 'active'
+        },
+        gender: {
+            type: String,
+            enum: ['male', 'female'],
+            default: 'male'
         },
         dateOfBirth: {
             type: Date
@@ -105,6 +139,10 @@ const PlayerSchema = new Schema<IPlayerDocument>(
             type: PlayerStatsSchema,
             default: () => ({})
         },
+        isIndependent: {
+            type: Boolean,
+            default: false
+        },
         experience: {
             type: Number
         },
@@ -121,10 +159,11 @@ const PlayerSchema = new Schema<IPlayerDocument>(
         lastActive: {
             type: Date
         },
-        deletedAt: { 
-            type: Date, 
-            default: null 
-        }
+        deletedAt: {
+            type: Date,
+            default: null
+        },
+
     },
     {
         versionKey: false,
@@ -133,63 +172,14 @@ const PlayerSchema = new Schema<IPlayerDocument>(
 );
 
 // Índices
-PlayerSchema.index({ teamId: 1, status: 1 });
-PlayerSchema.index({ teamId: 1, number: 1 }, { unique: true });
+PlayerSchema.index({ status: 1 });
 PlayerSchema.index({ userId: 1 }, { unique: true });
 
-// Middleware pre-save para verificar rol de usuario
-PlayerSchema.pre('save', async function(next) {
-    if (this.isNew || this.isModified('userId')) {
-        try {
-            const User = model('User');
-            const user = await User.findById(this.userId);
-            if (!user) {
-                throw new Error('Usuario no encontrado');
-            }
-            
-            // Verificar si el usuario tiene el rol team_member
-            const hasTeamMemberRole = user.roles.includes('team_member');
-            this.isTeamMember = hasTeamMemberRole;
-            
-            if (!hasTeamMemberRole) {
-                throw new Error('El usuario debe tener el rol team_member');
-            }
 
-            if (this.isNew) {
-                this.memberSince = new Date();
-            }
-        } catch (error: any) {
-            next(error);
-        }
-    }
-    next();
-});
 
-// Métodos estáticos
-PlayerSchema.statics.findActiveByTeam = function(teamId: string) {
-    return this.find({ 
-        teamId: teamId,
-        status: 'active'
-    }).populate('userId', 'email name roles');
-};
-
-PlayerSchema.statics.updateStats = async function(playerId: string, newStats: Partial<IPlayerStats>) {
-    return this.findByIdAndUpdate(
-        playerId,
-        { 
-            $inc: newStats,
-            lastActive: new Date()
-        },
-        { new: true }
-    );
-};
-
-PlayerSchema.statics.findByUserId = function(userId: string) {
-    return this.findOne({ userId }).populate('teamId');
-};
 
 // Virtual para calcular la edad
-PlayerSchema.virtual('age').get(function() {
+PlayerSchema.virtual('age').get(function () {
     if (!this.dateOfBirth) return null;
     const today = new Date();
     const birthDate = new Date(this.dateOfBirth);
