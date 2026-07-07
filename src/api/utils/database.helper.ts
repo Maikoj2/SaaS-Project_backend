@@ -218,7 +218,10 @@ export class DatabaseHelper {
             return await model.byTenant(tenant)
                 .findOneAndUpdate(query, update, options);
         } catch (error) {
-            throw new AuthError('Database error', 500);
+            throw new AuthError(
+                error instanceof Error ? error.message : 'Error updating document',
+                500
+            );
         }
     }
 

@@ -243,4 +243,8 @@ export class RegistrationService {
         return getPaymentDetails(tenant, paymentId);
     }
 
+    async deleteRegistrationId(registrationId: string, tenant: string): Promise<void> {
+        await DatabaseHelper.delete(Registration, tenant, registrationId);
+    }
+
 }

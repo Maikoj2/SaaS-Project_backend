@@ -22,12 +22,14 @@ export class RegistrationController {
     }
 
     public registerWithInvitation = async (req: IUserCustomRequest, res: Response) => {
+        let registrationAdde = false;
+        let teamAdde = false;
+        let result: any;
         try {
             const { payerData, ...registrationData } = req.body;
             const code = req.params.code;
             const tenant = req.clientAccount as string;
-
-            const result = await this.registrationService.registerWithInvitation(
+            result = await this.registrationService.registerWithInvitation(
                 tenant,
                 code,
                 registrationData,
@@ -47,10 +49,17 @@ export class RegistrationController {
                 tenant,
                 result.registration._id
             );
+            registrationAdde = true;
 
+            await this.championshipService.updateTeamId(
+                tenant,
+                result.registration.championshipId,
+                result.registration.teamId
+            );
+            teamAdde = true;
             res.status(201).json(
                 ApiResponse.success({
-                    message: 'Registration initiated successfully',
+                    message: 'Registration and payment link generated successfully',
                     data: {
                         registration: result.registration,
                         paymentUrl: result.paymentLink
@@ -59,7 +68,26 @@ export class RegistrationController {
             );
         } catch (error: any) {
             this.logger.error('Error in registration process:', error);
-
+            if (result) {
+                await this.registrationService.deleteRegistrationId(
+                    result.registration._id,
+                    req.clientAccount as string
+                );
+            }
+            if (registrationAdde) {
+                await this.championshipService.deleteRegistrationId(
+                    req.clientAccount as string,
+                    result.registration.championshipId,
+                    result.registration._id
+                );
+            }
+            if (teamAdde) {
+                await this.championshipService.deleteTeamId(
+                    req.clientAccount as string,
+                    result.registration.championshipId,
+                    result.registration.teamId
+                );
+            }
             res.status(error.statusCode || 400).json(ApiResponse.error(error instanceof Error ? error.message : 'Error registering team'));
         }
     }
