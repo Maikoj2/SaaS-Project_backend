@@ -23,23 +23,9 @@ export class RegistrationController {
 
     public registerWithInvitation = async (req: IUserCustomRequest, res: Response) => {
         try {
-
-            const registrationData = req.body;
-            const payerData = req.body.payerData;
+            const { payerData, ...registrationData } = req.body;
             const code = req.params.code;
             const tenant = req.clientAccount as string;
-            if (!code) {
-                throw new CustomError('Invitation code is required', 400, 'RegistrationError');
-            }
-            if (!registrationData) {
-                throw new CustomError('Registration data is required', 400, 'RegistrationError');
-            }
-            if (!payerData) {
-                throw new CustomError('Payer data is required', 400, 'RegistrationError');
-            }
-            if (!tenant) {
-                throw new CustomError('Tenant is required', 400, 'RegistrationError');
-            }
 
             const result = await this.registrationService.registerWithInvitation(
                 tenant,
@@ -55,17 +41,25 @@ export class RegistrationController {
                     'RegistrationError'
                 );
             }
-            await this.championshipService.addRegistrationId(result.registration.championshipId, tenant, result.registration._id);
 
-            res.status(201).json(ApiResponse.success({
-                message: 'Registration initiated successfully',
-                data: {
-                    registration: result.registration,
-                    paymentUrl: result.paymentLink
-                }
-            }));
+            await this.championshipService.addRegistrationId(
+                result.registration.championshipId,
+                tenant,
+                result.registration._id
+            );
+
+            res.status(201).json(
+                ApiResponse.success({
+                    message: 'Registration initiated successfully',
+                    data: {
+                        registration: result.registration,
+                        paymentUrl: result.paymentLink
+                    }
+                })
+            );
         } catch (error: any) {
             this.logger.error('Error in registration process:', error);
+
             res.status(error.statusCode || 400).json(ApiResponse.error(error instanceof Error ? error.message : 'Error registering team'));
         }
     }
@@ -91,26 +85,115 @@ export class RegistrationController {
 
     public handlePaymentWebhook = async (req: IUserCustomRequest, res: Response) => {
         try {
-            const { action, data } = req.body;
-            const tenant = req.clientAccount as string;
+            const tenant = req.params.tenantId;
+            const registrationId = req.params.id;
+            const topic =
+                req.query.topic ||
+                req.query.type ||
+                req.body?.type ||
+                req.body?.action;
 
-            if (!action || !data) {
-                throw new CustomError('Tenant is required to process webhook', 400, 'RegistrationError');
+            const paymentId =
+                req.body?.data?.id ||
+                req.query['data.id'] ||
+                req.query.id ||
+                req.body?.id;
+
+            this.logger.info('MercadoPago webhook received', {
+                tenant,
+                registrationId,
+                paymentId,
+                topic,
+            });
+
+            if (!tenant || !registrationId) {
+                this.logger.warn('MercadoPago webhook missing tenant or registration id');
+                return res.status(200).json({ received: true });
             }
 
-            if (action === 'payment.created' || action === 'payment.updated') {
-                const paymentId = data.id;
+            const isPaymentNotification = topic === 'payment';
 
-                const paymentDetails = await this.registrationService.getPaymentDetails(tenant, paymentId);
+            if (!isPaymentNotification) {
+                this.logger.info('Ignoring non-payment MercadoPago webhook', {
+                    tenant,
+                    registrationId,
+                    topic,
+                });
 
-                this.logger.info('paymentDetails', paymentDetails);
-                if (paymentDetails.status === 'approved') {
-                    const { tenant_id, purchase_id } = paymentDetails.metadata as PurchaseData['metadata'];
-                    await this.registrationService.updateRegistrationStatus(tenant_id, { registrationId: purchase_id as string, status: 'confirmed', transactionId: paymentId });
+                return res.status(200).json({ received: true });
+            }
+
+            if (!paymentId) {
+                this.logger.warn('MercadoPago webhook missing payment id', {
+                    body: req.body,
+                    query: req.query,
+                });
+                return res.status(200).json({ received: true });
+            }
+
+            const paymentDetails: any = await this.registrationService.getPaymentDetails(
+                tenant,
+                String(paymentId)
+            );
+
+            if (paymentDetails?.error) {
+                this.logger.error('Could not fetch MercadoPago payment details', paymentDetails);
+                return res.status(200).json({ received: true });
+            }
+
+            const metadata = paymentDetails.metadata || {};
+            const metadataTenant = metadata.tenant_id;
+            const metadataRegistrationId = metadata.purchase_id;
+
+            if (metadataTenant !== tenant || metadataRegistrationId !== registrationId) {
+                this.logger.warn('MercadoPago metadata does not match webhook route', {
+                    tenant,
+                    registrationId,
+                    metadataTenant,
+                    metadataRegistrationId,
+                    paymentId,
+                });
+
+                return res.status(200).json({ received: true });
+            }
+
+            if (paymentDetails.status === 'approved') {
+                const registration = await this.registrationService.getRegistrationStatus(
+                    tenant,
+                    registrationId
+                );
+
+                if (
+                    registration.registrationStatus === 'confirmed' &&
+                    registration.transactionId === String(paymentId)
+                ) {
+                    this.logger.info('MercadoPago webhook already processed', {
+                        tenant,
+                        registrationId,
+                        paymentId,
+                    });
+
+                    return res.status(200).json({ received: true });
                 }
+
+                await this.registrationService.updateRegistrationStatus(
+                    tenant,
+                    {
+                        registrationId,
+                        status: 'confirmed',
+                        transactionId: String(paymentId),
+                    }
+                );
+
+                this.logger.info('Registration confirmed from MercadoPago webhook', {
+                    tenant,
+                    registrationId,
+                    paymentId,
+                });
             }
 
-            res.status(200).json({ received: true });
+            return res.status(200).json({ received: true });
+
 
             // res.status(200).json({ received: true });
         } catch (error: any) {

@@ -9,13 +9,15 @@ import { PaymentResponse } from 'mercadopago/dist/clients/payment/commonTypes';
 import Team from '../../models/mongoose/championship/team';
 import { CustomError } from '../../errors';
 import { generate_link, getPaymentDetails } from '../../plugin/mercadopago';
+import Championship from '../../models/mongoose/championship/championship';
 export interface PayerData {
     name: string;
-    surname: string;
+    surname?: string;
     email: string;
-    areaCode: string;
-    phoneNumber: string;
-    address: string;
+    phone?: string;
+    phoneNumber?: string;
+    areaCode?: string;
+    address?: string;
 }
 
 // import InvitationLink from '../../models/mongoose/championship/invitationLink';
@@ -35,30 +37,43 @@ export class RegistrationService {
         registrationData: IRegistrationDocument,
         payerData: PayerData
     ): Promise<any> {
+        let registration: IRegistrationDocument | undefined;
+
         try {
-            const { invitationLink, configuration } = await this.validateInitialRegistration(
-                tenant,
-                code,
-            );
+            const { invitationLink, configuration } = await this.validateInitialRegistration(tenant, code);
+
+            this.logger.info('Payer Data received:', payerData);
+
             const existTeam = await DatabaseHelper.findOne(
                 Team,
                 tenant,
                 { _id: registrationData.teamId }
+
             );
+
             if (!existTeam) {
-                throw new CustomError('Team not found', 404, 'RegistrationServiceError');
+                throw new CustomError(
+                    'The payment cannot be created team not found',
+                    404,
+                    'RegistrationServiceError'
+                );
             }
+
             const existRegistration = await DatabaseHelper.findOne(
                 Registration,
                 tenant,
                 { teamId: registrationData.teamId }
             );
-            if (existRegistration) {
-                throw new CustomError('Registration already exists', 400, 'RegistrationServiceError');
-            }
-            // Crear registro pendiente
 
-            const registration = await DatabaseHelper.create(
+            if (existRegistration) {
+                throw new CustomError(
+                    'Registration already exists',
+                    400,
+                    'RegistrationServiceError'
+                );
+            }
+
+            registration = await DatabaseHelper.create(
                 Registration,
                 tenant,
                 {
@@ -70,44 +85,62 @@ export class RegistrationService {
                     registrationDeadline: configuration.registrationDeadline,
                 }
             );
-            // Generar link de pago
+
             const paymentData = {
-                price: configuration.registrationFee,
-                description: `Inscripción al campeonato - Equipo ${registrationData.teamId}`,
+                price: Number(configuration.registrationFee),
+                description: `Inscripción al campeonato - Equipo ${existTeam.name}`,
                 track: registration._id.toString(),
                 currency: configuration.currency
             };
+
+            const fullName = payerData.name?.trim() || '';
+            const [firstName, ...lastNameParts] = fullName.split(' ');
+
             const payer = {
                 role: 'admin',
-                name: payerData.name,
-                surname: payerData.surname,
+                name: firstName,
+                surname: payerData.surname || lastNameParts.join(' '),
                 email: payerData.email,
-                areaCode: payerData.areaCode,
-                phoneNumber: payerData.phoneNumber,
-                address: payerData.address,
+                areaCode: payerData.areaCode || '57',
+                phoneNumber: payerData.phoneNumber || payerData.phone,
+                address: payerData.address || '',
+            };
 
-            }
-
-            // Generar link de pago con MercadoPago
             const paymentLink = await generate_link(
-                {},                  // parentModule no usado
-                null,               // pluginLoader no usado
-                paymentData,        // datos del pago
-                tenant,             // tenant
-                payer // dataUser requerido
+                {},
+                null,
+                paymentData,
+                tenant,
+                payer
             );
-            if (!paymentLink) {
-                throw new CustomError('Error generating payment link', 500, 'RegistrationServiceError');
+
+            if (!paymentLink || paymentLink.error) {
+                throw new CustomError(
+                    'Error generating payment link',
+                    500,
+                    'RegistrationServiceError'
+                );
             }
 
             return {
                 registration,
                 paymentLink
             };
+
         } catch (error) {
             this.logger.error('Error in registration:', error);
+            if (registration) {
+                await DatabaseHelper.delete(
+                    Registration,
+                    registration._id.toString(),
+                    tenant
+                );
+            }
+
             throw new CustomError(
-                error instanceof Error ? error.message : 'Error in registration',
+                error instanceof Error
+                    ? error.message
+                    : 'Error in registration',
                 500,
                 'RegistrationServiceError'
             );

@@ -379,8 +379,10 @@ export class DatabaseHelper {
             });
             return doc;
         } catch (error) {
-            if (error instanceof AuthError) throw error;
-            throw new AuthError('Database error', 500);
+            throw new AuthError(
+                error instanceof Error ? error.message : 'Error creating document',
+                422
+            )
         }
     }
 

@@ -97,7 +97,7 @@ export const playerValidation = {
             .withMessage('INVALID_URL'),
 
         validate,
-    ],
+    ] as any[],
 
     updatePlayer: [
         ...paramsValidator("id", true),

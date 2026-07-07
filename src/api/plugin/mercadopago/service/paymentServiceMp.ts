@@ -23,6 +23,8 @@ interface PaymentNotification {
   user_id: string;
 }
 export class PaymentService {
+
+
   async getMercadoPagoLink(
     purchaseData: PurchaseData,
     tenant: string,
@@ -169,7 +171,7 @@ export class PaymentService {
       throw new Error('MercadoPago configuration not found');
     }
     const accessToken = settings?.plugin?.features?.keys?.secretID;
-    logger.info('MercadoPago configuration', { accessToken });
+    logger.info('MercadoPago configuration loaded', { tenant });
     if (!accessToken) {
       throw new CustomError(
         'Invalid MercadoPago access token',

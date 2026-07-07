@@ -57,7 +57,7 @@ export class ChampionshipService {
                     basic: ['idCreatorChampionship'],
                     nested: [{
                         path: 'idCreatorChampionship',
-                        select: 'name email ' // el -_id es opcional, si no quieres el ID
+                        select: 'name email' // el -_id es opcional, si no quieres el ID
                     }]
                 }
             );
@@ -101,7 +101,7 @@ export class ChampionshipService {
                 championshipId,
                 tenant,
                 {
-                     $push: { registeredTeams: teamId }
+                    $push: { registeredTeams: teamId }
                 } as any
             );
             if (!updatedChampionship)
