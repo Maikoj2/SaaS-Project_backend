@@ -318,7 +318,7 @@ export class ChampionshipService {
                 Championship,
                 tenant,
                 { _id: championshipId },
-                { $push: { registrations: registrationId } }, // Usar $push para agregar al array
+                { $addToSet: { registrations: registrationId } }, // Usar $push para agregar al array
                 { new: true } // Retornar el documento actualizado
             );
 
@@ -341,7 +341,7 @@ export class ChampionshipService {
                 Championship,
                 tenant,
                 { _id: championshipId },
-                { $push: { teams: teamId } }, // Usar $push para agregar al array
+                { $addToSet: { teams: teamId } }, // Usar $push para agregar al array
                 { new: true } // Retornar el documento actualizado
             );
 

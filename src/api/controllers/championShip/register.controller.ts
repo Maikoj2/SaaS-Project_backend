@@ -127,13 +127,6 @@ export class RegistrationController {
                 req.query.id ||
                 req.body?.id;
 
-            this.logger.info('MercadoPago webhook received', {
-                tenant,
-                registrationId,
-                paymentId,
-                topic,
-            });
-
             if (!tenant || !registrationId) {
                 this.logger.warn('MercadoPago webhook missing tenant or registration id');
                 return res.status(200).json({ received: true });
@@ -184,7 +177,6 @@ export class RegistrationController {
 
                 return res.status(200).json({ received: true });
             }
-
             if (paymentDetails.status === 'approved') {
                 const registration = await this.registrationService.getRegistrationStatus(
                     tenant,
@@ -203,7 +195,6 @@ export class RegistrationController {
 
                     return res.status(200).json({ received: true });
                 }
-
                 await this.registrationService.updateRegistrationStatus(
                     tenant,
                     {
@@ -212,7 +203,6 @@ export class RegistrationController {
                         transactionId: String(paymentId),
                     }
                 );
-
                 this.logger.info('Registration confirmed from MercadoPago webhook', {
                     tenant,
                     registrationId,
@@ -222,8 +212,6 @@ export class RegistrationController {
 
             return res.status(200).json({ received: true });
 
-
-            // res.status(200).json({ received: true });
         } catch (error: any) {
             this.logger.error('Error processing webhook:', error);
             // Siempre devolver 200 para webhooks, incluso en error

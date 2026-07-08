@@ -44,7 +44,7 @@ export const env = cleanEnv(process.env, {
     FRONTEND_URL: str(),
     FRONTEND_URL_DEV: str(),
     FRONTEND_URL_TENANT: str({ default: 'http://__TENANT__.localhost:3000' }),
-    BACKEND_URL: str({ default: 'https://4f71-190-158-28-208.ngrok-free.app' }),
+    BACKEND_URL: str({ default: 'https://ed22-190-158-28-208.ngrok-free.app' }),
     MP_MODE: str({ choices: ['sandbox', 'production'], default: 'sandbox' }),
     MP_ACCESS_TOKEN: str({ default: '' }),
     MP_CLIENT_ID: str({ default: '' })
