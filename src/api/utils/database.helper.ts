@@ -218,7 +218,10 @@ export class DatabaseHelper {
             return await model.byTenant(tenant)
                 .findOneAndUpdate(query, update, options);
         } catch (error) {
-            throw new AuthError('Database error', 500);
+            throw new AuthError(
+                error instanceof Error ? error.message : 'Error updating document',
+                500
+            );
         }
     }
 
@@ -379,8 +382,10 @@ export class DatabaseHelper {
             });
             return doc;
         } catch (error) {
-            if (error instanceof AuthError) throw error;
-            throw new AuthError('Database error', 500);
+            throw new AuthError(
+                error instanceof Error ? error.message : 'Error creating document',
+                422
+            )
         }
     }
 
@@ -411,6 +416,66 @@ export class DatabaseHelper {
             throw new AuthError(
                 error instanceof Error ? error.message : 'Error creating document',
                 422
+            );
+        }
+    }
+
+    static async insertDocumentsConcurrently<T extends ITenantDocument>(
+        model: ITenantModel<T>,
+        tenant: string,
+        documents: Partial<T>[]
+    ): Promise<Document<T>[]> {
+        const insertionPromises = documents.map(async (doc) => {
+            try {
+                const insertedDoc = await model.byTenant(tenant).create(doc);
+                this.logger.info('Document inserted:', { docId: insertedDoc._id });
+                return insertedDoc;
+            } catch (error) {
+                this.logger.error('Error inserting document:', { error, document: doc });
+                // Decide si devolver null, lanzar o manejar de otra forma
+                return error; // Opcional, o lanza una excepción
+            }
+        });
+
+        // Esperar a que todas las inserciones se resuelvan
+        const results = await Promise.all(insertionPromises);
+
+        // Filtrar nulos (si aplicaste manejo de errores)
+        return results.filter((doc): doc is NonNullable<typeof doc> => doc !== null) as Document<T>[];
+    }
+
+    static async deleteMany<T extends ITenantDocument>(
+        model: ITenantModel<T>,
+        tenant: string,
+        query: Record<string, any>
+    ): Promise<number> {
+        try {
+
+            const result = await model.byTenant(tenant).deleteMany(query);
+            this.logger.info('Documents deleted:', { model: model.modelName, count: result.deletedCount });
+            return result.deletedCount || 0;
+        } catch (error) {
+            this.logger.error('Error deleting documents:', { error, model: model.modelName });
+            throw new AuthError(
+                error instanceof Error ? error.message : 'Error deleting documents',
+                500
+            );
+        }
+    }
+
+    static async count<T extends ITenantDocument>(
+        model: ITenantModel<T>,
+        tenant: string,
+        query: Record<string, any>
+    ): Promise<number> {
+        try {
+            const count = await model.byTenant(tenant).countDocuments(query);
+            return count;
+        } catch (error) {
+            this.logger.error('Error counting documents:', { error, model: model.modelName });
+            throw new AuthError(
+                error instanceof Error ? error.message : 'Error counting documents',
+                500
             );
         }
     }

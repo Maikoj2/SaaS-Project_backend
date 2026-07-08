@@ -12,8 +12,8 @@ export interface IRegistrationDocument extends ITenantDocument {
     registrationStatus: 'pending' | 'confirmed' | 'rejected';
     feePaid: boolean;
     paymentDate?: Date;
+    transactionId?: string;
     comments?: string;
-    players: Schema.Types.ObjectId[];
     registrationDeadline: Date;
     notes?: string;
     responsiblePerson?: Schema.Types.ObjectId;
@@ -28,55 +28,52 @@ export interface IRegistrationModel extends ITenantModel<IRegistrationDocument> 
 // Schema
 const RegistrationSchema = new Schema<IRegistrationDocument>(
     {
-        championshipId: { 
-            type: Schema.Types.ObjectId, 
-            ref: 'Championship', 
-            required: true 
+        championshipId: {
+            type: Schema.Types.ObjectId,
+            ref: 'Championship',
+            required: true
         },
-        teamId: { 
-            type: Schema.Types.ObjectId, 
-            ref: 'Team', 
-            required: true 
+        teamId: {
+            type: Schema.Types.ObjectId,
+            ref: 'Team',
+            required: true
         },
-        registrationDate: { 
-            type: Date, 
-            default: Date.now 
+        registrationDate: {
+            type: Date,
+            default: Date.now
         },
         registrationStatus: {
             type: String,
             enum: ['pending', 'confirmed', 'rejected'],
             default: 'pending'
         },
-        feePaid: { 
-            type: Boolean, 
-            required: true 
+        feePaid: {
+            type: Boolean,
+            required: true
         },
-        paymentDate: { 
-            type: Date 
+        paymentDate: {
+            type: Date
         },
-        comments: { 
-            type: String 
+        transactionId: {
+            type: String
         },
-        players: [
-            { 
-                type: Schema.Types.ObjectId, 
-                ref: 'Player' 
-            }
-        ],
-        registrationDeadline: { 
-            type: Date, 
-            required: true 
+        comments: {
+            type: String
         },
-        notes: { 
-            type: String 
+        registrationDeadline: {
+            type: Date,
+            required: true
         },
-        responsiblePerson: { 
-            type: Schema.Types.ObjectId, 
-            ref: 'User' 
+        notes: {
+            type: String
         },
-        deletedAt: { 
-            type: Date, 
-            default: null 
+        responsiblePerson: {
+            type: Schema.Types.ObjectId,
+            ref: 'User'
+        },
+        deletedAt: {
+            type: Date,
+            default: null
         }
     },
     {
@@ -91,7 +88,7 @@ RegistrationSchema.index({ registrationStatus: 1 });
 RegistrationSchema.index({ registrationDeadline: 1 });
 
 // Middleware de validación
-RegistrationSchema.pre('save', function(next) {
+RegistrationSchema.pre('save', function (next) {
     if (this.registrationDeadline < new Date()) {
         next(new Error('the registration deadline cannot be in the past'));
     }

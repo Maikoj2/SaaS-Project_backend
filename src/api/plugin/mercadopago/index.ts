@@ -67,9 +67,9 @@ const findSettingTenant = async (tenant: string): Promise<any> => {
             tenant,
             {}
         );
-        
+
         if (!item) {
-            
+
             throw new CustomError(
                 'Settings not found for tenant',
                 404,
@@ -90,7 +90,7 @@ const findSettingTenant = async (tenant: string): Promise<any> => {
 const checkKeys = async (tenant: string, secret: string = 'plugin.features.keys.clientID'): Promise<DataKeys | null> => {
     try {
         const dataTenant = await findSettingTenant(tenant);
-        
+
         const response = await PluginSetting
             .findOne({
                 "plugin.path": pathName,
@@ -101,9 +101,10 @@ const checkKeys = async (tenant: string, secret: string = 'plugin.features.keys.
             .select(`${secret} currency currencySymbol plugin.features.keys.mode`)
             .lean()
             .exec();
-            logger.warn('Settings:', { tenant, response });
+        logger.warn('Settings:', { tenant, response });
+
         if (!response) {
-            
+
             throw new CustomError('Settings not found', 404, 'MercadoPagoError');
         }
 
@@ -156,7 +157,7 @@ const updateSetting = async (
 }
 
 const generateLink = async (
-    paymentData: { price: number; description: string; track?: string;  },
+    paymentData: { price: number; description: string; track?: string; },
     tenant: string,
     dataUser: DataUser
 ): Promise<any> => {
@@ -183,7 +184,7 @@ const generateLink = async (
             success: `${env.FRONTEND_URL_TENANT.replace(/__TENANT__/gi, tenant)}/add-events/${pathName}-cb/${track}`,
             pending: `${env.FRONTEND_URL_TENANT.replace(/__TENANT__/gi, tenant)}/add-events/${pathName}-cb/${track}`,
             failure: `${env.FRONTEND_URL_TENANT.replace(/__TENANT__/gi, tenant)}/add-events/${pathName}-cb/${track}`,
-            
+
         };
 
         const checkout = await PaymentInstance.getMercadoPagoLink(

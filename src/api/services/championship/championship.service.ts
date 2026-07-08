@@ -57,7 +57,7 @@ export class ChampionshipService {
                     basic: ['idCreatorChampionship'],
                     nested: [{
                         path: 'idCreatorChampionship',
-                        select: 'name email ' // el -_id es opcional, si no quieres el ID
+                        select: 'name email' // el -_id es opcional, si no quieres el ID
                     }]
                 }
             );
@@ -96,13 +96,12 @@ export class ChampionshipService {
             }
 
 
-            championship.registeredTeams.push(teamId);
             const updatedChampionship = await DatabaseHelper.update(
                 Championship,
                 championshipId,
                 tenant,
                 {
-                     $push: { registeredTeams: teamId }
+                    $push: { registeredTeams: teamId }
                 } as any
             );
             if (!updatedChampionship)
@@ -132,12 +131,6 @@ export class ChampionshipService {
             if (championship.status !== 'draft') {
                 throw new Error('Championship must be in progress to set winners');
             }
-
-            championship.winner = winners.first;
-            championship.runnerUp = winners.second;
-            championship.thirdPlace = winners.third;
-            championship.status = 'completed';
-
             const updatedChampionship = await DatabaseHelper.update(
                 Championship,
                 championshipId,
@@ -325,7 +318,7 @@ export class ChampionshipService {
                 Championship,
                 tenant,
                 { _id: championshipId },
-                { $push: { registrations: registrationId } }, // Usar $push para agregar al array
+                { $addToSet: { registrations: registrationId } }, // Usar $push para agregar al array
                 { new: true } // Retornar el documento actualizado
             );
 
@@ -339,4 +332,69 @@ export class ChampionshipService {
         }
     }
 
+    /**
+     * actualiza equipos luego que hacen el pago de la inscripcion
+     */
+    async updateTeamId(tenant: string, championshipId: string, teamId: Types.ObjectId): Promise<IChampionshipDocument> {
+        try {
+            const updatedChampionship = await DatabaseHelper.findOneAndUpdate(
+                Championship,
+                tenant,
+                { _id: championshipId },
+                { $addToSet: { teams: teamId } }, // Usar $push para agregar al array
+                { new: true } // Retornar el documento actualizado
+            );
+
+            if (!updatedChampionship) {
+                throw new CustomError('Championship not found', 404, 'ChampionshipServiceError');
+            }
+
+            return updatedChampionship;
+        } catch (error: any) {
+            throw new CustomError(error instanceof Error ? error.message : 'Error updating teams', 500, 'ChampionshipServiceError');
+        }
+    }
+
+    /**
+     * Eliminar registro y equipo del campeonato luego de un error al generar el enlace de pago
+     */
+    async deleteTeamId(tenant: string, championshipId: string, teamId: Types.ObjectId): Promise<IChampionshipDocument> {
+        try {
+            const updatedChampionship = await DatabaseHelper.findOneAndUpdate(
+                Championship,
+                tenant,
+                { _id: championshipId },
+                { $pull: { teams: teamId } }, // Usar $pull para eliminar del array
+                { new: true } // Retornar el documento actualizado
+            );
+
+            if (!updatedChampionship) {
+                throw new CustomError('Championship not found', 404, 'ChampionshipServiceError');
+            }
+
+            return updatedChampionship;
+        } catch (error: any) {
+            throw new CustomError(error instanceof Error ? error.message : 'Error deleting team', 500, 'ChampionshipServiceError');
+        }
+    }
+
+    async deleteRegistrationId(tenant: string, championshipId: string, registrationId: Types.ObjectId): Promise<IChampionshipDocument> {
+        try {
+            const updatedChampionship = await DatabaseHelper.findOneAndUpdate(
+                Championship,
+                tenant,
+                { _id: championshipId },
+                { $pull: { registrations: registrationId } }, // Usar $pull para eliminar del array
+                { new: true } // Retornar el documento actualizado
+            );
+
+            if (!updatedChampionship) {
+                throw new CustomError('Championship not found', 404, 'ChampionshipServiceError');
+            }
+
+            return updatedChampionship;
+        } catch (error: any) {
+            throw new CustomError(error instanceof Error ? error.message : 'Error deleting registrationId', 500, 'ChampionshipServiceError');
+        }
+    }
 } 

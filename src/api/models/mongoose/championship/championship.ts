@@ -4,6 +4,10 @@ import MongooseDelete from 'mongoose-delete';
 import mongoTenant from 'mongo-tenant';
 import mongoosePaginate from 'mongoose-paginate-v2';
 
+export enum ChampionshipType {
+    INDOOR = 'indoor',
+    BEACH = 'beach'
+}
 export interface IChampionshipDocument extends ITenantDocument {
     name: string;
     description?: string;
@@ -91,7 +95,7 @@ ChampionshipSchema.index({ status: 1 });
 ChampionshipSchema.index({ startDate: 1, endDate: 1 });
 
 // Validaciones
-ChampionshipSchema.pre('save', function(next) {
+ChampionshipSchema.pre('save', function (next) {
     if (this.registrationDeadline > this.startDate) {
         next(new Error('Registration deadline must be before start date'));
         return;
@@ -105,7 +109,7 @@ ChampionshipSchema.pre('save', function(next) {
 });
 
 // Métodos estáticos
-ChampionshipSchema.statics.findWithPhases = function(id: string) {
+ChampionshipSchema.statics.findWithPhases = function (id: string) {
     return this.findById(id)
         .populate({
             path: 'phases',
@@ -125,7 +129,7 @@ ChampionshipSchema.statics.findWithPhases = function(id: string) {
         });
 };
 
-ChampionshipSchema.statics.findWithTeams = function(id: string) {
+ChampionshipSchema.statics.findWithTeams = function (id: string) {
     return this.findById(id)
         .populate({
             path: 'teams',
@@ -135,7 +139,7 @@ ChampionshipSchema.statics.findWithTeams = function(id: string) {
         });
 };
 
-ChampionshipSchema.statics.findWithMatches = function(id: string) {
+ChampionshipSchema.statics.findWithMatches = function (id: string) {
     return this.findById(id)
         .populate({
             path: 'matches',
@@ -149,16 +153,16 @@ ChampionshipSchema.statics.findWithMatches = function(id: string) {
 };
 
 // Virtuals
-ChampionshipSchema.virtual('currentPhase').get(async function() {
+ChampionshipSchema.virtual('currentPhase').get(async function () {
     if (!this.phases?.length) return null;
     await this.populate('phases');
-    return this.phases.find((phase:any) => phase.status === 'in_progress');
+    return this.phases.find((phase: any) => phase.status === 'in_progress');
 });
 
-ChampionshipSchema.virtual('progress').get(function() {
+ChampionshipSchema.virtual('progress').get(function () {
     if (this.status === 'completed') return 100;
     if (this.status === 'draft') return 0;
-    
+
     const total = (this.endDate.getTime() - this.startDate.getTime());
     const current = (new Date().getTime() - this.startDate.getTime());
     return Math.min(Math.max(Math.round((current / total) * 100), 0), 100);

@@ -21,6 +21,13 @@ export enum AuthPermission {
     INVITATION_LINK_CREATE = 'invitation-link:create',
     INVITATION_LINK_READ = 'invitation-link:read',
     INVITATION_LINK_MANAGE = 'invitation-link:manage',
+
+    // group distribution
+    GROUP_DISTRIBUTION_CREATE = 'group-distribution:create',
+    GROUP_DISTRIBUTION_READ = 'group-distribution:read',
+    GROUP_DISTRIBUTION_UPDATE = 'group-distribution:update',
+    GROUP_DISTRIBUTION_DELETE = 'group-distribution:delete',
+
     // profile
     PROFILE_READ = 'profile:read',
     PROFILE_UPDATE = 'profile:update',
@@ -39,6 +46,10 @@ export const RolePermissions: Record<AuthRole, AuthPermission[]> = {
         AuthPermission.INVITATION_LINK_CREATE,
         AuthPermission.INVITATION_LINK_READ,
         AuthPermission.INVITATION_LINK_MANAGE,
+        AuthPermission.GROUP_DISTRIBUTION_CREATE,
+        AuthPermission.GROUP_DISTRIBUTION_READ,
+        AuthPermission.GROUP_DISTRIBUTION_UPDATE,
+        AuthPermission.GROUP_DISTRIBUTION_DELETE,
         AuthPermission.PROFILE_READ,
         AuthPermission.PROFILE_UPDATE,
         AuthPermission.USER_READ,
