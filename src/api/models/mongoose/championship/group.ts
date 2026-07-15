@@ -1,29 +1,33 @@
-import { model, Schema } from "mongoose";
+import { model, Schema, Types } from "mongoose";
 import { ITenantDocument, ITenantModel } from "../../../interfaces";
 import MongooseDelete from 'mongoose-delete';
 import mongoTenant from 'mongo-tenant';
 import mongoosePaginate from 'mongoose-paginate-v2';
 
 interface ITeamRanking {
-    teamId: Schema.Types.ObjectId;
+    teamId: Types.ObjectId;
     position: number;
     points: number;
     matchesPlayed: number;
     won: number;
     lost: number;
-    drawn: number;
-    goalsFor: number;
-    goalsAgainst: number;
+    walkovers: number;
+    setsFor: number;
+    setsAgainst: number;
+    setRatio: number;
+    pointsFor: number;
+    pointsAgainst: number;
+    pointRatio: number;
 }
 
 export interface IGroupDocument extends ITenantDocument {
-    phaseId: Schema.Types.ObjectId;
+    phaseId?: Types.ObjectId;
+    groupDistributionId?: Types.ObjectId;
     name: string;
-    teams: Schema.Types.ObjectId[];
-    matches: Schema.Types.ObjectId[];
-    rankings: ITeamRanking[];
+    teams: Types.ObjectId[];
+    matches: Types.ObjectId[];
+    rankings?: ITeamRanking[];
     status: 'active' | 'completed';
-    deletedAt?: Date;
 }
 
 export interface IGroupModel extends ITenantModel<IGroupDocument> {
@@ -58,15 +62,31 @@ const TeamRankingSchema = new Schema({
         type: Number,
         default: 0
     },
-    drawn: {
+    walkovers: {
         type: Number,
         default: 0
     },
-    goalsFor: {
+    setsFor: {
         type: Number,
         default: 0
     },
-    goalsAgainst: {
+    setsAgainst: {
+        type: Number,
+        default: 0
+    },
+    setRatio: {
+        type: Number,
+        default: 0
+    },
+    pointsFor: {
+        type: Number,
+        default: 0
+    },
+    pointsAgainst: {
+        type: Number,
+        default: 0
+    },
+    pointRatio: {
         type: Number,
         default: 0
     }
@@ -77,7 +97,12 @@ const GroupSchema = new Schema<IGroupDocument>(
         phaseId: {
             type: Schema.Types.ObjectId,
             ref: 'Phase',
-            required: true
+            required: false
+        },
+        groupDistributionId: {
+            type: Schema.Types.ObjectId,
+            ref: 'GroupDistribution',
+            required: false
         },
         name: {
             type: String,
@@ -104,9 +129,10 @@ const GroupSchema = new Schema<IGroupDocument>(
     }
 );
 
-// Índices
-GroupSchema.index({ phaseId: 1, name: 1 }, { unique: true });
 
+// Índices
+GroupSchema.index({ phaseId: 1, name: 1 }, { unique: true, sparse: true });
+GroupSchema.index({ groupDistributionId: 1, name: 1 }, { unique: true, sparse: true });
 // Plugins
 GroupSchema.plugin(mongoTenant);
 GroupSchema.plugin(mongoosePaginate);

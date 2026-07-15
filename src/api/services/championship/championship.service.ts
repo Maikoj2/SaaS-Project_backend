@@ -39,6 +39,7 @@ export class ChampionshipService {
      */
     async updateStatus(championshipId: string, tenant: string, newStatus: ChampionshipStatus): Promise<IChampionshipDocument> {
         try {
+            //TODO validar para los cambios si ya estan registrados todos los equipos 
             const championship = await DatabaseHelper.findOneAndUpdate(
                 Championship,
                 tenant,
@@ -160,7 +161,7 @@ export class ChampionshipService {
                 Championship,
                 tenant,
                 {
-                    status: { $in: ['registration', 'in_progress'] }
+                    status: { $in: ['registration', 'in_progress', 'active'] }
                 },
                 {
                     page: 1,
@@ -168,7 +169,7 @@ export class ChampionshipService {
                 },
                 {
                     // Nombres correctos de relaciones en tu esquema de Campeonato:
-                    basic: ['teams', 'registrations'],
+                    basic: ['courts'],
                     nested: []
                 }
             );

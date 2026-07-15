@@ -1,4 +1,4 @@
-// src/api/routes/gameFormats/gameFormats.ts
+
 import { Router, RequestHandler } from 'express';
 import { auth, origin } from '../../middlewares';
 import { GameFormatController } from '../../controllers/championship/gameFormat.controller';

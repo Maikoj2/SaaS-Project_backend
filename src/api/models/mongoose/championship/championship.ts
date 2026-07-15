@@ -1,4 +1,6 @@
-import { model, Schema } from "mongoose";
+import {
+    model, Schema, Types
+} from "mongoose";
 import { ITenantDocument, ITenantModel } from "../../../interfaces";
 import MongooseDelete from 'mongoose-delete';
 import mongoTenant from 'mongo-tenant';
@@ -14,12 +16,12 @@ export interface IChampionshipDocument extends ITenantDocument {
     startDate: Date;
     endDate: Date;
     status: 'draft' | 'registration' | 'active' | 'completed' | 'cancelled';
-    phases: Schema.Types.ObjectId[];
-    teams: Schema.Types.ObjectId[];
-    courts: Schema.Types.ObjectId[];
-    matches: Schema.Types.ObjectId[];
-    registrations: Schema.Types.ObjectId[];
-    idCreatorChampionship: Schema.Types.ObjectId;
+    phases: Types.ObjectId[];
+    teams: Types.ObjectId[];
+    courts: Types.ObjectId[];
+    matches: Types.ObjectId[];
+    registrations: Types.ObjectId[];
+    idCreatorChampionship: Types.ObjectId;
     createdAt?: Date;
     updatedAt?: Date;
 }
@@ -54,27 +56,27 @@ const ChampionshipSchema = new Schema<IChampionshipDocument>(
             default: 'draft'
         },
         phases: [{
-            type: Schema.Types.ObjectId,
+            type: Types.ObjectId,
             ref: 'Phase'
         }],
         teams: [{
-            type: Schema.Types.ObjectId,
+            type: Types.ObjectId,
             ref: 'Team'
         }],
         courts: [{
-            type: Schema.Types.ObjectId,
+            type: Types.ObjectId,
             ref: 'Court'
         }],
         matches: [{
-            type: Schema.Types.ObjectId,
+            type: Types.ObjectId,
             ref: 'Match'
         }],
         registrations: [{
-            type: Schema.Types.ObjectId,
+            type: Types.ObjectId,
             ref: 'Registration'
         }],
         idCreatorChampionship: {
-            type: Schema.Types.ObjectId,
+            type: Types.ObjectId,
             ref: 'User',
             required: true
         },

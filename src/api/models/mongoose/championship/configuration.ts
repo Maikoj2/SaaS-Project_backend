@@ -3,6 +3,7 @@ import { ITenantDocument, ITenantModel } from "../../../interfaces";
 import MongooseDelete from 'mongoose-delete';
 import mongoTenant from 'mongo-tenant';
 import mongoosePaginate from 'mongoose-paginate-v2';
+import { Types } from "mongoose";
 
 // Interfaces
 interface ITieBreakerCriteria {
@@ -11,12 +12,30 @@ interface ITieBreakerCriteria {
     draw: boolean;
 }
 
+interface ITablePointsPolicy {
+    winPoints: number;
+    lossPoints: number;
+    walkoverLossPoints: number;
+    walkoverWinPoints?: number;
+}
+interface IMatchRules {
+    volleyballType: 'beach' | 'indoor';
+    setsToWin: number;
+    maxSets: number;
+    regularSetPoints: number;
+    tieBreakPoints: number;
+    minimumPointDifference: number;
+}
+
 export interface IConfigurationDocument extends ITenantDocument {
-    championshipId: Schema.Types.ObjectId;
+    championshipId: Types.ObjectId;
     maxTeams: number;
-    gameFormatId: Schema.Types.ObjectId;
+    gameFormatId: Types.ObjectId;
     tieBreakerCriteria: ITieBreakerCriteria;
+    matchRules: IMatchRules;
     customRules?: string;
+    tablePointsPolicy?: ITablePointsPolicy;
+    distributionStrategy?: string;
     matchDurationLimit?: number;
     setDurationLimit?: number;
     registrationDeadline: Date;
@@ -31,37 +50,117 @@ export interface IConfigurationModel extends ITenantModel<IConfigurationDocument
 }
 
 // Schema
+const TablePointsPolicySchema = new Schema<ITablePointsPolicy>({
+    winPoints: {
+        type: Number,
+        required: true,
+        default: 2
+    },
+    lossPoints: {
+        type: Number,
+        required: true,
+        default: 1
+    },
+    walkoverLossPoints: {
+        type: Number,
+        required: true,
+        default: 0
+    },
+    walkoverWinPoints: {
+        type: Number,
+        required: false
+    }
+}, { _id: false });
 const TieBreakerCriteriaSchema = new Schema<ITieBreakerCriteria>({
-    setRatio: { 
-        type: Boolean, 
-        default: false 
+    setRatio: {
+        type: Boolean,
+        default: false
     },
-    pointRatio: { 
-        type: Boolean, 
-        default: false 
+    pointRatio: {
+        type: Boolean,
+        default: false
     },
-    draw: { 
-        type: Boolean, 
-        default: false 
+    draw: {
+        type: Boolean,
+        default: false
+    }
+}, { _id: false });
+const MatchRulesSchema = new Schema<IMatchRules>({
+    volleyballType: {
+        type: String,
+        enum: ['beach', 'indoor'],
+        required: true,
+        default: 'beach'
+    },
+    setsToWin: {
+        type: Number,
+        required: true,
+        default: 2
+    },
+    maxSets: {
+        type: Number,
+        required: true,
+        default: 3
+    },
+    regularSetPoints: {
+        type: Number,
+        required: true,
+        default: 21
+    },
+    tieBreakPoints: {
+        type: Number,
+        required: true,
+        default: 15
+    },
+    minimumPointDifference: {
+        type: Number,
+        required: true,
+        default: 2
     }
 }, { _id: false });
 
 const ChampionshipConfigurationSchema = new Schema<IConfigurationDocument>(
     {
-        championshipId: { 
-            type: Schema.Types.ObjectId, 
-            ref: 'Championship', 
-            required: true 
+        championshipId: {
+            type: Types.ObjectId,
+            ref: 'Championship',
+            required: true
         },
-        maxTeams: { 
-            type: Number, 
+        maxTeams: {
+            type: Number,
             required: true,
             min: 2
         },
         gameFormatId: {
-            type: Schema.Types.ObjectId,
+            type: Types.ObjectId,
             ref: 'GameFormat',
             required: true
+        },
+        matchRules: {
+            type: MatchRulesSchema,
+            required: true,
+            default: () => ({
+                volleyballType: 'beach',
+                setsToWin: 2,
+                maxSets: 3,
+                regularSetPoints: 21,
+                tieBreakPoints: 15,
+                minimumPointDifference: 2
+            })
+        },
+        distributionStrategy: {
+            type: String,
+            enum: ['serpentine', 'linear', 'random', 'balancedByClub'],
+            default: 'serpentine'
+        },
+        tablePointsPolicy: {
+            type: TablePointsPolicySchema,
+            required: true,
+            default: () => ({
+                winPoints: 2,
+                lossPoints: 1,
+                walkoverLossPoints: 0
+            })
         },
         tieBreakerCriteria: {
             type: TieBreakerCriteriaSchema,
@@ -72,35 +171,35 @@ const ChampionshipConfigurationSchema = new Schema<IConfigurationDocument>(
                 draw: false
             })
         },
-        customRules: { 
-            type: String 
+        customRules: {
+            type: String
         },
-        matchDurationLimit: { 
-            type: Number, 
+        matchDurationLimit: {
+            type: Number,
             min: 0
         },
-        setDurationLimit: { 
-            type: Number, 
+        setDurationLimit: {
+            type: Number,
             min: 0
         },
-        registrationDeadline: { 
-            type: Date, 
+        registrationDeadline: {
+            type: Date,
             required: true,
             validate: {
-                validator: function(this: IConfigurationDocument, deadline: Date) {
+                validator: function (this: IConfigurationDocument, deadline: Date) {
                     return deadline > new Date();
                 },
                 message: 'the registration deadline must be in the future'
             }
         },
-        registrationFee: { 
-            type: Number, 
+        registrationFee: {
+            type: Number,
             required: true,
             min: 0
         },
-        deletedAt: { 
-            type: Date, 
-            default: null 
+        deletedAt: {
+            type: Date,
+            default: null
         }
     },
     {
@@ -109,11 +208,12 @@ const ChampionshipConfigurationSchema = new Schema<IConfigurationDocument>(
     }
 );
 
+
 // Índices
 ChampionshipConfigurationSchema.index({ championshipId: 1 }, { unique: true });
 
 // Middleware de validación
-ChampionshipConfigurationSchema.pre('save', function(next) {
+ChampionshipConfigurationSchema.pre('save', function (next) {
     if (this.matchDurationLimit && this.setDurationLimit) {
         if (this.matchDurationLimit < this.setDurationLimit) {
             next(new Error('the match duration limit must be greater than the set duration limit'));
@@ -123,7 +223,7 @@ ChampionshipConfigurationSchema.pre('save', function(next) {
 });
 
 // Métodos estáticos
-ChampionshipConfigurationSchema.statics.findByChampionship = function(championshipId: string) {
+ChampionshipConfigurationSchema.statics.findByChampionship = function (championshipId: string) {
     return this.findOne({ championshipId }).populate('championshipId');
 };
 
