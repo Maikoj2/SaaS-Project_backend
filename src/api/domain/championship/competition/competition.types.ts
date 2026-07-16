@@ -323,6 +323,7 @@ export type GroupStandingsResult = {
 export type QualificationMode =
     | 'topPerGroup'
     | 'topPerGroupPlusBestThirds'
+    | 'topPerGroupPlusBestRemaining'
     | 'bestOverall';
 
 export type QualificationOptions = {
@@ -348,6 +349,13 @@ export type QualificationOptions = {
      * 8 => clasifican los mejores 8 sin importar grupo.
      */
     totalQualifiers?: number;
+
+    /**
+     * Normaliza los puntos de los terceros para que no sea
+     * unfair para los que tuvieron un partido menos.
+     * Por defecto será false.
+     */
+    normalizeStandingsForUnevenGroups?: boolean;
 };
 
 export type QualifiedTeam = {
@@ -374,6 +382,7 @@ export type QualifiedTeam = {
     qualificationReason:
     | 'TOP_PER_GROUP'
     | 'BEST_THIRD'
+    | 'BEST_REMAINING'
     | 'BEST_OVERALL';
 };
 

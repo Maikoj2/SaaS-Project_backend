@@ -33,6 +33,16 @@ export function qualifyTeamsFromGroupStandings(
                 options.totalQualifiers ?? 8
             );
             break;
+        case 'topPerGroupPlusBestRemaining':
+            qualifiedTeams = qualifyTopPerGroupPlusBestRemaining(
+                groupStandings,
+                options.topPerGroup ?? 2,
+                options.totalQualifiers ?? 8,
+                options.normalizeStandingsForUnevenGroups ?? true
+            );
+            break;
+
+
 
         default:
             throw new Error(`Unsupported qualification mode: ${options.mode}`);
@@ -50,6 +60,10 @@ export function qualifyTeamsFromGroupStandings(
         totalQualified: sortedQualifiedTeams.length,
     };
 }
+
+
+
+
 
 function validateQualificationInput(
     groupStandings: GroupStandingsResult[],
@@ -85,6 +99,23 @@ function validateQualificationInput(
         !options.totalQualifiers
     ) {
         throw new Error('totalQualifiers is required for bestOverall mode.');
+    }
+    if (
+        options.mode === 'topPerGroupPlusBestRemaining' &&
+        !options.topPerGroup
+    ) {
+        throw new Error(
+            'topPerGroup is required for topPerGroupPlusBestRemaining mode.'
+        );
+    }
+
+    if (
+        options.mode === 'topPerGroupPlusBestRemaining' &&
+        !options.totalQualifiers
+    ) {
+        throw new Error(
+            'totalQualifiers is required for topPerGroupPlusBestRemaining mode.'
+        );
     }
 }
 
@@ -198,20 +229,87 @@ function mapStandingToQualifiedTeam(
     };
 }
 
-function sortQualifiedTeamsOverall(
-    teams: QualifiedTeam[]
+function qualifyTopPerGroupPlusBestRemaining(
+    groupStandings: GroupStandingsResult[],
+    topPerGroup: number,
+    totalQualifiers: number,
+    normalizeStandingsForUnevenGroups: boolean
 ): QualifiedTeam[] {
-    return [...teams].sort(compareQualifiedTeams);
+    const directQualified = qualifyTopPerGroup(
+        groupStandings,
+        topPerGroup
+    );
+
+    if (directQualified.length >= totalQualifiers) {
+        return directQualified.slice(0, totalQualifiers);
+    }
+
+    const directQualifiedIds = new Set(
+        directQualified.map((qualifiedTeam) => qualifiedTeam.team.id)
+    );
+
+    const remainingTeams = groupStandings.flatMap((group) =>
+        group.standings
+            .filter((standing) => !directQualifiedIds.has(standing.team.id))
+            .map((standing) =>
+                mapStandingToQualifiedTeam(
+                    standing,
+                    group.groupName,
+                    standing.POS ?? 0,
+                    'BEST_REMAINING' as QualifiedTeam['qualificationReason']
+                )
+            )
+    );
+
+    const remainingSlots = totalQualifiers - directQualified.length;
+
+    const bestRemaining = sortQualifiedTeamsOverall(
+        remainingTeams,
+        normalizeStandingsForUnevenGroups
+    ).slice(0, remainingSlots);
+
+    return [...directQualified, ...bestRemaining];
+}
+
+function sortQualifiedTeamsOverall(
+    teams: QualifiedTeam[],
+    normalizeStandingsForUnevenGroups = false
+): QualifiedTeam[] {
+    return [...teams].sort((a, b) =>
+        compareQualifiedTeams(a, b, normalizeStandingsForUnevenGroups)
+    );
 }
 
 function compareQualifiedTeams(
     a: QualifiedTeam,
-    b: QualifiedTeam
+    b: QualifiedTeam,
+    normalizeStandingsForUnevenGroups = false
 ): number {
-    if (b.PTS !== a.PTS) return b.PTS - a.PTS;
-    if (b.CS !== a.CS) return b.CS - a.CS;
-    if (b.CT !== a.CT) return b.CT - a.CT;
-    if (b.PG !== a.PG) return b.PG - a.PG;
+    if (normalizeStandingsForUnevenGroups) {
+        const aPtsPerMatch = calculatePerMatchValue(a.PTS, a.PJ);
+        const bPtsPerMatch = calculatePerMatchValue(b.PTS, b.PJ);
+
+        if (bPtsPerMatch !== aPtsPerMatch) {
+            return bPtsPerMatch - aPtsPerMatch;
+        }
+
+        if (b.CS !== a.CS) return b.CS - a.CS;
+        if (b.CT !== a.CT) return b.CT - a.CT;
+
+        const aWinsPerMatch = calculatePerMatchValue(a.PG, a.PJ);
+        const bWinsPerMatch = calculatePerMatchValue(b.PG, b.PJ);
+
+        if (bWinsPerMatch !== aWinsPerMatch) {
+            return bWinsPerMatch - aWinsPerMatch;
+        }
+
+        if (a.WO !== b.WO) return a.WO - b.WO;
+    } else {
+        if (b.PTS !== a.PTS) return b.PTS - a.PTS;
+        if (b.CS !== a.CS) return b.CS - a.CS;
+        if (b.CT !== a.CT) return b.CT - a.CT;
+        if (b.PG !== a.PG) return b.PG - a.PG;
+    }
 
     const seedA = a.team.seed ?? Number.MAX_SAFE_INTEGER;
     const seedB = b.team.seed ?? Number.MAX_SAFE_INTEGER;
@@ -219,4 +317,12 @@ function compareQualifiedTeams(
     if (seedA !== seedB) return seedA - seedB;
 
     return a.team.name.localeCompare(b.team.name);
+}
+
+function calculatePerMatchValue(value: number, matchesPlayed: number): number {
+    if (!matchesPlayed) {
+        return 0;
+    }
+
+    return Number((value / matchesPlayed).toFixed(3));
 }

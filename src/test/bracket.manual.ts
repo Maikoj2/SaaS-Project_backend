@@ -1,65 +1,166 @@
 import {
+    GroupStandingsResult,
+    Standing,
+    qualifyTeamsFromGroupStandings,
     generateEliminationBracket,
-    QualifiedTeam,
 } from '../api/domain/championship/competition';
 
-const qualifiedTeams: QualifiedTeam[] = Array.from(
-    { length: 8 },
-    (_, index) => ({
+function createStanding(
+    teamId: string,
+    name: string,
+    position: number,
+    points: number,
+    matchesPlayed: number,
+    wins: number,
+    setRatio: number,
+    pointRatio: number,
+    groupName: string
+): Standing {
+    return {
         team: {
-            id: String(index + 1),
-            name: `Equipo ${index + 1}`,
-            seed: index + 1,
+            id: teamId,
+            name,
+            seed: position,
         },
 
-        groupName: String.fromCharCode(65 + Math.floor(index / 2)),
-        groupPosition: index % 2 === 0 ? 1 : 2,
-        overallPosition: index + 1,
-
-        PJ: 3,
-        PG: 2,
-        PP: 1,
+        PJ: matchesPlayed,
+        PG: wins,
+        PP: matchesPlayed - wins,
         WO: 0,
 
-        SF: 5,
-        SC: 2,
-        CS: 2.5,
+        SF: 0,
+        SC: 0,
+        CS: setRatio,
 
-        TF: 120,
-        TC: 95,
-        CT: 1.263,
+        TF: 0,
+        TC: 0,
+        CT: pointRatio,
 
-        PTS: 5,
+        PTS: points,
+        POS: position,
+    };
+}
 
-        qualificationReason: 'TOP_PER_GROUP',
-    })
-);
+function createGroup(
+    groupName: string,
+    groupSize: number,
+    matchesPlayedPerTeam: number
+): GroupStandingsResult {
+    const standings: Standing[] = [];
 
-const bracket = generateEliminationBracket(qualifiedTeams, {
-    initialMatchNumber: 25,
-    includeThirdPlaceMatch: true,
-});
+    for (let index = 1; index <= groupSize; index++) {
+        const position = index;
 
-console.log('\nLlaves generadas:\n');
+        standings.push(
+            createStanding(
+                `${groupName}${index}`,
+                `Equipo ${groupName}${index}`,
+                position,
+                Math.max(0, 8 - index * 2),
+                matchesPlayedPerTeam,
+                Math.max(0, matchesPlayedPerTeam - index + 1),
+                Number((2.2 - index * 0.25).toFixed(3)),
+                Number((1.8 - index * 0.2).toFixed(3)),
+                groupName
+            )
+        );
+    }
 
-bracket.rounds.forEach((round) => {
-    console.log(`\n${round.roundLabel}:`);
+    return {
+        groupName,
+        standings,
+    };
+}
 
-    round.matches.forEach((match) => {
-        const teamA = match.teamA
-            ? `${match.teamA.team.name} (#${match.teamA.seed})`
-            : `Ganador pendiente`;
+function test20Teams5GroupsOf4Qualify16() {
+    console.log('\n===== TEST 20 TEAMS / 5 GROUPS OF 4 / QUALIFY 16 =====');
 
-        const teamB = match.teamB
-            ? `${match.teamB.team.name} (#${match.teamB.seed})`
-            : `Ganador pendiente`;
+    const groupStandings: GroupStandingsResult[] = ['A', 'B', 'C', 'D', 'E']
+        .map((groupName) => createGroup(groupName, 4, 3));
 
+    const qualification = qualifyTeamsFromGroupStandings(groupStandings, {
+        mode: 'topPerGroupPlusBestRemaining',
+        topPerGroup: 3,
+        totalQualifiers: 16,
+        normalizeStandingsForUnevenGroups: true,
+    });
+
+    console.log('Total qualified:', qualification.totalQualified);
+
+    qualification.qualifiedTeams.forEach((team) => {
         console.log(
-            `Partido ${match.matchNumber} | ${teamA} vs ${teamB}` +
-            ` | winnerTo: ${match.winnerToMatchNumber ?? '-'}` +
-            ` | loserTo: ${match.loserToMatchNumber ?? '-'}`
+            `${team.overallPosition}. ${team.team.name} | Group ${team.groupName} | Pos ${team.groupPosition} | Reason ${team.qualificationReason} | PTS ${team.PTS} | PJ ${team.PJ}`
         );
     });
-});
 
-console.log('\nTotal partidos:', bracket.totalMatches);
+    const bracket = generateEliminationBracket(
+        qualification.qualifiedTeams,
+        {
+            includeThirdPlaceMatch: true,
+            initialMatchNumber: 1,
+        }
+    );
+
+    printBracket(bracket);
+}
+
+function test22TeamsMixedGroupsQualify16() {
+    console.log('\n===== TEST 22 TEAMS / 4 GROUPS OF 4 + 2 GROUPS OF 3 / QUALIFY 16 =====');
+
+    const groupStandings: GroupStandingsResult[] = [
+        createGroup('A', 4, 3),
+        createGroup('B', 4, 3),
+        createGroup('C', 4, 3),
+        createGroup('D', 4, 3),
+        createGroup('E', 3, 2),
+        createGroup('F', 3, 2),
+    ];
+
+    const qualification = qualifyTeamsFromGroupStandings(groupStandings, {
+        mode: 'topPerGroupPlusBestRemaining',
+        topPerGroup: 2,
+        totalQualifiers: 16,
+        normalizeStandingsForUnevenGroups: true,
+    });
+
+    console.log('Total qualified:', qualification.totalQualified);
+
+    qualification.qualifiedTeams.forEach((team) => {
+        const ptsPerMatch = team.PJ ? Number((team.PTS / team.PJ).toFixed(3)) : 0;
+
+        console.log(
+            `${team.overallPosition}. ${team.team.name} | Group ${team.groupName} | Pos ${team.groupPosition} | Reason ${team.qualificationReason} | PTS ${team.PTS} | PJ ${team.PJ} | PTS/PJ ${ptsPerMatch}`
+        );
+    });
+
+    const bracket = generateEliminationBracket(
+        qualification.qualifiedTeams,
+        {
+            includeThirdPlaceMatch: true,
+            initialMatchNumber: 1,
+        }
+    );
+
+    printBracket(bracket);
+}
+
+function printBracket(bracket: any) {
+    console.log('\nBracket total matches:', bracket.totalMatches);
+
+    bracket.rounds.forEach((round: any) => {
+        console.log(`\n${round.roundLabel}`);
+
+        round.matches.forEach((match: any) => {
+            console.log(
+                `Match ${match.matchNumber}: ${match.teamA?.team?.name ?? 'TBD'
+                } vs ${match.teamB?.team?.name ?? 'TBD'
+                } | winnerTo: ${match.winnerToMatchNumber ?? '-'
+                } | loserTo: ${match.loserToMatchNumber ?? '-'
+                }`
+            );
+        });
+    });
+}
+
+test20Teams5GroupsOf4Qualify16();
+test22TeamsMixedGroupsQualify16();

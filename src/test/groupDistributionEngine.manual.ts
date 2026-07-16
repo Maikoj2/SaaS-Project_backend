@@ -15,10 +15,10 @@ cases.forEach((totalTeams) => {
     console.log(`${totalTeams} equipos:`, plan);
 });
 
-console.log('\nDistribución serpentine con 10 equipos:');
+console.log('\nDistribución serpentine con 22 equipos:');
 
 const teams9 = Array.from({
-    length: 21
+    length: 22
 }, (_, index) => ({
     id: String(index + 1),
     name: `Equipo ${index + 1}`,
@@ -32,5 +32,5 @@ const result9 = distributeTeamsIntoGroups(teams9, {
 
 console.log(JSON.stringify(result9, null, 2));
 
-console.log('\nDistribución serpentine con 12 equipos en 4 grupos de 3:');
+console.log('\nDistribución serpentine con 22 equipos en 4 grupos de 4 y 2 grupos de 3:');
 
