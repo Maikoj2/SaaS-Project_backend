@@ -1,4 +1,4 @@
-import { model, Schema } from "mongoose";
+import { model, Schema, Types } from "mongoose";
 import { ITenantDocument, ITenantModel } from "../../../interfaces";
 import MongooseDelete from 'mongoose-delete';
 import mongoTenant from 'mongo-tenant';
@@ -6,8 +6,8 @@ import mongoosePaginate from 'mongoose-paginate-v2';
 
 // Interfaces
 export interface IRegistrationDocument extends ITenantDocument {
-    championshipId: Schema.Types.ObjectId;
-    teamId: Schema.Types.ObjectId;
+    championshipId: Types.ObjectId;
+    teamId: Types.ObjectId;
     registrationDate: Date;
     registrationStatus: 'pending' | 'confirmed' | 'rejected';
     feePaid: boolean;
@@ -29,12 +29,12 @@ export interface IRegistrationModel extends ITenantModel<IRegistrationDocument> 
 const RegistrationSchema = new Schema<IRegistrationDocument>(
     {
         championshipId: {
-            type: Schema.Types.ObjectId,
+            type: Types.ObjectId,
             ref: 'Championship',
             required: true
         },
         teamId: {
-            type: Schema.Types.ObjectId,
+            type: Types.ObjectId,
             ref: 'Team',
             required: true
         },
@@ -68,7 +68,7 @@ const RegistrationSchema = new Schema<IRegistrationDocument>(
             type: String
         },
         responsiblePerson: {
-            type: Schema.Types.ObjectId,
+            type: Types.ObjectId,
             ref: 'User'
         },
         deletedAt: {

@@ -3,6 +3,7 @@ import { ITenantDocument, ITenantModel } from "../../../interfaces";
 import MongooseDelete from 'mongoose-delete';
 import mongoTenant from 'mongo-tenant';
 import mongoosePaginate from 'mongoose-paginate-v2';
+import { Types } from "mongoose";
 
 
 // Interfaces
@@ -40,8 +41,8 @@ export enum BeachVolleyballPosition {
 }
 
 export interface IPlayerDocument extends ITenantDocument {
-    userId: Schema.Types.ObjectId;    // Referencia al usuario
-    clubId: Schema.Types.ObjectId;
+    userId: Types.ObjectId;    // Referencia al usuario
+    clubId: Types.ObjectId;
     position: IndoorVolleyballPosition | BeachVolleyballPosition;
     isIndependent: boolean;
     eps: EPSProvider;
@@ -81,12 +82,12 @@ const PlayerStatsSchema = new Schema<IPlayerStats>({
 const PlayerSchema = new Schema<IPlayerDocument>(
     {
         userId: {
-            type: Schema.Types.ObjectId,
+            type: Types.ObjectId,
             ref: 'User',
             required: true,
         },
         clubId: {
-            type: Schema.Types.ObjectId,
+            type: Types.ObjectId,
             ref: 'Club',
             required: false
         },

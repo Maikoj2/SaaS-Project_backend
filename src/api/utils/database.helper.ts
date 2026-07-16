@@ -54,8 +54,10 @@ export class DatabaseHelper {
 
             return docs;
         } catch (error) {
-            if (error instanceof AuthError) throw error;
-            throw new AuthError('Database error', 500);
+            throw new AuthError(
+                error instanceof Error ? error.message : 'Error gettin documents',
+                500
+            );
         }
     }
 
@@ -65,7 +67,18 @@ export class DatabaseHelper {
         tenant: string,
         options: FindOptions = {}
     ): Promise<T | null> {
-        return this.findOne(model, tenant, { _id: new Types.ObjectId(id), deleted: options.deleted }, options);
+        try {
+            const doc = await model.byTenant(tenant).findById(id);
+            if (!doc) {
+                throw new AuthError('Document not found');
+            }
+            return doc;
+        } catch (error) {
+            throw new AuthError(
+                error instanceof Error ? error.message : 'Error finding document by ID',
+                500
+            );
+        }
     }
 
     static async findOne<T extends ITenantDocument>(
@@ -89,14 +102,16 @@ export class DatabaseHelper {
 
             if (!doc && throwError) {
                 this.logger.warn('Document not found:', { model: model.modelName, tenant, query });
-                throw new AuthError(errorMessage, 404);
+                throw new AuthError(errorMessage);
             }
 
             this.logger.info('Document found:', { model: model.modelName, id: doc?._id });
             return doc;
         } catch (error) {
-            if (error instanceof AuthError) throw error;
-            throw new AuthError('Database error', 500);
+            throw new AuthError(
+                error instanceof Error ? error.message : 'Error find one document',
+                500
+            );
         }
     }
 
@@ -144,19 +159,11 @@ export class DatabaseHelper {
                     id,
                     tenant
                 });
-                throw new AuthError(errorMessage, 404);
+                throw new AuthError(errorMessage);
             }
 
             return doc;
         } catch (error) {
-            this.logger.error('Error updating document:', {
-                error,
-                model: model.modelName,
-                id,
-                tenant
-            });
-
-            if (error instanceof AuthError) throw error;
             throw new AuthError(
                 error instanceof Error ? error.message : 'Error updating document',
                 500
@@ -172,7 +179,10 @@ export class DatabaseHelper {
         try {
             return await model.byTenant(tenant).create(data);
         } catch (error) {
-            throw new AuthError('Error creating document', 500);
+            throw new AuthError(
+                error instanceof Error ? error.message : 'Error creating document',
+                500
+            );
         }
     }
 
@@ -186,11 +196,13 @@ export class DatabaseHelper {
 
         try {
             const doc = await model.byTenant(tenant).findByIdAndDelete(id);
-            if (!doc && throwError) throw new AuthError(errorMessage, 404);
+            if (!doc && throwError) throw new AuthError(errorMessage);
             return doc;
         } catch (error) {
-            if (error instanceof AuthError) throw error;
-            throw new AuthError('Database error', 500);
+            throw new AuthError(
+                error instanceof Error ? error.message : 'Error deleting document',
+                500
+            );
         }
     }
 
@@ -203,7 +215,10 @@ export class DatabaseHelper {
             const count = await model.byTenant(tenant).countDocuments(query);
             return count > 0;
         } catch (error) {
-            throw new AuthError('Database error', 500);
+            throw new AuthError(
+                error instanceof Error ? error.message : 'Error creating document',
+                500
+            );
         }
     }
 
@@ -323,7 +338,7 @@ export class DatabaseHelper {
         } catch (error) {
             throw new AuthError(
                 error instanceof Error ? error.message : 'Error getting items',
-                422
+                500
             );
         }
     }
@@ -384,7 +399,7 @@ export class DatabaseHelper {
         } catch (error) {
             throw new AuthError(
                 error instanceof Error ? error.message : 'Error creating document',
-                422
+                500
             )
         }
     }
@@ -415,7 +430,7 @@ export class DatabaseHelper {
         } catch (error) {
             throw new AuthError(
                 error instanceof Error ? error.message : 'Error creating document',
-                422
+                500
             );
         }
     }

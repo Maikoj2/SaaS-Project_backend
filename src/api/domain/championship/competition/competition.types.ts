@@ -310,6 +310,7 @@ export type TablePointsPolicy = {
 export type StandingsOptions = {
     rules?: VolleyballMatchRules;
     pointsPolicy?: TablePointsPolicy;
+    tieBreakerCriteria?: TieBreakerCriteria;
 };
 
 export type GroupStandingsResult = {
@@ -323,6 +324,7 @@ export type GroupStandingsResult = {
 export type QualificationMode =
     | 'topPerGroup'
     | 'topPerGroupPlusBestThirds'
+    | 'topPerGroupPlusBestRemaining'
     | 'bestOverall';
 
 export type QualificationOptions = {
@@ -348,6 +350,20 @@ export type QualificationOptions = {
      * 8 => clasifican los mejores 8 sin importar grupo.
      */
     totalQualifiers?: number;
+
+    /**
+     * Normaliza los puntos de los terceros para que no sea
+     * unfair para los que tuvieron un partido menos.
+     * Por defecto será false.
+     */
+    normalizeStandingsForUnevenGroups?: boolean;
+
+    /**
+     * Orden de desempate.
+     * Por defecto será [].
+     * Solo se usa si hay empate entre dos o más equipos.
+     */
+    tieBreakerCriteria?: TieBreakerCriteria;
 };
 
 export type QualifiedTeam = {
@@ -374,6 +390,7 @@ export type QualifiedTeam = {
     qualificationReason:
     | 'TOP_PER_GROUP'
     | 'BEST_THIRD'
+    | 'BEST_REMAINING'
     | 'BEST_OVERALL';
 };
 
@@ -383,6 +400,12 @@ export type QualificationResult = {
 };
 
 /**  ========================QualificationEND =======================*/
+export type TieBreakerCriteria = {
+    setRatio?: boolean;
+    pointRatio?: boolean;
+    wins?: boolean;
+    draw?: boolean;
+};
 
 export type BracketRoundName =
     | 'round_of_32'

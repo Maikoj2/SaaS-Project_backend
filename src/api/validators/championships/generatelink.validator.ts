@@ -2,6 +2,7 @@ import { body, check, param } from 'express-validator';
 import { validate } from '../../middlewares';
 import Championship from '../../models/mongoose/championship/championship';
 import { InvitationLinkService } from '../../services/championship/invitationLink.service';
+import { DatabaseHelper } from '../../utils/database.helper';
 
 const linkService = new InvitationLinkService();
 let dateStartChampionship: Date;
@@ -12,13 +13,18 @@ export const validateGenerateInvitationLink = [
         .custom(async (value: string, { req }) => {
             const tenant = req.clientAccount as string;
             // search championship including tenant for security
-            const championship = await Championship.byTenant(tenant).findById(value);
-            if (!championship) {
-                throw new Error('CHAMPIONSHIP_NOT_FOUND');
-            }
+            const championship = await DatabaseHelper.findOne(
+                Championship, tenant,
+                { _id: value },
+                {
+                    throwError: true,
+                    errorMessage: 'CHAMPIONSHIP_NOT_FOUND'
+                }
+            );
+
             (req as any).championship = championship;
             const link = await linkService.findActiveLink(req.clientAccount, value);
-            if (link) {
+            if (!link) {
                 throw new Error('LINK_ALREADY_EXISTS');
             }
             return true;

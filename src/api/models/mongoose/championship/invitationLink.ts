@@ -1,12 +1,13 @@
-import { Schema, model } from 'mongoose';
+import { Schema, model, Types } from 'mongoose';
 import { ITenantDocument, ITenantModel } from '../../../interfaces';
 import MongooseDelete from 'mongoose-delete';
 import mongoTenant from 'mongo-tenant';
 import mongoosePaginate from 'mongoose-paginate-v2';
 
+
 // Interface del documento
 export interface IInvitationLink extends ITenantDocument {
-    championshipId: Schema.Types.ObjectId;
+    championshipId: Types.ObjectId;
     code: string;
     expiresAt: Date;
     isActive: boolean;
@@ -24,7 +25,7 @@ export interface IInvitationLinkModel extends ITenantModel<IInvitationLink> {
 // Schema
 const InvitationLinkSchema = new Schema({
     championshipId: {
-        type: Schema.Types.ObjectId,
+        type: Types.ObjectId,
         ref: 'Championship',
         required: true
     },
@@ -53,9 +54,9 @@ const InvitationLinkSchema = new Schema({
         type: Date,
         default: null
     }
-}, { 
+}, {
     timestamps: true,
-    versionKey: false 
+    versionKey: false
 });
 
 // Plugins

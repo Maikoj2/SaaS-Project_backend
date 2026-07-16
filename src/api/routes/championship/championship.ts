@@ -67,8 +67,8 @@ router.patch(ChampionshipsRoutes.CHAMPIONSHIPS_ID_CONFIGURATION, [
     origin.checkTenant as RequestHandler,
     auth as RequestHandler,
     permissionAuthorization([AuthPermission.CHAMPIONSHIP_UPDATE]) as RequestHandler,
-    trimRequest.all,
     ...championshipConfigurationValidators.updateChampionshipConfiguration,
+    trimRequest.all,
 ], championshipController.updateChampionshipConfiguration as RequestHandler);
 
 // get championship configuration

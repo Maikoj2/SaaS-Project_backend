@@ -1,18 +1,18 @@
-import { model, Schema } from "mongoose";
+import { model, Schema, Types } from "mongoose";
 import { ITenantDocument, ITenantModel } from "../../../interfaces";
 import MongooseDelete from 'mongoose-delete';
 import mongoTenant from 'mongo-tenant';
 import mongoosePaginate from 'mongoose-paginate-v2';
 
 export interface IPhaseDocument extends ITenantDocument {
-    championshipId: Schema.Types.ObjectId;
+    championshipId: Types.ObjectId;
     name: string;
     order: number;
-    previousPhaseId?: Schema.Types.ObjectId;
-    nextPhaseId?: Schema.Types.ObjectId;
-    gameFormatId: Schema.Types.ObjectId;
-    groups: Schema.Types.ObjectId[];
-    matches: Schema.Types.ObjectId[];
+    previousPhaseId?: Types.ObjectId;
+    nextPhaseId?: Types.ObjectId;
+    gameFormatId: Types.ObjectId;
+    groups: Types.ObjectId[];
+    matches: Types.ObjectId[];
     status: 'pending' | 'in_progress' | 'completed';
     startDate?: Date;
     endDate?: Date;
@@ -28,7 +28,7 @@ export interface IPhaseModel extends ITenantModel<IPhaseDocument> {
 const PhaseSchema = new Schema<IPhaseDocument>(
     {
         championshipId: {
-            type: Schema.Types.ObjectId,
+            type: Types.ObjectId,
             ref: 'Championship',
             required: true
         },
@@ -41,24 +41,24 @@ const PhaseSchema = new Schema<IPhaseDocument>(
             required: true
         },
         previousPhaseId: {
-            type: Schema.Types.ObjectId,
+            type: Types.ObjectId,
             ref: 'Phase'
         },
         nextPhaseId: {
-            type: Schema.Types.ObjectId,
+            type: Types.ObjectId,
             ref: 'Phase'
         },
         gameFormatId: {
-            type: Schema.Types.ObjectId,
+            type: Types.ObjectId,
             ref: 'GameFormat',
             required: true
         },
         groups: [{
-            type: Schema.Types.ObjectId,
+            type: Types.ObjectId,
             ref: 'Group'
         }],
         matches: [{
-            type: Schema.Types.ObjectId,
+            type: Types.ObjectId,
             ref: 'Match'
         }],
         status: {
@@ -85,7 +85,7 @@ PhaseSchema.index({ status: 1 });
 PhaseSchema.index({ startDate: 1, endDate: 1 });
 
 // Validaciones
-PhaseSchema.pre('save', function(next) {
+PhaseSchema.pre('save', function (next) {
     if (this.startDate && this.endDate && this.startDate > this.endDate) {
         next(new Error('End date must be after start date'));
         return;
@@ -94,13 +94,13 @@ PhaseSchema.pre('save', function(next) {
 });
 
 // Métodos estáticos
-PhaseSchema.statics.findByChampionship = function(championshipId: string) {
+PhaseSchema.statics.findByChampionship = function (championshipId: string) {
     return this.find({ championshipId })
         .sort('order')
         .populate('gameFormatId');
 };
 
-PhaseSchema.statics.findWithDetails = function(id: string) {
+PhaseSchema.statics.findWithDetails = function (id: string) {
     return this.findById(id)
         .populate([
             {
@@ -118,14 +118,14 @@ PhaseSchema.statics.findWithDetails = function(id: string) {
 };
 
 // Virtuals
-PhaseSchema.virtual('isGroupPhase').get(function() {
+PhaseSchema.virtual('isGroupPhase').get(function () {
     return this.groups && this.groups.length > 0;
 });
 
-PhaseSchema.virtual('progress').get(function() {
+PhaseSchema.virtual('progress').get(function () {
     if (this.status === 'completed') return 100;
     if (this.status === 'pending') return 0;
-    
+
     const completedMatches = this.matches.filter((match: any) => match.status === 'completed').length;
     return Math.round((completedMatches / this.matches.length) * 100);
 });

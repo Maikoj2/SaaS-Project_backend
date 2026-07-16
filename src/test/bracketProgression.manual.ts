@@ -81,4 +81,4 @@ function printBracket(title: string, currentBracket: typeof bracket) {
             }))
         );
     });
-}
+}   

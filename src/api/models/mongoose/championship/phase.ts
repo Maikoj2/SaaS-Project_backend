@@ -3,14 +3,15 @@ import { ITenantDocument, ITenantModel } from "../../../interfaces";
 import MongooseDelete from 'mongoose-delete';
 import mongoTenant from 'mongo-tenant';
 import mongoosePaginate from 'mongoose-paginate-v2';
+import { Types } from "mongoose";
 
 export interface IPhaseDocument extends ITenantDocument {
-    championshipId: Schema.Types.ObjectId;
+    championshipId: Types.ObjectId;
     name: string;
     order: number;
-    previousPhaseId?: Schema.Types.ObjectId;
-    nextPhaseId?: Schema.Types.ObjectId;
-    gameFormatId: Schema.Types.ObjectId;
+    previousPhaseId?: Types.ObjectId;
+    nextPhaseId?: Types.ObjectId;
+    gameFormatId: Types.ObjectId;
     groups: Schema.Types.ObjectId[];
     matches: Schema.Types.ObjectId[];
     status: 'pending' | 'in_progress' | 'completed';
@@ -26,7 +27,7 @@ export interface IPhaseModel extends ITenantModel<IPhaseDocument> {
 const PhaseSchema = new Schema<IPhaseDocument>(
     {
         championshipId: {
-            type: Schema.Types.ObjectId,
+            type: Types.ObjectId,
             ref: 'Championship',
             required: true
         },
@@ -39,24 +40,24 @@ const PhaseSchema = new Schema<IPhaseDocument>(
             required: true
         },
         previousPhaseId: {
-            type: Schema.Types.ObjectId,
+            type: Types.ObjectId,
             ref: 'Phase'
         },
         nextPhaseId: {
-            type: Schema.Types.ObjectId,
+            type: Types.ObjectId,
             ref: 'Phase'
         },
         gameFormatId: {
-            type: Schema.Types.ObjectId,
+            type: Types.ObjectId,
             ref: 'GameFormat',
             required: true
         },
         groups: [{
-            type: Schema.Types.ObjectId,
+            type: Types.ObjectId,
             ref: 'Group'
         }],
         matches: [{
-            type: Schema.Types.ObjectId,
+            type: Types.ObjectId,
             ref: 'Match'
         }],
         status: {
@@ -82,10 +83,10 @@ PhaseSchema.plugin(mongoTenant);
 PhaseSchema.plugin(mongoosePaginate);
 PhaseSchema.plugin(MongooseDelete, { overrideMethods: 'all', deletedAt: true });
 
-PhaseSchema.virtual('progress').get(async function() {
+PhaseSchema.virtual('progress').get(async function () {
     if (this.status === 'completed') return 100;
     if (this.status === 'pending') return 0;
-    
+
     const populatedPhase = await this.populate('matches');
     const completedMatches = populatedPhase.matches.filter((match: any) => match.status === 'completed').length;
     return Math.round((completedMatches / this.matches.length) * 100);

@@ -1,4 +1,4 @@
-import { model, Schema } from "mongoose";
+import { model, Schema, Types } from "mongoose";
 import { ITenantDocument, ITenantModel } from "../../../interfaces";
 import MongooseDelete from 'mongoose-delete';
 import mongoTenant from 'mongo-tenant';
@@ -15,16 +15,17 @@ interface IScore {
 }
 
 export interface IMatchDocument extends ITenantDocument {
-    championshipId: Schema.Types.ObjectId;
-    phaseId: Schema.Types.ObjectId;
-    groupId?: Schema.Types.ObjectId;
-    homeTeamId: Schema.Types.ObjectId;
-    awayTeamId: Schema.Types.ObjectId;
-    courtId: Schema.Types.ObjectId;
-    gameFormatId: Schema.Types.ObjectId;
-    statistics: Schema.Types.ObjectId[];
+    championshipId: Types.ObjectId;
+    phaseId?: Types.ObjectId;
+    groupId?: Types.ObjectId;
+    homeTeamId: Types.ObjectId;
+    awayTeamId: Types.ObjectId;
+    courtId?: Types.ObjectId;
+    winnerId?: Types.ObjectId;
+    gameFormatId?: Types.ObjectId;
+    statistics: Types.ObjectId[];
     score?: IScore;
-    status: 'scheduled' | 'in_progress' | 'completed' | 'cancelled';
+    status: 'scheduled' | 'in_progress' | 'finished' | 'walkover' | 'cancelled'
     startTime?: Date;
     endTime?: Date;
 }
@@ -54,14 +55,14 @@ const ScoreSchema = new Schema({
 const MatchSchema = new Schema<IMatchDocument>(
     {
         championshipId: {
-            type: Schema.Types.ObjectId,
+            type: Types.ObjectId,
             ref: 'Championship',
             required: true
         },
         phaseId: {
-            type: Schema.Types.ObjectId,
+            type: Types.ObjectId,
             ref: 'Phase',
-            required: true
+            required: false
         },
         groupId: {
             type: Schema.Types.ObjectId,
@@ -80,12 +81,16 @@ const MatchSchema = new Schema<IMatchDocument>(
         courtId: {
             type: Schema.Types.ObjectId,
             ref: 'Court',
-            required: true
+            required: false
         },
         gameFormatId: {
             type: Schema.Types.ObjectId,
             ref: 'GameFormat',
-            required: true
+            required: false
+        },
+        winnerId: {
+            type: Schema.Types.ObjectId,
+            ref: 'Team',
         },
         statistics: [{
             type: Schema.Types.ObjectId,
@@ -94,7 +99,7 @@ const MatchSchema = new Schema<IMatchDocument>(
         score: ScoreSchema,
         status: {
             type: String,
-            enum: ['scheduled', 'in_progress', 'completed', 'cancelled'],
+            enum: ['scheduled', 'in_progress', 'finished', 'walkover', 'cancelled'],
             default: 'scheduled'
         },
         startTime: Date,
@@ -113,8 +118,8 @@ MatchSchema.index({ startTime: 1 });
 MatchSchema.index({ status: 1 });
 
 // Validaciones
-MatchSchema.pre('save', function(next) {
-    if (this.homeTeamId === this.awayTeamId) {
+MatchSchema.pre('save', function (next) {
+    if (this.homeTeamId?.toString() === this.awayTeamId?.toString()) {
         next(new Error('Home team and away team must be different'));
         return;
     }
@@ -122,13 +127,13 @@ MatchSchema.pre('save', function(next) {
 });
 
 // Métodos estáticos
-MatchSchema.statics.findByPhase = function(phaseId: string) {
+MatchSchema.statics.findByPhase = function (phaseId: string) {
     return this.find({ phaseId })
         .sort('startTime')
         .populate(['homeTeamId', 'awayTeamId', 'courtId']);
 };
 
-MatchSchema.statics.findByGroup = function(groupId: string) {
+MatchSchema.statics.findByGroup = function (groupId: string) {
     return this.find({ groupId })
         .sort('startTime')
         .populate(['homeTeamId', 'awayTeamId', 'courtId']);

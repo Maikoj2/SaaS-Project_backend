@@ -24,9 +24,9 @@ export class groupDistribution {
         try {
             const tenant = req.clientAccount as string;
             const { championshipId } = req.params;
-            const { formatType } = req.body;
+            const formatType = req.body;
 
-            const groupDistribution = await this.groupDistributionService.createGroupDistribution(championshipId, tenant, { formatType });
+            const groupDistribution = await this.groupDistributionService.createGroupDistribution(championshipId, tenant, formatType);
             res.status(201).json(ApiResponse.success(
                 {
                     message: 'Group distribution created successfully',

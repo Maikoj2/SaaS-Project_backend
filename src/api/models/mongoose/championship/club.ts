@@ -3,6 +3,7 @@ import { ITenantDocument, ITenantModel } from "../../../interfaces";
 import MongooseDelete from 'mongoose-delete';
 import mongoTenant from 'mongo-tenant';
 import mongoosePaginate from 'mongoose-paginate-v2';
+import { Types } from "mongoose";
 
 // Interfaces
 export interface IClubDocument extends ITenantDocument {
@@ -10,7 +11,7 @@ export interface IClubDocument extends ITenantDocument {
     location: string;
     founded: Date;
     president: string;
-    teams: Schema.Types.ObjectId[];
+    teams: Types.ObjectId[];
     website?: string;
     logo?: string;
     createdAt?: Date;
@@ -41,7 +42,7 @@ const ClubSchema = new Schema<IClubDocument>(
             required: true
         },
         teams: [{
-            type: Schema.Types.ObjectId,
+            type: Types.ObjectId,
             ref: 'Team'
         }],
         website: {

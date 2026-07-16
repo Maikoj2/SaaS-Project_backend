@@ -8,6 +8,7 @@ import { permissionAuthorization } from '../../middlewares/auth/permissionAuthor
 import { AuthPermission } from '../../constants/permissions';
 import { groupDistribution } from "../../controllers/championship/groupDistribution.controller";
 import { groupDistributionRoutes } from "../../constants/apiRoutes/championship/groupDistribution";
+import { validateCreateGroupDistribution, validateGroupDistributionRules } from "../../validators/championships/groupDistribution.validator";
 
 
 const router = Router();
@@ -20,7 +21,8 @@ router.post(groupDistributionRoutes.CREATE_GROUP_DISTRIBUTION, [
     origin.checkTenant as RequestHandler,
     auth as RequestHandler,
     permissionAuthorization([AuthPermission.GROUP_DISTRIBUTION_CREATE]) as RequestHandler,
-    ...validateGenerateInvitationLink,
+    ...validateCreateGroupDistribution,
+    validateGroupDistributionRules,
     trimRequest.all as RequestHandler,
 ] as RequestHandler[], controller.autoCreateGroupDistribution as RequestHandler);
 

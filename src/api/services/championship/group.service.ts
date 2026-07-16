@@ -155,7 +155,7 @@ export class GroupService {
 
             if (!group) throw new Error('Group not found');
 
-            return group.rankings.map((rank: any) => ({
+            return group.rankings?.map((rank: any) => ({
                 position: rank.position,
                 team: rank.teamId,
                 stats: {

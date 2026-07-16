@@ -1,4 +1,4 @@
-import { model, Schema } from "mongoose";
+import { model, Schema, Types } from "mongoose";
 import { ITenantDocument, ITenantModel } from "../../../interfaces";
 import MongooseDelete from 'mongoose-delete';
 import mongoTenant from 'mongo-tenant';
@@ -6,11 +6,11 @@ import mongoosePaginate from 'mongoose-paginate-v2';
 
 // Interfaces
 export interface ITeamDocument extends ITenantDocument {
-    championshipId: Schema.Types.ObjectId;
+    championshipId: Types.ObjectId;
     name: string;
     logo?: string;
-    players: Schema.Types.ObjectId[];
-    registrations: Schema.Types.ObjectId[];
+    players: Types.ObjectId[];
+    registrations: Types.ObjectId[];
     status: 'active' | 'inactive';
     createdAt?: Date;
     updatedAt?: Date;
@@ -26,7 +26,7 @@ export interface ITeamModel extends ITenantModel<ITeamDocument> {
 const TeamSchema = new Schema<ITeamDocument>(
     {
         championshipId: {
-            type: Schema.Types.ObjectId,
+            type: Types.ObjectId,
             ref: 'Championship',
             required: true
         },
@@ -38,11 +38,11 @@ const TeamSchema = new Schema<ITeamDocument>(
             type: String
         },
         players: [{
-            type: Schema.Types.ObjectId,
+            type: Types.ObjectId,
             ref: 'Player'
         }],
         registrations: [{
-            type: Schema.Types.ObjectId,
+            type: Types.ObjectId,
             ref: 'Registration'
         }],
         status: {
@@ -62,12 +62,12 @@ TeamSchema.index({ championshipId: 1, name: 1 }, { unique: true });
 TeamSchema.index({ status: 1 });
 
 // Métodos estáticos
-TeamSchema.statics.findByChampionship = function(championshipId: string) {
+TeamSchema.statics.findByChampionship = function (championshipId: string) {
     return this.find({ championshipId, status: 'active' })
         .sort('name');
 };
 
-TeamSchema.statics.findWithPlayers = function(id: string) {
+TeamSchema.statics.findWithPlayers = function (id: string) {
     return this.findById(id)
         .populate('players');
 };

@@ -38,14 +38,14 @@ const MaintenanceSchema = new Schema({
 
 const CourtSchema = new Schema<ICourtDocument>(
     {
-        championshipId: { 
-            type: Schema.Types.ObjectId, 
-            ref: 'Championship', 
-            required: true 
+        championshipId: {
+            type: Schema.Types.ObjectId,
+            ref: 'Championship',
+            required: true
         },
-        name: { 
-            type: String, 
-            required: true 
+        name: {
+            type: String,
+            required: true
         },
         type: {
             type: String,
@@ -57,9 +57,9 @@ const CourtSchema = new Schema<ICourtDocument>(
             enum: ['available', 'occupied', 'maintenance'],
             default: 'available'
         },
-        capacity: { 
-            type: Number, 
-            required: true 
+        capacity: {
+            type: Number,
+            required: true
         },
         location: {
             type: String
@@ -74,9 +74,9 @@ const CourtSchema = new Schema<ICourtDocument>(
             type: String
         }],
         maintenanceHistory: [MaintenanceSchema],
-        deletedAt: { 
-            type: Date, 
-            default: null 
+        deletedAt: {
+            type: Date,
+            default: null
         }
     },
     {
@@ -87,10 +87,13 @@ const CourtSchema = new Schema<ICourtDocument>(
 
 // Índices
 CourtSchema.index({ championshipId: 1, status: 1 });
-CourtSchema.index({ name: 1 }, { unique: true });
+CourtSchema.index(
+    { championshipId: 1, name: 1 },
+    { unique: true }
+);
 
 // Métodos estáticos
-CourtSchema.statics.findAvailable = function() {
+CourtSchema.statics.findAvailable = function () {
     return this.find({ status: 'available' });
 };
 
