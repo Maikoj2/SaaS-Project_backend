@@ -28,6 +28,24 @@ export enum AuthPermission {
     GROUP_DISTRIBUTION_UPDATE = 'group-distribution:update',
     GROUP_DISTRIBUTION_DELETE = 'group-distribution:delete',
 
+    // match
+    MATCH_CREATE = 'match:create',
+    MATCH_READ = 'match:read',
+    MATCH_UPDATE = 'match:update',
+    MATCH_DELETE = 'match:delete',
+
+    // elimination bracket
+    ELIMINATION_BRACKET_CREATE = 'elimination-bracket:create',
+    ELIMINATION_BRACKET_READ = 'elimination-bracket:read',
+    ELIMINATION_BRACKET_UPDATE = 'elimination-bracket:update',
+    ELIMINATION_BRACKET_DELETE = 'elimination-bracket:delete',
+
+    // group
+    GROUP_CREATE = 'group:create',
+    GROUP_READ = 'group:read',
+    GROUP_UPDATE = 'group:update',
+    GROUP_DELETE = 'group:delete',
+
     // profile
     PROFILE_READ = 'profile:read',
     PROFILE_UPDATE = 'profile:update',
@@ -50,6 +68,18 @@ export const RolePermissions: Record<AuthRole, AuthPermission[]> = {
         AuthPermission.GROUP_DISTRIBUTION_READ,
         AuthPermission.GROUP_DISTRIBUTION_UPDATE,
         AuthPermission.GROUP_DISTRIBUTION_DELETE,
+        AuthPermission.GROUP_CREATE,
+        AuthPermission.GROUP_READ,
+        AuthPermission.GROUP_UPDATE,
+        AuthPermission.GROUP_DELETE,
+        AuthPermission.MATCH_CREATE,
+        AuthPermission.MATCH_READ,
+        AuthPermission.MATCH_UPDATE,
+        AuthPermission.MATCH_DELETE,
+        AuthPermission.ELIMINATION_BRACKET_CREATE,
+        AuthPermission.ELIMINATION_BRACKET_READ,
+        AuthPermission.ELIMINATION_BRACKET_UPDATE,
+        AuthPermission.ELIMINATION_BRACKET_DELETE,
         AuthPermission.PROFILE_READ,
         AuthPermission.PROFILE_UPDATE,
         AuthPermission.USER_READ,
@@ -59,16 +89,29 @@ export const RolePermissions: Record<AuthRole, AuthPermission[]> = {
         AuthPermission.CHAMPIONSHIP_READ,
         AuthPermission.PROFILE_READ,
         AuthPermission.PROFILE_UPDATE,
+        AuthPermission.GROUP_DISTRIBUTION_READ,
+        AuthPermission.GROUP_READ,
+        AuthPermission.MATCH_READ,
+        AuthPermission.MATCH_UPDATE,
+        AuthPermission.ELIMINATION_BRACKET_READ,
 
     ],
     [AuthRole.TEAM_MEMBER]: [
         AuthPermission.CHAMPIONSHIP_READ,
         AuthPermission.PROFILE_READ,
         AuthPermission.PROFILE_UPDATE,
-        AuthPermission.USER_READ_DETAIL
+        AuthPermission.USER_READ_DETAIL,
+        AuthPermission.GROUP_DISTRIBUTION_READ,
+        AuthPermission.GROUP_READ,
+        AuthPermission.MATCH_READ,
+        AuthPermission.ELIMINATION_BRACKET_READ,
     ],
     [AuthRole.VIEWER]: [
         AuthPermission.CHAMPIONSHIP_READ,
         AuthPermission.PROFILE_READ,
+        AuthPermission.GROUP_DISTRIBUTION_READ,
+        AuthPermission.GROUP_READ,
+        AuthPermission.MATCH_READ,
+        AuthPermission.ELIMINATION_BRACKET_READ,
     ]
 }

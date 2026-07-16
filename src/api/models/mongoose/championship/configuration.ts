@@ -26,12 +26,37 @@ interface IMatchRules {
     tieBreakPoints: number;
     minimumPointDifference: number;
 }
+interface IEliminationSettings {
+    enabled: boolean;
+
+    qualificationMode: 'topPerGroup' | 'topPerGroupPlusBestThirds' | 'bestOverall';
+
+    topPerGroup?: number;
+    bestThirdsCount?: number;
+    totalQualifiers?: number;
+
+    bracketSeedingStrategy:
+    | 'overallRanking'
+    | 'crossGroup'
+    | 'manual'
+    | 'random';
+
+    bracketSize?: 2 | 4 | 8 | 16 | 32;
+
+    includeThirdPlaceMatch: boolean;
+
+    initialMatchNumber?: number;
+
+    autoGenerateAfterGroupStage: boolean;
+    normalizeStandingsForUnevenGroups?: boolean;
+}
 
 export interface IConfigurationDocument extends ITenantDocument {
     championshipId: Types.ObjectId;
     maxTeams: number;
     gameFormatId: Types.ObjectId;
     tieBreakerCriteria: ITieBreakerCriteria;
+    eliminationSettings: IEliminationSettings;
     matchRules: IMatchRules;
     customRules?: string;
     tablePointsPolicy?: ITablePointsPolicy;
@@ -71,6 +96,64 @@ const TablePointsPolicySchema = new Schema<ITablePointsPolicy>({
         required: false
     }
 }, { _id: false });
+
+const EliminationSettingsSchema = new Schema(
+    {
+        enabled: {
+            type: Boolean,
+            default: true,
+        },
+        qualificationMode: {
+            type: String,
+            enum: [
+                'topPerGroup',
+                'topPerGroupPlusBestThirds',
+                'topPerGroupPlusBestRemaining',
+                'bestOverall',
+            ],
+            default: 'topPerGroup',
+        },
+        topPerGroup: {
+            type: Number,
+            default: 2,
+        },
+        bestThirdsCount: {
+            type: Number,
+            default: 0,
+        },
+        totalQualifiers: {
+            type: Number,
+            required: false,
+        },
+        normalizeStandingsForUnevenGroups: {
+            type: Boolean,
+            default: true,
+        },
+        bracketSeedingStrategy: {
+            type: String,
+            enum: ['overallRanking', 'crossGroup', 'manual', 'random'],
+            default: 'overallRanking',
+        },
+        bracketSize: {
+            type: Number,
+            enum: [2, 4, 8, 16, 32],
+            required: false,
+        },
+        includeThirdPlaceMatch: {
+            type: Boolean,
+            default: true,
+        },
+        initialMatchNumber: {
+            type: Number,
+            default: 1,
+        },
+        autoGenerateAfterGroupStage: {
+            type: Boolean,
+            default: false,
+        },
+    },
+    { _id: false }
+);
 const TieBreakerCriteriaSchema = new Schema<ITieBreakerCriteria>({
     setRatio: {
         type: Boolean,
@@ -85,6 +168,7 @@ const TieBreakerCriteriaSchema = new Schema<ITieBreakerCriteria>({
         default: false
     }
 }, { _id: false });
+
 const MatchRulesSchema = new Schema<IMatchRules>({
     volleyballType: {
         type: String,
@@ -147,6 +231,20 @@ const ChampionshipConfigurationSchema = new Schema<IConfigurationDocument>(
                 tieBreakPoints: 15,
                 minimumPointDifference: 2
             })
+        },
+        eliminationSettings: {
+            type: EliminationSettingsSchema,
+            required: true,
+            default: () => ({
+                enabled: true,
+                qualificationMode: 'topPerGroup',
+                topPerGroup: 2,
+                bestThirdsCount: 0,
+                bracketSeedingStrategy: 'overallRanking',
+                includeThirdPlaceMatch: true,
+                initialMatchNumber: 1,
+                autoGenerateAfterGroupStage: false,
+            }),
         },
         distributionStrategy: {
             type: String,

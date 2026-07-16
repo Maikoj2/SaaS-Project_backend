@@ -310,6 +310,7 @@ export type TablePointsPolicy = {
 export type StandingsOptions = {
     rules?: VolleyballMatchRules;
     pointsPolicy?: TablePointsPolicy;
+    tieBreakerCriteria?: TieBreakerCriteria;
 };
 
 export type GroupStandingsResult = {
@@ -356,6 +357,13 @@ export type QualificationOptions = {
      * Por defecto será false.
      */
     normalizeStandingsForUnevenGroups?: boolean;
+
+    /**
+     * Orden de desempate.
+     * Por defecto será [].
+     * Solo se usa si hay empate entre dos o más equipos.
+     */
+    tieBreakerCriteria?: TieBreakerCriteria;
 };
 
 export type QualifiedTeam = {
@@ -392,6 +400,12 @@ export type QualificationResult = {
 };
 
 /**  ========================QualificationEND =======================*/
+export type TieBreakerCriteria = {
+    setRatio?: boolean;
+    pointRatio?: boolean;
+    wins?: boolean;
+    draw?: boolean;
+};
 
 export type BracketRoundName =
     | 'round_of_32'
