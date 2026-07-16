@@ -26,6 +26,12 @@ export interface IMatchDocument extends ITenantDocument {
     statistics: Types.ObjectId[];
     score?: IScore;
     status: 'scheduled' | 'in_progress' | 'finished' | 'walkover' | 'cancelled'
+    isEliminationMatch: boolean;
+    eliminationBracketId?: Types.ObjectId;
+    bracketMatchNumber?: number;
+    bracketRoundName?: string;
+    bracketRoundLabel?: string;
+    bracketPosition?: number;
     startTime?: Date;
     endTime?: Date;
 }
@@ -101,6 +107,31 @@ const MatchSchema = new Schema<IMatchDocument>(
             type: String,
             enum: ['scheduled', 'in_progress', 'finished', 'walkover', 'cancelled'],
             default: 'scheduled'
+        },
+        isEliminationMatch: {
+            type: Boolean,
+            default: false,
+        },
+        eliminationBracketId: {
+            type: Schema.Types.ObjectId,
+            ref: 'EliminationBracket',
+            required: false,
+        },
+        bracketMatchNumber: {
+            type: Number,
+            required: false,
+        },
+        bracketRoundName: {
+            type: String,
+            required: false,
+        },
+        bracketRoundLabel: {
+            type: String,
+            required: false,
+        },
+        bracketPosition: {
+            type: Number,
+            required: false,
         },
         startTime: Date,
         endTime: Date

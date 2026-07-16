@@ -17,6 +17,14 @@ export interface IEliminationBracketDocument extends ITenantDocument {
 
     status: 'draft' | 'active' | 'completed' | 'archived';
 
+    matches: {
+        matchNumber: number;
+        matchId: Types.ObjectId;
+        roundName: string;
+        roundLabel: string;
+        bracketPosition: number;
+    }[];
+
     createdAt?: Date;
     updatedAt?: Date;
 }
@@ -54,6 +62,31 @@ const EliminationBracketSchema = new Schema<IEliminationBracketDocument>(
             type: Schema.Types.Mixed,
             required: true,
         },
+        matches: [
+            {
+                matchNumber: {
+                    type: Number,
+                    required: true,
+                },
+                matchId: {
+                    type: Schema.Types.ObjectId,
+                    ref: 'Match',
+                    required: true,
+                },
+                roundName: {
+                    type: String,
+                    required: true,
+                },
+                roundLabel: {
+                    type: String,
+                    required: true,
+                },
+                bracketPosition: {
+                    type: Number,
+                    required: true,
+                },
+            },
+        ],
         status: {
             type: String,
             enum: ['draft', 'active', 'completed', 'archived'],
