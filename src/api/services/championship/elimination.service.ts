@@ -22,6 +22,7 @@ type GenerateBracketInput = {
 };
 
 export class EliminationService {
+
     async generateBracketFromGroupDistribution(
         tenant: string,
         data: GenerateBracketInput
@@ -212,6 +213,61 @@ export class EliminationService {
             matches: updatedEliminationBracket?.matches,
             status: updatedEliminationBracket?.status,
         };
+    }
+
+    async getActiveBracketByChampionshipId(
+        tenant: string,
+        championshipId: string
+    ) {
+        const eliminationBracket = await DatabaseHelper.findOne(
+            EliminationBracket,
+            tenant,
+            {
+                championshipId: new Types.ObjectId(championshipId),
+                status: { $in: ['active', 'draft', 'completed'] }
+            },
+            {
+                throwError: true,
+                errorMessage: 'Elimination bracket not found',
+            }
+        );
+
+        return eliminationBracket;
+    }
+
+    async getBracketById(tenant: string, championshipId: string, eliminationBracketId: string) {
+        const eliminationBracket = await DatabaseHelper.find(
+            EliminationBracket,
+            tenant,
+            {
+                _id: new Types.ObjectId(eliminationBracketId),
+                championshipId: new Types.ObjectId(championshipId),
+            },
+            {
+                throwError: true,
+                errorMessage: 'Elimination bracket not found',
+            }
+        );
+
+        return eliminationBracket;
+    }
+
+    async getBracketsByChampionship(
+        tenant: string,
+        championshipId: string
+    ) {
+        const eliminationBrackets = await DatabaseHelper.find(
+            EliminationBracket,
+            tenant,
+            {
+                championshipId: new Types.ObjectId(championshipId),
+            },
+            {
+                throwError: true,
+                errorMessage: 'Elimination brackets not found',
+            }
+        );
+        return eliminationBrackets;
     }
 
     private mapGroupToGroupStandingsResult(group: any): GroupStandingsResult {

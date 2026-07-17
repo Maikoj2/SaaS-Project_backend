@@ -31,6 +31,7 @@ export class groupDistribution {
                 {
                     message: 'Group distribution created successfully',
                     data: groupDistribution
+
                 }));
         } catch (error: any) {
             this.logger.error('Error creating group distribution:', error);

@@ -222,6 +222,11 @@ function getGroupName(index: number): string {
     return String.fromCharCode(65 + index);
 }
 
+/**
+ * Distrubution linearly
+ *
+ */
+
 function distributeLinear(
     teams: CompetitionTeam[],
     numberOfGroups: number
