@@ -5,7 +5,7 @@ import { DatabaseHelper } from "../../utils/database.helper";
 import Match from "../../models/mongoose/championship/match";
 import Group from "../../models/mongoose/championship/group";
 import ChampionshipConfiguration from "../../models/mongoose/championship/configuration";
-
+import { EliminationProgressionService } from "./eliminationProgression.service";
 import {
     CompetitionMatch,
     MatchStatus,
@@ -24,6 +24,10 @@ type RegisterMatchResultInput = {
 };
 
 export class MatchService {
+
+    private eliminationProgressionService = new EliminationProgressionService();
+
+
     async registerMatchResult(
         tenant: string,
         matchId: string,
@@ -51,9 +55,9 @@ export class MatchService {
             );
         }
 
-        if (!match.groupId) {
+        if (!match.groupId && !match.isEliminationMatch) {
             throw new CustomError(
-                "Match does not belong to a group",
+                "Match does not belong to a group or elimination bracket",
                 400,
                 "MatchServiceError"
             );
@@ -146,10 +150,41 @@ export class MatchService {
             }
         );
 
-        if (!updatedMatch) {
+        if (!updatedMatch || !updatedMatch.winnerId) {
             throw new CustomError(
                 "Error updating match result",
                 500,
+                "MatchServiceError"
+            );
+        }
+
+        if (updatedMatch.isEliminationMatch) {
+            const progression =
+                await this.eliminationProgressionService.advanceAfterMatchResult(
+                    tenant,
+                    {
+                        matchId: updatedMatch._id.toString(),
+                        winnerTeamId: updatedMatch.winnerId.toString(),
+                    }
+                );
+
+            return {
+                match: updatedMatch,
+                progression,
+            };
+        }
+        if (!match.groupId) {
+            throw new CustomError(
+                "Match does not belong to a group",
+                400,
+                "MatchServiceError"
+            );
+        }
+
+        if (!['finished', 'walkover'].includes(updatedMatch.status)) {
+            throw new CustomError(
+                "Match is not completed yet",
+                400,
                 "MatchServiceError"
             );
         }
