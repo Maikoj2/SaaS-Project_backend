@@ -79,6 +79,7 @@ export class EliminationProgressionService {
             eliminationBracket,
             updatedBracket
         );
+        const isCompleted = this.isBracketCompleted(updatedBracket);
 
         const updatedEliminationBracket = await DatabaseHelper.findOneAndUpdate(
             EliminationBracket,
@@ -89,6 +90,7 @@ export class EliminationProgressionService {
             {
                 $set: {
                     bracket: updatedBracket,
+                    status: isCompleted ? 'completed' : eliminationBracket.status,
                 },
                 $push: {
                     matches: {
@@ -202,5 +204,14 @@ export class EliminationProgressionService {
         );
 
         return Boolean(existingMatch);
+    }
+    private isBracketCompleted(bracket: any): boolean {
+        const finalRound = (bracket.rounds || []).find(
+            (round: any) => round.roundName === 'final'
+        );
+
+        const finalMatch = finalRound?.matches?.[0];
+
+        return finalMatch?.status === 'finished' || finalMatch?.status === 'walkover';
     }
 }
