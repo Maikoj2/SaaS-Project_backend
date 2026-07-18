@@ -21,7 +21,7 @@ interface ITeamRanking {
 }
 
 export interface IGroupDocument extends ITenantDocument {
-    phaseId?: Types.ObjectId;
+    championshipId?: Types.ObjectId;
     groupDistributionId?: Types.ObjectId;
     name: string;
     teams: Types.ObjectId[];
@@ -94,9 +94,9 @@ const TeamRankingSchema = new Schema({
 
 const GroupSchema = new Schema<IGroupDocument>(
     {
-        phaseId: {
+        championshipId: {
             type: Schema.Types.ObjectId,
-            ref: 'Phase',
+            ref: 'Championship',
             required: false
         },
         groupDistributionId: {

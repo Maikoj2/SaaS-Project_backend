@@ -169,6 +169,7 @@ export class GroupDistributionService {
             );
 
             const groupData = {
+                championshipId: groupDistributionCreated.championshipId,
                 groupDistributionId: groupDistributionCreated._id,
                 name: group.name,
                 teams: teamIds,

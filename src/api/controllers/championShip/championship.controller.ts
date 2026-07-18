@@ -1,11 +1,11 @@
-import { Request, Response } from 'express';
+import { Response } from 'express';
 import { ChampionshipService } from '../../services/championship/championship.service';
 import { ApiResponse } from '../../responses/apiResponse';
 import { Logger } from '../../config';
 import { IUserCustomRequest } from '../../interfaces/ICustomrequest';
 import { Injectable } from '@decorators/di';
 import { ConfigurationService } from '../../services/championship/configuration.service';
-import { Types } from 'mongoose';
+
 import { AuthError } from '../../errors/AuthError';
 import Championship, { IChampionshipDocument } from '../../models/mongoose/championship/championship';
 import { DatabaseHelper } from '../../utils/database.helper';
