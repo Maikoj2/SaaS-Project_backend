@@ -14,6 +14,8 @@ import {
     applyMatchResult,
     calculateStandingsFromMatches,
 } from "../../domain/championship/competition";
+import { PaginationOptions } from "../../interfaces";
+import { PopulateOptions } from "../../interfaces/IhelperDatabase";
 
 type RegisterMatchResultInput = {
     sets?: Array<{
@@ -210,6 +212,143 @@ export class MatchService {
             },
             group: updatedGroup,
         };
+    }
+
+    async getMatchesByChampionship(
+        tenant: string,
+        championshipId: string,
+        filters: {
+            status?: string;
+            isEliminationMatch?: string;
+            groupId?: string;
+            eliminationBracketId?: string;
+        },
+        options?: PaginationOptions
+    ) {
+        const query: Record<string, any> = {
+            championshipId: new Types.ObjectId(championshipId),
+        };
+
+        if (filters.status) {
+            query.status = filters.status;
+        }
+
+        if (filters.isEliminationMatch !== undefined) {
+            query.isEliminationMatch = filters.isEliminationMatch === 'true';
+        }
+
+        if (filters.groupId) {
+            query.groupId = new Types.ObjectId(filters.groupId);
+        }
+
+        if (filters.eliminationBracketId) {
+            query.eliminationBracketId = new Types.ObjectId(
+                filters.eliminationBracketId
+            );
+        }
+
+        const optionsPopulate = this.populateOptions;
+
+        const matches = await DatabaseHelper.getItemsWithRelations(
+            Match,
+            tenant,
+            query,
+            options,
+            {
+                nested: optionsPopulate,
+            }
+        );
+        return matches;
+    }
+
+    async getMatchById(
+        tenant: string,
+        championshipId: string,
+        matchId: string
+    ) {
+
+        const optionsPopulate = this.populateOptions;
+
+        const match = await DatabaseHelper.findOneWithRelations(
+            Match,
+            tenant,
+            {
+                _id: new Types.ObjectId(matchId),
+                championshipId: new Types.ObjectId(championshipId),
+            },
+            {
+                nested: optionsPopulate,
+            }
+        );
+
+        if (!match) {
+            throw new CustomError(
+                'Match not found',
+                404,
+                'MatchServiceError'
+            );
+        }
+
+        return match;
+    }
+
+    async getMatchesByGroup(
+        tenant: string,
+        championshipId: string,
+        groupId: string,
+        filters: {
+            status?: string;
+        }
+    ) {
+        return this.getMatchesByChampionship(tenant, championshipId, {
+            ...filters,
+            groupId,
+            isEliminationMatch: 'false',
+        });
+    }
+
+    async getMatchesByEliminationBracket(
+        tenant: string,
+        championshipId: string,
+        eliminationBracketId: string,
+        filters: {
+            status?: string;
+        }
+    ) {
+        return this.getMatchesByChampionship(tenant, championshipId, {
+            ...filters,
+            eliminationBracketId,
+            isEliminationMatch: 'true',
+        });
+    }
+
+    private get populateOptions(): PopulateOptions[] {
+        return [
+            {
+                path: 'homeTeamId',
+                select: 'name clubName teamName',
+            },
+            {
+                path: 'awayTeamId',
+                select: 'name clubName teamName',
+            },
+            {
+                path: 'groupId',
+                select: 'name status',
+            },
+            {
+                path: 'courtId',
+                select: 'name type status location',
+            },
+            {
+                path: 'gameFormatId',
+                select: 'name formatType sets pointsPerSet',
+            },
+            {
+                path: 'eliminationBracketId',
+                select: 'name status groupDistributionId',
+            },
+        ];
     }
 
     private async recalculateGroupStandings(

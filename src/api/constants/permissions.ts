@@ -30,6 +30,7 @@ export enum AuthPermission {
 
     // match
     MATCH_CREATE = 'match:create',
+    MATCH_RESULT_REGISTER = 'match:result-register',
     MATCH_READ = 'match:read',
     MATCH_UPDATE = 'match:update',
     MATCH_DELETE = 'match:delete',
@@ -91,8 +92,8 @@ export const RolePermissions: Record<AuthRole, AuthPermission[]> = {
         AuthPermission.PROFILE_UPDATE,
         AuthPermission.GROUP_DISTRIBUTION_READ,
         AuthPermission.GROUP_READ,
+        AuthPermission.MATCH_RESULT_REGISTER,
         AuthPermission.MATCH_READ,
-        AuthPermission.MATCH_UPDATE,
         AuthPermission.ELIMINATION_BRACKET_READ,
 
     ],
