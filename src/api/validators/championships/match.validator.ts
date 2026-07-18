@@ -2,6 +2,7 @@ import { body, query } from 'express-validator';
 
 import { validate } from '../../middlewares';
 import { paramsValidator } from '../expressValidatorHelper';
+import { statusQueryValidator } from '../../utils/QueryParams.helper';
 
 
 const allowedMatchStatuses = [
@@ -12,12 +13,7 @@ const allowedMatchStatuses = [
     'cancelled',
 ];
 
-const statusQueryValidator = () => query('status')
-    .optional()
-    .isIn(allowedMatchStatuses)
-    .withMessage(
-        'STATUS_MUST_BE_SCHEDULED_IN_PROGRESS_FINISHED_WALKOVER_OR_CANCELLED'
-    );
+
 
 const matchValidator = {
     registerMatchResult: [
@@ -95,7 +91,7 @@ const matchValidator = {
 
     getMatchesByChampionship: [
         ...paramsValidator('championshipId', true),
-        statusQueryValidator(),
+        statusQueryValidator(allowedMatchStatuses),
 
         query('isEliminationMatch')
             .optional()
@@ -134,7 +130,7 @@ const matchValidator = {
     getMatchesByEliminationBracket: [
         ...paramsValidator('championshipId', true),
         ...paramsValidator('eliminationBracketId', true),
-        statusQueryValidator(),
+        statusQueryValidator(allowedMatchStatuses),
         validate,
     ],
 };

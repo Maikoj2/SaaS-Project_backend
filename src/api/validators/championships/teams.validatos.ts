@@ -1,6 +1,7 @@
 import { check, param } from "express-validator";
 import { paramsValidator, validateField } from "../expressValidatorHelper";
 import { validateMongoIds } from "./championship.validator";
+import { validate } from "../../middlewares";
 
 
 export const teamValidator = {
@@ -18,5 +19,6 @@ export const teamValidator = {
 
         ...validateField("status", false),
 
+        validate,
     ],
 }

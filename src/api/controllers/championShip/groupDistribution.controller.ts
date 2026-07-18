@@ -38,39 +38,74 @@ export class groupDistribution {
             res.status(error.statusCode || 400).json(ApiResponse.error(error instanceof Error ? error.message : 'Error creating group distribution'));
         }
     }
-    // getAll = async (req: Request, res: Response): Promise<void> => {
-    //     try {
-    //         const { championshipId } = req.params;
-    //         const groupDistributions = await this.groupDistributionService.getGroupDistributions(championshipId);
-    //         res.status(200).json(groupDistributions);
-    //     } catch (error) {
-    //         this.logger.error('Error getting group distributions:', error);
-    //         res.status(error instanceof CustomError ? error.statusCode : 500)
-    //             .json(ApiResponse.error(error instanceof CustomError ? error : new CustomError('Error getting group distributions', 500, 'GroupDistributionControllerError')));
-    //     }
-    // }
 
-    // update = async (req: Request, res: Response): Promise<void> => {
-    //     try {
-    //         const { id } = req.params;
-    //         const updatedGroupDistribution = await this.groupDistributionService.updateGroupDistribution(id, req.body.distribution);
-    //         res.status(200).json(updatedGroupDistribution);
-    //     } catch (error) {
-    //         this.logger.error('Error updating group distribution:', error);
-    //         res.status(error instanceof CustomError ? error.statusCode : 500)
-    //             .json(ApiResponse.error(error instanceof CustomError ? error : new CustomError('Error updating group distribution', 500, 'GroupDistributionControllerError')));
-    //     }
-    // }
 
-    // delete = async (req: Request, res: Response): Promise<void> => {
-    //     try {
-    //         const { id } = req.params;
-    //         await this.groupDistributionService.deleteGroupDistribution(id);
-    //         res.status(204).send();
-    //     } catch (error) {
-    //         this.logger.error('Error deleting group distribution:', error);
-    //         res.status(error instanceof CustomError ? error.statusCode : 500)
-    //             .json(ApiResponse.error(error instanceof CustomError ? error : new CustomError('Error deleting group distribution', 500, 'GroupDistributionControllerError')));
-    //     }
-    // }
+
+    getGroupDistributionsByChampionship = async (
+        req: IUserCustomRequest,
+        res: Response
+    ): Promise<void> => {
+        try {
+            const tenant = req.clientAccount as string;
+
+            const result =
+                await this.groupDistributionService.getGroupDistributionsByChampionship(
+                    tenant,
+                    req.params.championshipId,
+                    {
+                        status: req.query.status as string,
+                        formatType: req.query.formatType as string,
+                    },
+                    {
+                        page: Number(req.query.page) || 1,
+                        limit: Number(req.query.limit) || 20,
+                    }
+                );
+
+            res.status(200).json(
+                ApiResponse.success({
+                    message: 'Group distributions retrieved successfully',
+                    data: result,
+                })
+            );
+        } catch (error: any) {
+            res.status(error.statusCode || 500).json(
+                ApiResponse.error(
+                    error instanceof Error
+                        ? error.message
+                        : 'Error retrieving group distributions'
+                )
+            );
+        }
+    };
+    getGroupDistributionById = async (
+        req: IUserCustomRequest,
+        res: Response
+    ): Promise<void> => {
+        try {
+            const tenant = req.clientAccount as string;
+
+            const result =
+                await this.groupDistributionService.getGroupDistributionById(
+                    tenant,
+                    req.params.championshipId,
+                    req.params.groupDistributionId
+                );
+
+            res.status(200).json(
+                ApiResponse.success({
+                    message: 'Group distribution retrieved successfully',
+                    data: result,
+                })
+            );
+        } catch (error: any) {
+            res.status(error.statusCode || 500).json(
+                ApiResponse.error(
+                    error instanceof Error
+                        ? error.message
+                        : 'Error retrieving group distribution'
+                )
+            );
+        }
+    };
 }

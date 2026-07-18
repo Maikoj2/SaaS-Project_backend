@@ -1,6 +1,6 @@
 import { PaginateResult } from "mongoose";
 import { Logger } from "../../config";
-import { AuthError } from "../../errors";
+import { AuthError, CustomError } from "../../errors";
 import GroupDistribution, { ITeamDistribution } from "../../models/mongoose/championship/groupsDistrubution";
 import { DatabaseHelper } from "../../utils/database.helper";
 import Position, { IPositionDocument } from "../../models/mongoose/championship/position";
@@ -21,6 +21,7 @@ import {
 } from "../../domain/championship/competition"
 import Championship from "../../models/mongoose/championship/championship";
 import ChampionshipConfiguration from "../../models/mongoose/championship/configuration";
+import { PaginationOptions } from "../../interfaces";
 
 
 
@@ -353,6 +354,65 @@ export class GroupDistributionService {
         };
     }
 
+    async getGroupDistributionsByChampionship(
+        tenant: string,
+        championshipId: string,
+        filters: {
+            status?: string;
+            formatType?: string;
+        },
+        options?: Partial<PaginationOptions>
+    ) {
+        const query: Record<string, any> = {
+            championshipId: new Types.ObjectId(championshipId),
+        };
+
+        if (filters.status) {
+            query.status = filters.status;
+        }
+
+        if (filters.formatType) {
+            query.formatType = filters.formatType;
+        }
+
+        return DatabaseHelper.getItemsWithRelations(
+            GroupDistribution,
+            tenant,
+            query,
+            options,
+            {
+                nested: this.populateOptions,
+            }
+        );
+    }
+
+    async getGroupDistributionById(
+        tenant: string,
+        championshipId: string,
+        groupDistributionId: string
+    ) {
+        const groupDistribution = await DatabaseHelper.findOneWithRelations(
+            GroupDistribution,
+            tenant,
+            {
+                _id: new Types.ObjectId(groupDistributionId),
+                championshipId: new Types.ObjectId(championshipId),
+            },
+            {
+                nested: this.populateOptions,
+            }
+        );
+
+        if (!groupDistribution) {
+            throw new CustomError(
+                'Group distribution not found',
+                404,
+                'GroupDistributionServiceError'
+            );
+        }
+
+        return groupDistribution;
+    }
 
     private mapFormatTypeToDistributionStrategy(
         formatType: string
@@ -375,98 +435,6 @@ export class GroupDistributionService {
         }
     }
 
-    // async createGroupDistribution(championshipId: string, tenant: string, data: Partial<any>): Promise<any> {
-    //     const totalTeams = await this.getTotalTeams(tenant, championshipId);
-    //     if (totalTeams.totalDocs === 0) {
-    //         throw new AuthError('No teams found');
-    //     }
-    //     const teams = totalTeams.docs.map(team => team.teamId._id.toString());
-
-    //     // Determinar el número de grupos
-
-    //     const numberOfGroups = data.cantTeams ? data.cantTeams : this.calculateNumberOfGroups(totalTeams.totalDocs);
-
-
-    //     switch (data.formatType) {
-    //         case 'serpentine':
-    //             const groupDistribution = this.teamsDistributionSerpentine(numberOfGroups, totalTeams.totalDocs, teams);
-
-    //             const groupDistributionData = {
-    //                 championshipId: championshipId as unknown as Schema.Types.ObjectId,
-    //                 name: data.name || 'fase de grupos',
-    //                 cantTeams: totalTeams.totalDocs,
-    //                 cantGroups: numberOfGroups,
-    //                 distribution: groupDistribution,
-    //                 formatType: data.formatType || 'serpentine',
-    //                 status: 'draft' as 'draft' | 'active' | 'completed',
-    //                 customRules: data.customRules || ''
-    //             }
-    //             const groupDistributionCreated = await DatabaseHelper.create(GroupDistribution, tenant, groupDistributionData);
-    //             if (!groupDistributionCreated) {
-    //                 throw new AuthError('Error creating group distribution');
-    //             }
-
-    //             for (const [groupName, teams] of Object.entries(groupDistribution)) {
-    //                 const teamIds = teams.map((team: any) => team.teamId);
-
-    //                 const matches = await this.generateRoundRobinMatches(teamIds.map((teamId: any) => teamId.toString()), championshipId, tenant);
-
-    //                 const groupData = {
-    //                     groupDistributionId: groupDistributionCreated._id as unknown as Schema.Types.ObjectId,
-    //                     name: groupName,
-    //                     teams: teamIds,
-    //                     matches: [], // Inicialmente vacío, puedes llenarlo más tarde
-    //                     rankings: [], // Inicialmente vacío, puedes llenarlo más tarde
-    //                     status: 'active' as 'active' | 'completed'
-    //                 };
-
-    //                 const groupCreated = await DatabaseHelper.create(Group, tenant, groupData);
-    //                 if (!groupCreated) {
-    //                     throw new AuthError('Error creating group');
-    //                 }
-    //                 // for (const round of Object.values(matches)) {
-    //                 //     for (const match of round) {
-    //                 //         const newMatch = {
-    //                 //             championshipId: championshipId as unknown as Schema.Types.ObjectId,
-    //                 //             homeTeamId: match.home as unknown as Schema.Types.ObjectId,
-    //                 //             awayTeamId: match.away as unknown as Schema.Types.ObjectId,
-    //                 //             courtId: [] as unknown as Schema.Types.ObjectId, // Assign correct court ID
-    //                 //             gameFormatId: [] as unknown as Schema.Types.ObjectId, // Assign correct game format ID
-    //                 //             status: 'scheduled' as 'scheduled' | 'in_progress' | 'completed' | 'cancelled'
-    //                 //         };
-
-    //                 //         await DatabaseHelper.create(Match, tenant, newMatch);
-    //                 //     }
-    //                 // }
-    //             }
-
-
-    //             return { groupDistributionCreated };
-    //         case 'linear':
-    //             break;
-    //         case 'random':
-    //             break;
-    //         case 'custom':
-    //             break;
-    //         default:
-    //             throw new AuthError('Invalid format type');
-    //     }
-
-
-    //     return totalTeams.docs;
-    // }
-
-    // async getGroupDistributions(championshipId: string): Promise<IGroupDistributionDocument[]> {
-    //     return await GroupDistribution.findByChampionship(championshipId);
-    // }
-
-    // async updateGroupDistribution(id: string, distribution: { [key: string]: any }): Promise<IGroupDistributionDocument | null> {
-    //     return await GroupDistribution.updateDistribution(id, distribution);
-    // }
-
-    // async deleteGroupDistribution(id: string): Promise<IGroupDistributionDocument | null> {
-    //     return await GroupDistribution.findByIdAndDelete(id);
-    // }
     private getTotalTeams = async (tenant: string, championshipId: string): Promise<PaginateResult<IPositionDocument>> => {
         try {
 
@@ -484,6 +452,31 @@ export class GroupDistributionService {
         } catch (error) {
             throw new AuthError(error instanceof Error ? error.message : 'Error getting total teams');
         }
+    }
+
+    private get populateOptions() {
+        return [
+            {
+                path: 'distribution.$*.teamId',
+                select: 'name players',
+                populate: [
+                    {
+                        path: 'players',
+                        select: 'userId clubId',
+                        populate: [
+                            {
+                                path: 'userId',
+                                select: 'name lastName',
+                            },
+                            {
+                                path: 'clubId',
+                                select: 'name',
+                            },
+                        ],
+                    },
+                ],
+            },
+        ]
     }
 
 
