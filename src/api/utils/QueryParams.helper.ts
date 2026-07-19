@@ -17,10 +17,20 @@ export function parseQueryParamToNumber(param: string | ParsedQs | string[] | Pa
     return defaultValue;
 }
 
-export const statusQueryValidator = (allowedStatuses: string[]) =>
-    query('status')
+export const statusQueryValidator = (paramName: string, allowedStatuses: string[]) =>
+    query(paramName)
         .optional()
         .isIn(allowedStatuses)
         .withMessage(
-            'STATUS_MUST_BE_ACTIVE_OR_INACTIVE'
+            `${paramName}_MUST_BE_ONE_OF_${allowedStatuses.join('_OR_')}`
+        );
+
+export const searchQueryValidator = (paramName: string) =>
+    query(paramName)
+        .optional()
+        .isString()
+        .trim()
+        .isLength({ min: 3 })
+        .withMessage(
+            `${paramName.toUpperCase()}_MUST_BE_AT_LEAST_3_CHARACTERS`
         );

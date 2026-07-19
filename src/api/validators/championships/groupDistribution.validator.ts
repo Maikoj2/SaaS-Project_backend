@@ -14,13 +14,13 @@ export const validateGroupDistribution = {
     ],
     getGroupDistributionsByChampionship: [
         ...paramsValidator('championshipId', true),
-        statusQueryValidator(allowedStatuses),
+        statusQueryValidator("status", allowedStatuses),
         validate,
     ],
     getGroupDistributionById: [
         ...paramsValidator('championshipId', true),
         ...paramsValidator('groupDistributionId', true),
-        statusQueryValidator(allowedStatuses),
+        statusQueryValidator("status", allowedStatuses),
         validate,
     ],
     getGroupStandings: [

@@ -2,6 +2,7 @@ import { check, param } from "express-validator";
 import { paramsValidator, validateField } from "../expressValidatorHelper";
 import { validateMongoIds } from "./championship.validator";
 import { validate } from "../../middlewares";
+import { searchQueryValidator, statusQueryValidator } from "../../utils/QueryParams.helper";
 
 
 export const teamValidator = {
@@ -21,4 +22,18 @@ export const teamValidator = {
 
         validate,
     ],
+
+
+    getTeamsByChampionship: [
+        ...paramsValidator("championshipId", true),
+        statusQueryValidator("status", ['active', 'inactive']),
+        searchQueryValidator("search"),
+        validate,
+    ],
+
+    getTeamById: [
+        ...paramsValidator("teamId", true),
+        validate,
+    ],
+
 }

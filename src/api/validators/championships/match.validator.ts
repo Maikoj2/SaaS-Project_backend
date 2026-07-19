@@ -91,7 +91,7 @@ const matchValidator = {
 
     getMatchesByChampionship: [
         ...paramsValidator('championshipId', true),
-        statusQueryValidator(allowedMatchStatuses),
+        statusQueryValidator("status", allowedMatchStatuses),
 
         query('isEliminationMatch')
             .optional()
@@ -130,7 +130,7 @@ const matchValidator = {
     getMatchesByEliminationBracket: [
         ...paramsValidator('championshipId', true),
         ...paramsValidator('eliminationBracketId', true),
-        statusQueryValidator(allowedMatchStatuses),
+        statusQueryValidator("status", allowedMatchStatuses),
         validate,
     ],
 };

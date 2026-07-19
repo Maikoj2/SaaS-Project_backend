@@ -9,6 +9,7 @@ import { CustomError } from "../../errors";
 import { Logger } from "../../config";
 import Player from "../../models/mongoose/championship/player";
 import { RegistrationService } from "./register.service";
+import { PaginationOptions } from "../../interfaces";
 
 
 
@@ -61,6 +62,69 @@ export class TeamService {
             this.logger.error('Error creating team:', error);
             throw new CustomError(error instanceof Error ? error.message : 'Error creating team', 500, 'TeamServiceError');
         }
+    }
+
+    async getTeamsByChampionship(
+        tenant: string,
+        championshipId: string,
+        filters: {
+            status?: string;
+            search?: string;
+        },
+        options?: Partial<PaginationOptions>
+    ) {
+        const query: Record<string, any> = {
+            'participationHistory.championshipId': new Types.ObjectId(championshipId),
+        };
+
+        if (filters.status) {
+            query.status = filters.status;
+        }
+
+        if (filters.search) {
+            query.name = {
+                $regex: filters.search,
+                $options: 'i',
+            };
+        }
+
+        return DatabaseHelper.getItemsWithRelations(
+            Team,
+            tenant,
+            query,
+            options,
+            {
+                nested: this.populateOptions,
+            }
+        );
+    }
+
+    async getTeamById(
+        tenant: string,
+        championshipId: string,
+        teamId: string
+    ) {
+        const team = await DatabaseHelper.findOneWithRelations(
+            Team,
+            tenant,
+            {
+                _id: new Types.ObjectId(teamId),
+                championshipId: new Types.ObjectId(championshipId),
+            },
+            {
+                nested: this.populateOptions,
+            }
+        );
+
+        if (!team) {
+            throw new CustomError(
+                'Team not found',
+                404,
+                'TeamServiceError'
+            );
+        }
+
+        return team;
     }
 
 
@@ -129,6 +193,28 @@ export class TeamService {
                 'ValidationError'
             );
         }
+    }
+
+
+    private get populateOptions() {
+        return [
+            {
+                path: 'championshipId',
+                select: 'name status startDate endDate',
+            },
+            {
+                path: 'players',
+                select: 'name firstName lastName email documentNumber phone',
+            },
+            {
+                path: 'registrations',
+                select: 'status paymentStatus createdAt',
+            },
+            {
+                path: 'captainId',
+                select: 'firstName lastName name email phone',
+            },
+        ];
     }
 }
 

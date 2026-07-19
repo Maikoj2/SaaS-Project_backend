@@ -35,4 +35,71 @@ export class TeamController {
                 .json(ApiResponse.error(error instanceof CustomError ? error : new CustomError('Error creating team', 500, 'TeamControllerError')));
         }
     }
+
+    getTeamsByChampionship = async (
+        req: IUserCustomRequest,
+        res: Response
+    ): Promise<void> => {
+        try {
+            const tenant = req.clientAccount as string;
+
+            const result = await this.teamService.getTeamsByChampionship(
+                tenant,
+                req.params.championshipId,
+                {
+                    status: req.query.status as string,
+                    search: req.query.search as string,
+                },
+                {
+                    page: Number(req.query.page) || 1,
+                    limit: Number(req.query.limit) || 20,
+                }
+            );
+
+            res.status(200).json(
+                ApiResponse.success({
+                    message: 'Teams retrieved successfully',
+                    data: result,
+                })
+            );
+        } catch (error: any) {
+            res.status(error.statusCode || 500).json(
+                ApiResponse.error(
+                    error instanceof Error
+                        ? error.message
+                        : 'Error retrieving teams'
+                )
+            );
+        }
+    };
+
+    getTeamById = async (
+        req: IUserCustomRequest,
+        res: Response
+    ): Promise<void> => {
+        try {
+            const tenant = req.clientAccount as string;
+
+            const result = await this.teamService.getTeamById(
+                tenant,
+                req.params.championshipId,
+                req.params.teamId
+            );
+
+            res.status(200).json(
+                ApiResponse.success({
+                    message: 'Team retrieved successfully',
+                    data: result,
+                })
+            );
+        } catch (error: any) {
+            res.status(error.statusCode || 500).json(
+                ApiResponse.error(
+                    error instanceof Error
+                        ? error.message
+                        : 'Error retrieving team'
+                )
+            );
+        }
+    };
 }

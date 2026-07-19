@@ -6,14 +6,18 @@ import mongoosePaginate from 'mongoose-paginate-v2';
 
 // Interfaces
 export interface ITeamDocument extends ITenantDocument {
-    championshipId: Types.ObjectId;
     name: string;
     logo?: string;
     players: Types.ObjectId[];
-    registrations: Types.ObjectId[];
+    captainId?: Types.ObjectId;
+    clubId?: Types.ObjectId;
+    registrations?: Types.ObjectId[];
+    participationHistory: {
+        championshipId: Types.ObjectId;
+        year?: number;
+        position?: number;
+    }[];
     status: 'active' | 'inactive';
-    createdAt?: Date;
-    updatedAt?: Date;
 }
 
 export interface ITeamModel extends ITenantModel<ITeamDocument> {
@@ -34,6 +38,10 @@ const TeamSchema = new Schema<ITeamDocument>(
             type: String,
             required: true
         },
+        captainId: {
+            type: Types.ObjectId,
+            ref: 'Player',
+        },
         logo: {
             type: String
         },
@@ -41,6 +49,24 @@ const TeamSchema = new Schema<ITeamDocument>(
             type: Types.ObjectId,
             ref: 'Player'
         }],
+        participationHistory: [{
+            championshipId: {
+                type: Types.ObjectId,
+                ref: 'Championship'
+            },
+            year: {
+                type: Number,
+                required: true
+            },
+            position: {
+                type: Number,
+                required: true
+            }
+        }],
+        clubId: {
+            type: Types.ObjectId,
+            ref: 'Club'
+        },
         registrations: [{
             type: Types.ObjectId,
             ref: 'Registration'
