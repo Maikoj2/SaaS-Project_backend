@@ -6,8 +6,9 @@ export enum AuthRoute {
     RESET = '/reset-password',
     TOKEN = '/token',
     CHECK = '/check',
-    REFRESH = '/refresh-token'
-} 
+    REFRESH = '/refresh-token',
+    CHANGE_TEMPORARY_PASSWORD = '/change-temporary-password'
+}
 export enum AuthRole {
     ADMIN = 'admin',
     ORGANIZER = 'organizer',

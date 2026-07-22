@@ -33,4 +33,10 @@ export const authValidation = {
         ...password('newPassword', true),
         validate
     ],
+
+    changeTemporaryPassword: [
+        ...password('currentPassword', false),
+        ...password('newPassword', true),
+        validate,
+    ]
 };

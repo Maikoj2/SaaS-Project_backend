@@ -8,12 +8,15 @@ import { PurchaseData } from '../../plugin/mercadopago/controller/mp.controller'
 import { ChampionshipService } from '../../services/championship/championship.service';
 import { RegistrationService } from '../../services/championship/register.service';
 import { CustomError } from '../../errors';
+import { InvitationLinkService } from '../../services/championship/invitationLink.service';
+import { EmailService } from '../../services/email/email.service';
 
 
 export class RegistrationController {
     private registrationService: RegistrationService;
     private logger: Logger;
     private championshipService: ChampionshipService;
+
 
     constructor() {
         this.registrationService = new RegistrationService();
@@ -91,6 +94,104 @@ export class RegistrationController {
             res.status(error.statusCode || 400).json(ApiResponse.error(error instanceof Error ? error.message : 'Error registering team'));
         }
     }
+
+    public registerTeamUsersAndPlayersWithInvitation = async (
+        req: IUserCustomRequest,
+        res: Response
+    ) => {
+        let registrationAdded = false;
+        let teamAdded = false;
+        let result: any;
+
+        try {
+            const code = req.params.code;
+            const tenant = req.clientAccount as string;
+
+            result =
+                await this.registrationService.registerTeamUsersAndPlayersWithInvitation(
+                    tenant,
+                    code,
+                    req.body
+                );
+
+            if (!result.paymentLink) {
+                throw new CustomError(
+                    'Failed to generate payment link',
+                    500,
+                    'RegistrationError'
+                );
+            }
+
+            await this.championshipService.addRegistrationId(
+                result.registration.championshipId,
+                tenant,
+                result.registration._id
+            );
+            registrationAdded = true;
+
+            await this.championshipService.updateTeamId(
+                tenant,
+                result.registration.championshipId,
+                result.team._id
+            );
+            teamAdded = true;
+
+            res.status(201).json(
+                ApiResponse.success({
+                    message:
+                        'Team, players, users, registration and payment link generated successfully',
+                    data: {
+                        team: result.team,
+                        players: result.players,
+                        registration: result.registration,
+                        paymentUrl: result.paymentLink,
+
+                        // Solo mientras estás en desarrollo.
+                        // Luego esto se elimina y se envía por correo.
+                        credentials: result.credentials,
+                    },
+                })
+            );
+        } catch (error: any) {
+            this.logger.error(
+                'Error in public team registration process:',
+                error
+            );
+
+            if (result?.registration?._id) {
+                await this.registrationService.deleteRegistrationId(
+                    result.registration._id,
+                    req.clientAccount as string
+                );
+            }
+
+            if (registrationAdded && result?.registration) {
+                await this.championshipService.deleteRegistrationId(
+                    req.clientAccount as string,
+                    result.registration.championshipId,
+                    result.registration._id
+                );
+            }
+
+            if (teamAdded && result?.team) {
+                await this.championshipService.deleteTeamId(
+                    req.clientAccount as string,
+                    result.registration.championshipId,
+                    result.team._id
+                );
+            }
+
+            res.status(error.statusCode || 400).json(
+                ApiResponse.error(
+                    error instanceof Error
+                        ? error.message
+                        : 'Error registering team with players'
+                )
+            );
+        }
+    }
+
+
 
     public getRegistrationStatus = async (req: IUserCustomRequest, res: Response) => {
         try {

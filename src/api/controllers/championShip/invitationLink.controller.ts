@@ -16,18 +16,10 @@ export class InvitationLinkController {
 
     public generateLink = async (req: IUserCustomRequest, res: Response) => {
         try {
-            const { id: championshipId } = req.params;
+            const { championshipId } = req.params;
             const { maxUses, expiresAt } = req.body;
             const tenant = req.clientAccount as string;
 
-
-            // Verificar si ya existe un enlace activo
-            const existingLink = await this.invitationLinkService.findActiveLink(tenant, championshipId);
-            if (existingLink) {
-                return res.status(400).json(
-                    ApiResponse.error('already exists an active invitation link for this championship')
-                );
-            }
             const result = await this.invitationLinkService.generateLink(
                 tenant,
                 championshipId,
@@ -122,10 +114,25 @@ export class InvitationLinkController {
 
     public getAllLinks = async (req: IUserCustomRequest, res: Response) => {
         try {
-            const { id: championshipId } = req.params;
             const tenant = req.clientAccount as string;
 
-            const links = await this.invitationLinkService.getAllLinks(tenant, championshipId);
+            const sortField =
+                typeof req.query.sortField === 'string'
+                    ? req.query.sortField
+                    : 'createdAt';
+
+            const sortDirection: 1 | -1 =
+                req.query.sortOrder === 'asc' ? 1 : -1;
+
+            const sort: Record<string, 1 | -1> = {
+                [sortField]: sortDirection,
+            };
+
+            const links = await this.invitationLinkService.getAllLinks(tenant, {
+                page: Number(req.query.page),
+                limit: Number(req.query.limit),
+                sort: sort,
+            });
             res.status(200).json(links);
         } catch (error) {
             this.logger.error('Error getting all links:', error);

@@ -1,8 +1,8 @@
 export const InvitationLinkRoutes = {
-    GENERATE_LINK: '/championships/:id/invitation',
+    GENERATE_LINK: '/championships/:championshipId/invitation-link',
     USE_LINK: '/championships/invitation/use',
-    GET_LINK_STATS: '/championships/:id/invitation/stats',
-    GET_ALL_LINKS: '/championships/:id/invitation/all',
-    DEACTIVATE_LINK: '/championships/:id/invitation',
-    GET_ACTIVE_LINK: '/championships/:id/invitation'
+    GET_LINK_STATS: '/championships/:championshipId/invitation-link/stats',
+    GET_ALL_LINKS: '/championships/invitation-link/all',
+    DEACTIVATE_LINK: '/championships/:championshipId/invitation-link',
+    GET_ACTIVE_LINK: '/championships/:championshipId/invitation-link'
 };

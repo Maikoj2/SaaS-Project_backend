@@ -10,6 +10,7 @@ import { AuthError } from '../../errors/AuthError';
 import Championship, { IChampionshipDocument } from '../../models/mongoose/championship/championship';
 import { DatabaseHelper } from '../../utils/database.helper';
 import ChampionshipConfiguration, { IConfigurationDocument } from '../../models/mongoose/championship/configuration';
+import { getCompetitionRulesByPreset } from '../../domain/championship/rules/competitionRules.presets';
 
 @Injectable()
 export class ChampionshipController {
@@ -42,7 +43,8 @@ export class ChampionshipController {
             matchDurationLimit,
             setDurationLimit,
             registrationDeadline,
-            registrationFee
+            registrationFee,
+            competitionRulePreset
         } = req.body;
 
         try {
@@ -56,6 +58,9 @@ export class ChampionshipController {
                 idCreatorChampionship: req.user?._id as any
             });
 
+            const competitionRules = getCompetitionRulesByPreset(
+                competitionRulePreset
+            );
 
             // create configuration
             configuration = await this.configurationService.create(tenant, {
@@ -67,7 +72,9 @@ export class ChampionshipController {
                 matchDurationLimit,
                 setDurationLimit,
                 registrationDeadline,
-                registrationFee
+                registrationFee,
+                competitionRulePreset,
+                competitionRules
             });
 
 

@@ -4,6 +4,7 @@ import { validate } from "../../middlewares";
 import { ChampionshipStatus } from "../../constants/championship.constants";
 import { ChampionshipService } from "../../services/championship/championship.service";
 import { validateDate, validateEndDate } from "../../utils/dateValidator";
+import { CompetitionRulePreset } from "../../domain/championship/rules/competitionRules.presets";
 
 
 
@@ -184,10 +185,18 @@ export const validateCreateChampionshipConfiguration: any[] = [
         .optional()
         .isString()
         .withMessage('MUST_BE_STRING'),
+    check('competitionRulePreset')
+        .exists()
+        .withMessage('MISSING')
+        .notEmpty()
+        .withMessage('IS_EMPTY')
+        .isIn([CompetitionRulePreset])
+        .withMessage('INVALID_COMPETITION_RULE_PRESET'),
     ...championshipConfigurationValidators.matchDurationLimit,
     ...championshipConfigurationValidators.setDurationLimit,
     ...championshipConfigurationValidators.registrationDeadline,
     ...championshipConfigurationValidators.registrationFee,
+
     validate,
 ];
 

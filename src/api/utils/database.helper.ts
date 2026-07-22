@@ -304,6 +304,7 @@ export class DatabaseHelper {
         query: Record<string, any>,
         options: PaginationOptions = {},
         relations?: {
+
             basic?: string[];
             nested?: PopulateOptions[];
         }
