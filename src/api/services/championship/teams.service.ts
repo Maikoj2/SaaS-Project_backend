@@ -10,6 +10,10 @@ import { Logger } from "../../config";
 import Player from "../../models/mongoose/championship/player";
 import { RegistrationService } from "./register.service";
 import { PaginationOptions } from "../../interfaces";
+import Registration from "../../models/mongoose/championship/registration";
+import ChampionshipConfiguration from "../../models/mongoose/championship/configuration";
+import { validateCompetitionRulesForTeam } from "../../domain/championship/rules/competitionRules.validator";
+import { validateChampionshipTeamCapacity } from "../../domain/championship/rules/championshipCapacity.validator";
 
 
 
@@ -125,6 +129,198 @@ export class TeamService {
         }
 
         return team;
+    }
+
+    async createTeamManually(
+        tenant: string,
+        championshipId: string,
+        data: {
+            name: string;
+            logo?: string;
+            categoryId?: string;
+            captainId?: string;
+            players: string[];
+            registrationStatus?: 'pending' | 'confirmed' | 'rejected';
+            feePaid?: boolean;
+        }
+    ) {
+        const configuration = await DatabaseHelper.findOne(
+            ChampionshipConfiguration,
+            tenant,
+            {
+                championshipId: new Types.ObjectId(championshipId),
+            }
+        );
+
+        if (!configuration) {
+            throw new CustomError(
+                'Championship configuration not found',
+                404,
+                'TeamServiceError'
+            );
+        }
+        await validateChampionshipTeamCapacity(
+            tenant,
+            championshipId,
+            configuration.maxTeams,
+            'RegistrationServiceError'
+        );
+
+        if (!data.name) {
+            throw new CustomError(
+                'Team name is required',
+                400,
+                'TeamServiceError'
+            );
+        }
+
+        if (!data.players || data.players.length === 0) {
+            throw new CustomError(
+                'At least one player is required',
+                400,
+                'TeamServiceError'
+            );
+        }
+
+        const existingTeam = await DatabaseHelper.findOne(
+            Team,
+            tenant,
+            {
+                championshipId: new Types.ObjectId(championshipId),
+                name: data.name,
+            }
+        );
+
+        if (existingTeam) {
+            throw new CustomError(
+                'A team with this name already exists in this championship',
+                400,
+                'TeamServiceError'
+            );
+        }
+
+        const competitionRules = configuration.competitionRules;
+
+        if (competitionRules?.teamSize) {
+            const { minPlayers, maxPlayers } = competitionRules.teamSize;
+
+            if (data.players.length < minPlayers) {
+                throw new CustomError(
+                    `The team must have at least ${minPlayers} players`,
+                    400,
+                    'TeamServiceError'
+                );
+            }
+
+            if (data.players.length > maxPlayers) {
+                throw new CustomError(
+                    `The team cannot have more than ${maxPlayers} players`,
+                    400,
+                    'TeamServiceError'
+                );
+            }
+        }
+
+        if (competitionRules?.categories?.enabled) {
+            const categoryExists = competitionRules.categories.list.some(
+                (category: any) => category.id === data.categoryId
+            );
+
+            if (!categoryExists) {
+                throw new CustomError(
+                    'Invalid category for this championship',
+                    400,
+                    'TeamServiceError'
+                );
+            }
+        }
+
+        const playerIds = data.players.map(
+            (playerId) => new Types.ObjectId(playerId)
+        );
+
+        const players = await Player.byTenant(tenant).find({
+            _id: {
+                $in: playerIds,
+            },
+            status: 'active',
+        });
+
+        if (players.length !== playerIds.length) {
+            throw new CustomError(
+                'One or more players were not found or are not active',
+                400,
+                'TeamServiceError'
+            );
+        }
+
+        validateCompetitionRulesForTeam({
+            competitionRules: competitionRules!,
+            players,
+            categoryId: data.categoryId,
+            errorSource: 'TeamServiceError',
+        });
+
+        if (data.captainId && !data.players.includes(data.captainId)) {
+            throw new CustomError(
+                'Captain must be one of the team players',
+                400,
+                'TeamServiceError'
+            );
+        }
+
+        const team = await DatabaseHelper.create(
+            Team,
+            tenant,
+            {
+                championshipId: new Types.ObjectId(championshipId),
+                name: data.name,
+                logo: data.logo,
+                categoryId: data.categoryId,
+                captainId: data.captainId
+                    ? new Types.ObjectId(data.captainId)
+                    : playerIds[0],
+                players: playerIds,
+                registrations: [],
+                participationHistory: [
+                    {
+                        championshipId: new Types.ObjectId(championshipId),
+                        year: new Date().getFullYear(),
+                        position: 0,
+                    },
+                ],
+                registrationType: 'manual',
+                status: 'active',
+            }
+        );
+
+        const registration = await DatabaseHelper.create(
+            Registration,
+            tenant,
+            {
+                championshipId: new Types.ObjectId(championshipId),
+                teamId: team._id,
+                registrationDate: new Date(),
+                registrationStatus: data.registrationStatus || 'confirmed',
+                feePaid: data.feePaid ?? true,
+                registrationDeadline: configuration.registrationDeadline,
+                paymentDate: data.feePaid ? new Date() : undefined,
+            }
+        );
+
+        await DatabaseHelper.update(
+            Team,
+            team._id.toString(),
+            tenant,
+            {
+                registrations: [registration._id],
+            }
+        );
+
+        return {
+            team,
+            registration,
+        };
     }
 
 

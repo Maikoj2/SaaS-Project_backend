@@ -47,5 +47,18 @@ router.get(
     controller.getTeamById as RequestHandler
 );
 
+router.post(
+    teamRoutes.CREATE_TEAM_MANUALLY,
+    [
+        origin.checkDomain as RequestHandler,
+        origin.checkTenant as RequestHandler,
+        auth as RequestHandler,
+        permissionAuthorization([AuthPermission.TEAM_CREATE]) as RequestHandler,
+        trimRequest.all as RequestHandler,
+        ...teamValidator.createTeamManually,
+    ],
+    controller.createTeamManually as RequestHandler
+);
+
 
 export default router;       

@@ -36,4 +36,37 @@ export const teamValidator = {
         validate,
     ],
 
+    createTeamManually: [
+        ...paramsValidator("championshipId", true),
+        ...validateField("name", true),
+        ...validateField("logo", false),
+        check("players")
+            .optional()
+            .isArray({ min: 1 })
+            .withMessage('MUST_BE_ARRAY'),
+        check('players.*')
+            .isMongoId()
+            .withMessage('Each player must be a valid Mongo ID'),
+        check('captainId')
+            .optional()
+            .isMongoId()
+            .withMessage('Captain ID must be a valid Mongo ID'),
+        check('categoryId')
+            .optional()
+            .isString()
+            .withMessage('Category ID must be a valid Mongo ID'),
+        check('registrationStatus')
+            .optional()
+            .isIn(['pending', 'confirmed', 'rejected'])
+            .withMessage('Registration status must be pending, confirmed or rejected'),
+        ...validateField("clubId", false),
+        check('feePaid')
+            .optional()
+            .isBoolean()
+            .withMessage('feePaid must be boolean'),
+
+        validate,
+    ],
+
+
 }

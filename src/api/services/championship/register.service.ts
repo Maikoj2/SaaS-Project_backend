@@ -9,14 +9,14 @@ import { PaymentResponse } from 'mercadopago/dist/clients/payment/commonTypes';
 import Team, { ITeamDocument } from '../../models/mongoose/championship/team';
 import { CustomError } from '../../errors';
 import { generate_link, getPaymentDetails } from '../../plugin/mercadopago';
-import Championship from '../../models/mongoose/championship/championship';
 import { Types } from 'mongoose';
 import Player, { BeachVolleyballPosition, EPSProvider, IndoorVolleyballPosition } from '../../models/mongoose/championship/player';
 import { User } from '../../models';
 import { PasswordUtil } from '../../utils';
-import { AuthRole } from '../../constants/apiRoutes';
 import { EmailService } from '../email/email.service';
 import { env } from '../../config';
+import { validateCompetitionRulesForTeam } from '../../domain/championship/rules/competitionRules.validator';
+import { validateChampionshipTeamCapacity } from '../../domain/championship/rules/championshipCapacity.validator';
 export interface PayerData {
     name: string;
     surname?: string;
@@ -75,7 +75,6 @@ export class RegistrationService {
         try {
             const { invitationLink, configuration } = await this.validateInitialRegistration(tenant, code);
 
-            this.logger.info('Payer Data received:', payerData);
 
             const existTeam = await DatabaseHelper.findOne(
                 Team,
@@ -200,6 +199,12 @@ export class RegistrationService {
                 await this.validateInitialRegistration(tenant, code);
 
             const championshipId = invitationLink.championshipId;
+            await validateChampionshipTeamCapacity(
+                tenant,
+                championshipId,
+                configuration.maxTeams,
+                'RegistrationServiceError'
+            );
 
             if (!data.team?.name) {
                 throw new CustomError(
@@ -219,56 +224,14 @@ export class RegistrationService {
 
             const competitionRules = configuration.competitionRules;
 
-            if (competitionRules?.teamSize) {
-                const { minPlayers, maxPlayers } = competitionRules.teamSize;
 
-                if (data.players.length < minPlayers) {
-                    throw new CustomError(
-                        `The team must have at least ${minPlayers} players`,
-                        400,
-                        'RegistrationServiceError'
-                    );
-                }
-
-                if (data.players.length > maxPlayers) {
-                    throw new CustomError(
-                        `The team cannot have more than ${maxPlayers} players`,
-                        400,
-                        'RegistrationServiceError'
-                    );
-                }
-            }
-
-            if (competitionRules?.genderMode === 'mixed') {
-                const malePlayers = data.players.filter(
-                    (player) => player.gender === 'male'
-                ).length;
-
-                const femalePlayers = data.players.filter(
-                    (player) => player.gender === 'female'
-                ).length;
-
-                const minMalePlayers =
-                    competitionRules.mixedRules?.minMalePlayers || 0;
-
-                const minFemalePlayers =
-                    competitionRules.mixedRules?.minFemalePlayers || 0;
-
-                if (malePlayers < minMalePlayers) {
-                    throw new CustomError(
-                        `The team must have at least ${minMalePlayers} male player(s)`,
-                        400,
-                        'RegistrationServiceError'
-                    );
-                }
-
-                if (femalePlayers < minFemalePlayers) {
-                    throw new CustomError(
-                        `The team must have at least ${minFemalePlayers} female player(s)`,
-                        400,
-                        'RegistrationServiceError'
-                    );
-                }
+            if (competitionRules) {
+                validateCompetitionRulesForTeam({
+                    competitionRules,
+                    players: data.players,
+                    categoryId: data.team.categoryId,
+                    errorSource: 'RegistrationServiceError',
+                });
             }
 
             if (competitionRules?.categories?.enabled) {

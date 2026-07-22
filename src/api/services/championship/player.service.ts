@@ -2,11 +2,11 @@ import { DatabaseHelper } from '../../utils/database.helper';
 import { Player, IPlayerDocument, IPlayerStats, IndoorVolleyballPosition, BeachVolleyballPosition } from '../../models/mongoose/championship/player';
 import { Logger } from '../../config/logger/WinstonLogger';
 import InvitationLink from '../../models/mongoose/championship/invitationLink';
-import { RegistrationService } from './registration.service';
 import { User } from '../../models';
 import Club from '../../models/mongoose/championship/club';
 import Championship, { ChampionshipType } from '../../models/mongoose/championship/championship';
 import { CustomError } from '../../errors';
+import { RegistrationService } from './register.service';
 
 
 

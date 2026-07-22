@@ -6,16 +6,18 @@ import { ApiResponse } from "../../responses";
 import { CustomError } from "../../errors";
 import { IUserCustomRequest } from "../../interfaces";
 import { TeamService } from "../../services/championship/teams.service";
+import { ChampionshipService } from "../../services/championship/championship.service";
 
 
 export class TeamController {
     private readonly teamService: TeamService;
     private readonly logger: Logger;
-
+    private readonly championshipService: ChampionshipService;
 
     constructor() {
         this.logger = new Logger();
         this.teamService = new TeamService();
+        this.championshipService = new ChampionshipService();
     }
 
     createTeamByLink = async (req: IUserCustomRequest, res: Response) => {
@@ -98,6 +100,74 @@ export class TeamController {
                     error instanceof Error
                         ? error.message
                         : 'Error retrieving team'
+                )
+            );
+        }
+    };
+
+    createTeamManually = async (
+        req: IUserCustomRequest,
+        res: Response
+    ): Promise<void> => {
+        let teamAdded = false;
+        let registrationAdded = false;
+        let result: any;
+
+        try {
+            const tenant = req.clientAccount as string;
+            const { championshipId } = req.params;
+
+            result = await this.teamService.createTeamManually(
+                tenant,
+                championshipId,
+                req.body
+            );
+
+            await this.championshipService.updateTeamId(
+                tenant,
+                result.team.championshipId,
+                result.team._id
+            );
+            teamAdded = true;
+
+            await this.championshipService.addRegistrationId(
+                result.registration.championshipId,
+                tenant,
+                result.registration._id
+            );
+            registrationAdded = true;
+
+            res.status(201).json(
+                ApiResponse.success({
+                    message: 'Team created manually successfully',
+                    data: {
+                        team: result.team,
+                        registration: result.registration,
+                    },
+                })
+            );
+        } catch (error: any) {
+            if (teamAdded && result?.team?._id) {
+                await this.championshipService.deleteTeamId(
+                    req.clientAccount as string,
+                    result.team.championshipId,
+                    result.team._id
+                );
+            }
+
+            if (registrationAdded && result?.registration?._id) {
+                await this.championshipService.deleteRegistrationId(
+                    req.clientAccount as string,
+                    result.registration.championshipId,
+                    result.registration._id
+                );
+            }
+
+            res.status(error.statusCode || 400).json(
+                ApiResponse.error(
+                    error instanceof Error
+                        ? error.message
+                        : 'Error creating team manually'
                 )
             );
         }
