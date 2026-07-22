@@ -172,4 +172,35 @@ export class TeamController {
             );
         }
     };
+    updateTeamManually = async (
+        req: IUserCustomRequest,
+        res: Response
+    ): Promise<void> => {
+        try {
+            const tenant = req.clientAccount as string;
+            const { championshipId, teamId } = req.params;
+
+            const result = await this.teamService.updateTeamManually(
+                tenant,
+                championshipId,
+                teamId,
+                req.body
+            );
+
+            res.status(200).json(
+                ApiResponse.success({
+                    message: 'Team updated successfully',
+                    data: result,
+                })
+            );
+        } catch (error: any) {
+            res.status(error.statusCode || 400).json(
+                ApiResponse.error(
+                    error instanceof Error
+                        ? error.message
+                        : 'Error updating team'
+                )
+            );
+        }
+    };
 }

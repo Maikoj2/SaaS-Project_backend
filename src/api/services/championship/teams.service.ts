@@ -3,8 +3,6 @@ import Championship from "../../models/mongoose/championship/championship";
 import Club from "../../models/mongoose/championship/club";
 import Team, { ITeamDocument } from "../../models/mongoose/championship/team";
 import { DatabaseHelper } from "../../utils/database.helper";
-
-import { User } from "../../models";
 import { CustomError } from "../../errors";
 import { Logger } from "../../config";
 import Player from "../../models/mongoose/championship/player";
@@ -321,6 +319,140 @@ export class TeamService {
             team,
             registration,
         };
+    }
+    async updateTeamManually(
+        tenant: string,
+        championshipId: string,
+        teamId: string,
+        data: {
+            name?: string;
+            logo?: string;
+            categoryId?: string;
+            captainId?: string;
+            players?: string[];
+            status?: 'pending' | 'active' | 'inactive' | 'rejected';
+        }
+    ) {
+        const configuration = await DatabaseHelper.findOne(
+            ChampionshipConfiguration,
+            tenant,
+            {
+                championshipId: new Types.ObjectId(championshipId),
+            }
+        );
+
+        if (!configuration) {
+            throw new CustomError(
+                'Championship configuration not found',
+                404,
+                'TeamServiceError'
+            );
+        }
+
+        const team = await DatabaseHelper.findOne(
+            Team,
+            tenant,
+            {
+                _id: new Types.ObjectId(teamId),
+                championshipId: new Types.ObjectId(championshipId),
+            }
+        );
+
+        if (!team) {
+            throw new CustomError(
+                'Team not found',
+                404,
+                'TeamServiceError'
+            );
+        }
+
+        if (data.name && data.name !== team.name) {
+            const existingTeam = await DatabaseHelper.findOne(
+                Team,
+                tenant,
+                {
+                    championshipId: new Types.ObjectId(championshipId),
+                    name: data.name,
+                    _id: {
+                        $ne: new Types.ObjectId(teamId),
+                    },
+                }
+            );
+
+            if (existingTeam) {
+                throw new CustomError(
+                    'A team with this name already exists in this championship',
+                    400,
+                    'TeamServiceError'
+                );
+            }
+        }
+
+        let finalPlayerIds = team.players;
+
+        const shouldValidateCompetitionRules =
+            data.players !== undefined || data.categoryId !== undefined;
+
+        if (shouldValidateCompetitionRules) {
+            const players = await Player.byTenant(tenant).find({
+                _id: {
+                    $in: finalPlayerIds,
+                },
+                status: 'active',
+            });
+
+            if (players.length !== finalPlayerIds.length) {
+                throw new CustomError(
+                    'One or more players were not found or are not active',
+                    400,
+                    'TeamServiceError'
+                );
+            }
+
+            validateCompetitionRulesForTeam({
+                competitionRules: configuration.competitionRules!,
+                players,
+                categoryId: data.categoryId || team.categoryId,
+                errorSource: 'TeamServiceError',
+            });
+        }
+
+        const finalCaptainId = data.captainId
+            ? new Types.ObjectId(data.captainId)
+            : team.captainId;
+
+        if (finalCaptainId) {
+            const captainBelongsToTeam = finalPlayerIds.some(
+                (playerId: any) =>
+                    playerId.toString() === finalCaptainId.toString()
+            );
+
+            if (!captainBelongsToTeam) {
+                throw new CustomError(
+                    'Captain must be one of the team players',
+                    400,
+                    'TeamServiceError'
+                );
+            }
+        }
+
+        const updatePayload: Record<string, any> = {};
+
+        if (data.name) updatePayload.name = data.name;
+        if (data.logo !== undefined) updatePayload.logo = data.logo;
+        if (data.categoryId !== undefined) updatePayload.categoryId = data.categoryId;
+        if (data.status) updatePayload.status = data.status;
+        if (data.players) updatePayload.players = finalPlayerIds;
+        if (finalCaptainId) updatePayload.captainId = finalCaptainId;
+
+        const updatedTeam = await DatabaseHelper.update(
+            Team,
+            teamId,
+            tenant,
+            updatePayload
+        );
+
+        return updatedTeam;
     }
 
 

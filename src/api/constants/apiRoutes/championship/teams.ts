@@ -5,4 +5,5 @@ export const teamRoutes = {
     GET_TEAMS_BY_CHAMPIONSHIP: '/championships/:championshipId/teams',
     GET_TEAM_BY_ID: '/championships/:championshipId/teams/:teamId',
     CREATE_TEAM_MANUALLY: '/championships/:championshipId/teams',
+    UPDATE_TEAM_MANUALLY: '/championships/:championshipId/teams/:teamId',
 }

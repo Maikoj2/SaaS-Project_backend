@@ -60,5 +60,19 @@ router.post(
     controller.createTeamManually as RequestHandler
 );
 
+router.patch(
+    teamRoutes.UPDATE_TEAM_MANUALLY,
+    [
+        origin.checkDomain as RequestHandler,
+        origin.checkTenant as RequestHandler,
+        auth as RequestHandler,
+        permissionAuthorization([AuthPermission.TEAM_UPDATE]) as RequestHandler,
+        trimRequest.all as RequestHandler,
+        ...(teamValidator.updateTeamManually as RequestHandler[]),
+    ],
+    controller.updateTeamManually as RequestHandler
+);
+
+
 
 export default router;       
