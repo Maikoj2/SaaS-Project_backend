@@ -73,6 +73,32 @@ router.patch(
     controller.updateTeamManually as RequestHandler
 );
 
+router.post(
+    teamRoutes.ADD_PLAYER_TO_TEAM,
+    [
+        origin.checkDomain as RequestHandler,
+        origin.checkTenant as RequestHandler,
+        auth as RequestHandler,
+        permissionAuthorization([AuthPermission.TEAM_UPDATE]) as RequestHandler,
+        trimRequest.all as RequestHandler,
+        ...(teamValidator.addPlayerToTeam as RequestHandler[]),
+    ],
+    controller.addPlayerToTeam as RequestHandler
+);
+
+router.delete(
+    teamRoutes.REMOVE_PLAYER_FROM_TEAM,
+    [
+        origin.checkDomain as RequestHandler,
+        origin.checkTenant as RequestHandler,
+        auth as RequestHandler,
+        permissionAuthorization([AuthPermission.TEAM_UPDATE]) as RequestHandler,
+        trimRequest.all as RequestHandler,
+        ...(teamValidator.removePlayerFromTeam as RequestHandler[]),
+    ],
+    controller.removePlayerFromTeam as RequestHandler
+);
+
 
 
 export default router;       

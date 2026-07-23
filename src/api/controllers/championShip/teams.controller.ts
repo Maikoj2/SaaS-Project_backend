@@ -172,6 +172,7 @@ export class TeamController {
             );
         }
     };
+
     updateTeamManually = async (
         req: IUserCustomRequest,
         res: Response
@@ -201,6 +202,85 @@ export class TeamController {
                         : 'Error updating team'
                 )
             );
+        }
+    };
+
+    public addPlayerToTeam = async (
+        req: IUserCustomRequest,
+        res: Response
+    ): Promise<void> => {
+        try {
+            const tenant = req.clientAccount as string;
+            const { championshipId, teamId } = req.params;
+            const { playerId } = req.body;
+
+            const result = await this.teamService.addPlayerToTeam(
+                tenant,
+                championshipId,
+                teamId,
+                playerId
+            );
+
+            res.status(200).json(
+                ApiResponse.success(
+                    result,
+                    'Player added to team successfully'
+                )
+            );
+        } catch (error) {
+            this.logger.error('Error adding player to team:', error);
+
+            const customError =
+                error instanceof CustomError
+                    ? error
+                    : new CustomError(
+                        `Error adding player to team: ${error}`,
+                        500,
+                        'TeamControllerError'
+                    );
+
+            res
+                .status(customError.statusCode)
+                .json(ApiResponse.error(customError.message));
+        }
+    };
+
+    public removePlayerFromTeam = async (
+        req: IUserCustomRequest,
+        res: Response
+    ): Promise<void> => {
+        try {
+            const tenant = req.clientAccount as string;
+            const { championshipId, teamId, playerId } = req.params;
+
+            const result = await this.teamService.removePlayerFromTeam(
+                tenant,
+                championshipId,
+                teamId,
+                playerId
+            );
+
+            res.status(200).json(
+                ApiResponse.success(
+                    result,
+                    'Player removed from team successfully'
+                )
+            );
+        } catch (error) {
+            this.logger.error('Error removing player from team:', error);
+
+            const customError =
+                error instanceof CustomError
+                    ? error
+                    : new CustomError(
+                        `Error removing player from team: ${error}`,
+                        500,
+                        'TeamControllerError'
+                    );
+
+            res
+                .status(customError.statusCode)
+                .json(ApiResponse.error(customError.message));
         }
     };
 }

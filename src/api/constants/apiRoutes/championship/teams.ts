@@ -6,4 +6,6 @@ export const teamRoutes = {
     GET_TEAM_BY_ID: '/championships/:championshipId/teams/:teamId',
     CREATE_TEAM_MANUALLY: '/championships/:championshipId/teams',
     UPDATE_TEAM_MANUALLY: '/championships/:championshipId/teams/:teamId',
+    ADD_PLAYER_TO_TEAM: '/championships/:championshipId/teams/:teamId/players',
+    REMOVE_PLAYER_FROM_TEAM: '/championships/:championshipId/teams/:teamId/players/:playerId',
 }

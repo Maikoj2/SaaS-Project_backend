@@ -140,5 +140,28 @@ export const teamValidator = {
         validate,
     ],
 
+    addPlayerToTeam: [
+        ...paramsValidator("teamId", true),
+        ...paramsValidator("championshipId", true),
+
+        check('playerId')
+            .exists()
+            .withMessage('MISSING')
+            .bail()
+            .isMongoId()
+            .withMessage('INVALID_ID_FORMAT'),
+
+        validate,
+    ],
+
+    removePlayerFromTeam: [
+        ...paramsValidator("teamId", true),
+        ...paramsValidator("championshipId", true),
+
+        ...paramsValidator("playerId", true),
+
+        validate,
+    ],
+
 
 }
