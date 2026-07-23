@@ -12,6 +12,9 @@ import Registration from "../../models/mongoose/championship/registration";
 import ChampionshipConfiguration from "../../models/mongoose/championship/configuration";
 import { validateCompetitionRulesForTeam } from "../../domain/championship/rules/competitionRules.validator";
 import { validateChampionshipTeamCapacity } from "../../domain/championship/rules/championshipCapacity.validator";
+import Group from "../../models/mongoose/championship/group";
+import Match from "../../models/mongoose/championship/match";
+import GroupDistribution from "../../models/mongoose/championship/groupsDistrubution";
 
 
 
@@ -334,6 +337,8 @@ export class TeamService {
             status?: 'pending' | 'active' | 'inactive' | 'rejected';
         }
     ) {
+        await this.ensureTeamCanBeModified(tenant, championshipId);
+
         const configuration = await DatabaseHelper.findOne(
             ChampionshipConfiguration,
             tenant,
@@ -462,6 +467,8 @@ export class TeamService {
         teamId: string,
         playerId: string
     ) {
+        await this.ensureTeamCanBeModified(tenant, championshipId);
+
         const team = await DatabaseHelper.findOne(
             Team,
             tenant,
@@ -614,6 +621,8 @@ export class TeamService {
         teamId: string,
         playerId: string
     ) {
+        await this.ensureTeamCanBeModified(tenant, championshipId);
+
         const team = await DatabaseHelper.findOne(
             Team,
             tenant,
@@ -722,6 +731,8 @@ export class TeamService {
         oldPlayerId: string,
         newPlayerId: string
     ) {
+        await this.ensureTeamCanBeModified(tenant, championshipId);
+
         const team = await DatabaseHelper.findOne(
             Team,
             tenant,
@@ -970,6 +981,68 @@ export class TeamService {
                 select: 'firstName lastName name email phone',
             },
         ];
+    }
+
+    private async ensureTeamCanBeModified(
+        tenant: string,
+        championshipId: string
+    ): Promise<void> {
+        const groupDistributionExists = await DatabaseHelper.exists(
+            GroupDistribution,
+            tenant,
+            {
+                championshipId: new Types.ObjectId(championshipId),
+                status: {
+                    $in: ['active', 'completed'],
+                },
+            }
+        );
+
+        if (groupDistributionExists) {
+            throw new CustomError(
+                'Teams cannot be modified because group distribution has already been generated',
+                400,
+                'TeamServiceError'
+            );
+        }
+
+        const groupExists = await DatabaseHelper.exists(
+            Group,
+            tenant,
+            {
+                championshipId: new Types.ObjectId(championshipId),
+                status: {
+                    $in: ['active', 'completed'],
+                },
+            }
+        );
+
+        if (groupExists) {
+            throw new CustomError(
+                'Teams cannot be modified because groups have already been generated',
+                400,
+                'TeamServiceError'
+            );
+        }
+
+        const matchExists = await DatabaseHelper.exists(
+            Match,
+            tenant,
+            {
+                championshipId: new Types.ObjectId(championshipId),
+                status: {
+                    $in: ['scheduled', 'in_progress', 'completed'],
+                },
+            }
+        );
+
+        if (matchExists) {
+            throw new CustomError(
+                'Teams cannot be modified because matches have already been generated',
+                400,
+                'TeamServiceError'
+            );
+        }
     }
 }
 
