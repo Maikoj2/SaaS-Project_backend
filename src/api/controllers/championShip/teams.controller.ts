@@ -283,4 +283,45 @@ export class TeamController {
                 .json(ApiResponse.error(customError.message));
         }
     };
+
+    public replacePlayerInTeam = async (
+        req: IUserCustomRequest,
+        res: Response
+    ): Promise<void> => {
+        try {
+            const tenant = req.clientAccount as string;
+            const { championshipId, teamId } = req.params;
+            const { oldPlayerId, newPlayerId } = req.body;
+
+            const result = await this.teamService.replacePlayerInTeam(
+                tenant,
+                championshipId,
+                teamId,
+                oldPlayerId,
+                newPlayerId
+            );
+
+            res.status(200).json(
+                ApiResponse.success(
+                    result,
+                    'Player replaced successfully'
+                )
+            );
+        } catch (error) {
+            this.logger.error('Error replacing player in team:', error);
+
+            const customError =
+                error instanceof CustomError
+                    ? error
+                    : new CustomError(
+                        `Error replacing player in team: ${error}`,
+                        500,
+                        'TeamControllerError'
+                    );
+
+            res
+                .status(customError.statusCode)
+                .json(ApiResponse.error(customError.message));
+        }
+    };
 }

@@ -99,6 +99,19 @@ router.delete(
     controller.removePlayerFromTeam as RequestHandler
 );
 
+router.patch(
+    teamRoutes.REPLACE_PLAYER_IN_TEAM,
+    [
+        origin.checkDomain as RequestHandler,
+        origin.checkTenant as RequestHandler,
+        auth as RequestHandler,
+        permissionAuthorization([AuthPermission.TEAM_UPDATE]) as RequestHandler,
+        trimRequest.all as RequestHandler,
+        ...(teamValidator.replacePlayerInTeam as RequestHandler[]),
+    ],
+    controller.replacePlayerInTeam as RequestHandler
+);
+
 
 
 export default router;       

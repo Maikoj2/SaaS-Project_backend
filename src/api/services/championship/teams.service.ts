@@ -550,6 +550,16 @@ export class TeamService {
             new Types.ObjectId(playerId),
         ];
 
+        const maxPlayers = configuration.competitionRules?.teamSize?.maxPlayers;
+
+        if (maxPlayers && finalPlayerIds.length > maxPlayers) {
+            throw new CustomError(
+                `This team cannot have more than ${maxPlayers} players`,
+                400,
+                'TeamServiceError'
+            );
+        }
+
         const finalPlayers = await DatabaseHelper.find(
             Player,
             tenant,
@@ -568,6 +578,7 @@ export class TeamService {
                 'TeamServiceError'
             );
         }
+
 
         validateCompetitionRulesForTeam({
             competitionRules: configuration.competitionRules!,
@@ -694,6 +705,173 @@ export class TeamService {
                 $pull: {
                     players: new Types.ObjectId(playerId),
                 },
+            },
+            {
+                new: true,
+                runValidators: true,
+            }
+        );
+
+        return updatedTeam;
+    }
+
+    async replacePlayerInTeam(
+        tenant: string,
+        championshipId: string,
+        teamId: string,
+        oldPlayerId: string,
+        newPlayerId: string
+    ) {
+        const team = await DatabaseHelper.findOne(
+            Team,
+            tenant,
+            {
+                _id: new Types.ObjectId(teamId),
+                championshipId: new Types.ObjectId(championshipId),
+            }
+        );
+
+        if (!team) {
+            throw new CustomError(
+                'Team not found',
+                404,
+                'TeamServiceError'
+            );
+        }
+
+        const oldPlayerBelongsToTeam = team.players.some(
+            (currentPlayerId: any) =>
+                currentPlayerId.toString() === oldPlayerId
+        );
+
+        if (!oldPlayerBelongsToTeam) {
+            throw new CustomError(
+                'Old player does not belong to this team',
+                400,
+                'TeamServiceError'
+            );
+        }
+
+        const newPlayerAlreadyInTeam = team.players.some(
+            (currentPlayerId: any) =>
+                currentPlayerId.toString() === newPlayerId
+        );
+
+        if (newPlayerAlreadyInTeam) {
+            throw new CustomError(
+                'New player already belongs to this team',
+                400,
+                'TeamServiceError'
+            );
+        }
+
+        const newPlayer = await DatabaseHelper.findOne(
+            Player,
+            tenant,
+            {
+                _id: new Types.ObjectId(newPlayerId),
+                status: 'active',
+            }
+        );
+
+        if (!newPlayer) {
+            throw new CustomError(
+                'New player not found or inactive',
+                404,
+                'TeamServiceError'
+            );
+        }
+
+        const newPlayerInAnotherTeam = await DatabaseHelper.findOne(
+            Team,
+            tenant,
+            {
+                championshipId: new Types.ObjectId(championshipId),
+                _id: {
+                    $ne: new Types.ObjectId(teamId),
+                },
+                players: new Types.ObjectId(newPlayerId),
+            }
+        );
+
+        if (newPlayerInAnotherTeam) {
+            throw new CustomError(
+                'New player already belongs to another team in this championship',
+                400,
+                'TeamServiceError'
+            );
+        }
+
+        const configuration = await DatabaseHelper.findOne(
+            ChampionshipConfiguration,
+            tenant,
+            {
+                championshipId: new Types.ObjectId(championshipId),
+            }
+        );
+
+        if (!configuration) {
+            throw new CustomError(
+                'Championship configuration not found',
+                404,
+                'TeamServiceError'
+            );
+        }
+
+        const finalPlayerIds = team.players.map((currentPlayerId: any) => {
+            if (currentPlayerId.toString() === oldPlayerId) {
+                return new Types.ObjectId(newPlayerId);
+            }
+
+            return new Types.ObjectId(currentPlayerId);
+        });
+
+        const finalPlayers = await DatabaseHelper.find(
+            Player,
+            tenant,
+            {
+                _id: {
+                    $in: finalPlayerIds,
+                },
+                status: 'active',
+            }
+        );
+
+        if (finalPlayers.length !== finalPlayerIds.length) {
+            throw new CustomError(
+                'One or more final players were not found or are inactive',
+                400,
+                'TeamServiceError'
+            );
+        }
+
+        validateCompetitionRulesForTeam({
+            competitionRules: configuration.competitionRules!,
+            players: finalPlayers,
+            categoryId: team.categoryId,
+            errorSource: 'TeamServiceError',
+        });
+
+        const updatePayload: Record<string, any> = {
+            players: finalPlayerIds,
+        };
+
+        if (
+            team.captainId &&
+            team.captainId.toString() === oldPlayerId
+        ) {
+            updatePayload.captainId = new Types.ObjectId(newPlayerId);
+        }
+
+        const updatedTeam = await DatabaseHelper.findOneAndUpdate(
+            Team,
+            tenant,
+            {
+                _id: new Types.ObjectId(teamId),
+                championshipId: new Types.ObjectId(championshipId),
+            },
+            {
+                $set: updatePayload,
             },
             {
                 new: true,

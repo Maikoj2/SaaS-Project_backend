@@ -163,5 +163,33 @@ export const teamValidator = {
         validate,
     ],
 
+    replacePlayerInTeam: [
+        ...paramsValidator("championshipId", true),
+        ...paramsValidator("teamId", true),
+
+        check('oldPlayerId')
+            .exists()
+            .withMessage('MISSING')
+            .bail()
+            .isMongoId()
+            .withMessage('INVALID_ID_FORMAT'),
+
+        check('newPlayerId')
+            .exists()
+            .withMessage('MISSING')
+            .bail()
+            .isMongoId()
+            .withMessage('INVALID_ID_FORMAT')
+            .custom((newPlayerId, { req }) => {
+                if (newPlayerId === req.body.oldPlayerId) {
+                    throw new Error('PLAYERS_MUST_BE_DIFFERENT');
+                }
+
+                return true;
+            }),
+
+        validate,
+    ],
+
 
 }
