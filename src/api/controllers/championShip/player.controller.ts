@@ -1,6 +1,5 @@
 import { Injectable } from "@decorators/di";
-import { ChampionshipService } from "../../services/championship/championship.service";
-import { ConfigurationService } from "../../services/championship/configuration.service";
+
 import { Logger } from "../../config";
 import { IUserCustomRequest } from "../../interfaces";
 import { ApiResponse } from "../../responses";
@@ -24,7 +23,7 @@ export class playerController {
         this.logger = new Logger();
     }
 
-    public createPlayerByLink = async (req: IUserCustomRequest, res: Response) => {
+    public createPlayerByLink = async (req: IUserCustomRequest, res: Response): Promise<void> => {
         try {
             const tenant = req.clientAccount as string;
             const playerData = req.body;
@@ -32,7 +31,7 @@ export class playerController {
 
             const player = await this.playerService.createPlayerByLink(tenant, playerData, code);
 
-            return res.status(200).json(
+            res.status(200).json(
                 ApiResponse.success(player, 'Player created successfully')
             );
 
@@ -46,5 +45,122 @@ export class playerController {
                 .json(ApiResponse.error(customError));
         }
     }
+
+    public getPlayersByChampionship = async (
+        req: IUserCustomRequest,
+        res: Response
+    ): Promise<void> => {
+        try {
+            const tenant = req.clientAccount as string;
+
+            const result = await this.playerService.getPlayersByChampionship(
+                tenant,
+                req.params.championshipId,
+                {
+                    status: req.query.status as string,
+                    gender: req.query.gender as string,
+                    search: req.query.search as string,
+                },
+                {
+                    page: Number(req.query.page) || 1,
+                    limit: Number(req.query.limit) || 20,
+                }
+            );
+
+            res.status(200).json(
+                ApiResponse.success(
+                    result,
+                    'Players retrieved successfully'
+                )
+            );
+        } catch (error) {
+            this.logger.error('Error retrieving players:', error);
+
+            const customError =
+                error instanceof CustomError
+                    ? error
+                    : new CustomError(
+                        `Error retrieving players: ${error}`,
+                        500,
+                        'PlayerControllerError'
+                    );
+
+            res
+                .status(customError.statusCode)
+                .json(ApiResponse.error(customError.message));
+        }
+    };
+
+    public getPlayerById = async (
+        req: IUserCustomRequest,
+        res: Response
+    ): Promise<void> => {
+        try {
+            const tenant = req.clientAccount as string;
+
+            const result = await this.playerService.getPlayerById(
+                tenant,
+                req.params.championshipId,
+                req.params.playerId
+            );
+            res.status(200).json(
+                ApiResponse.success(
+                    result,
+                    'Player retrieved successfully'
+                )
+            );
+        } catch (error) {
+            this.logger.error('Error retrieving player:', error);
+
+            const customError =
+                error instanceof CustomError
+                    ? error
+                    : new CustomError(
+                        `Error retrieving player: ${error}`,
+                        500,
+                        'PlayerControllerError'
+                    );
+            res
+                .status(customError.statusCode)
+                .json(ApiResponse.error(customError.message));
+        }
+    };
+
+    public updatePlayer = async (
+        req: IUserCustomRequest,
+        res: Response
+    ): Promise<void> => {
+        try {
+            const tenant = req.clientAccount as string;
+
+            const result = await this.playerService.updatePlayer(
+                tenant,
+                req.params.championshipId,
+                req.params.playerId,
+                req.body
+            );
+
+            res.status(200).json(
+                ApiResponse.success(
+                    result,
+                    'Player updated successfully'
+                )
+            );
+        } catch (error) {
+            this.logger.error('Error updating player:', error);
+
+            const customError =
+                error instanceof CustomError
+                    ? error
+                    : new CustomError(
+                        `Error updating player: ${error}`,
+                        500,
+                        'PlayerControllerError'
+                    )
+            res
+                .status(customError.statusCode)
+                .json(ApiResponse.error(customError.message));
+        }
+    };
 
 }

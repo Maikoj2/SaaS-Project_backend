@@ -21,6 +21,13 @@ export enum AuthPermission {
     TEAM_UPDATE = 'team:update',
     TEAM_DELETE = 'team:delete',
 
+    // players
+    PLAYER_READ = 'player:read',
+    PLAYER_CREATE = 'player:create',
+    PLAYER_UPDATE = 'player:update',
+    PLAYER_DELETE = 'player:delete',
+    PLAYER_REGISTER = 'player:register',
+
     // game formats
     GAME_FORMAT_CREATE = 'game-format:create',
     GAME_FORMAT_READ = 'game-format:read',
@@ -83,6 +90,9 @@ export const RolePermissions: Record<AuthRole, AuthPermission[]> = {
         AuthPermission.MATCH_CREATE,
         AuthPermission.MATCH_READ,
         AuthPermission.TEAM_READ,
+        AuthPermission.PLAYER_READ,
+        AuthPermission.PLAYER_CREATE,
+        AuthPermission.PLAYER_UPDATE,
         AuthPermission.MATCH_UPDATE,
         AuthPermission.MATCH_DELETE,
         AuthPermission.ELIMINATION_BRACKET_CREATE,
@@ -103,6 +113,7 @@ export const RolePermissions: Record<AuthRole, AuthPermission[]> = {
         AuthPermission.TEAM_READ,
         AuthPermission.MATCH_RESULT_REGISTER,
         AuthPermission.MATCH_READ,
+        AuthPermission.PLAYER_READ,
         AuthPermission.ELIMINATION_BRACKET_READ,
 
     ],
@@ -114,6 +125,8 @@ export const RolePermissions: Record<AuthRole, AuthPermission[]> = {
         AuthPermission.GROUP_DISTRIBUTION_READ,
         AuthPermission.GROUP_READ,
         AuthPermission.MATCH_READ,
+        AuthPermission.PLAYER_READ,
+        AuthPermission.PLAYER_REGISTER,
         AuthPermission.ELIMINATION_BRACKET_READ,
     ],
     [AuthRole.VIEWER]: [

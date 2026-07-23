@@ -16,9 +16,6 @@ export class UserController {
     private readonly logger: Logger;
     private readonly emailService: EmailService;
     private readonly authService: AuthService;
-
-
-
     constructor() {
         this.userService = new UserService();
         this.logger = new Logger();
