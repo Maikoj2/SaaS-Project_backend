@@ -12,7 +12,7 @@ export interface IGameFormatDocument extends ITenantDocument {
     pointsPerSet: number;
     tiebreakerPoints?: number;
     maxPointsPerSet?: number;
-    minAdvantage: boolean;
+    minAdvantage: number;
     customRules?: string;
     createdAt?: Date;
     updatedAt?: Date;
@@ -51,16 +51,16 @@ const GameFormatSchema = new Schema<IGameFormatDocument>(
             required: false,
         },
         minAdvantage: {
-            type: Boolean,
-            default: false,
+            type: Number,
+            default: 2,
         },
         customRules: {
             type: String,
             required: false,
         },
-        deletedAt: { 
-            type: Date, 
-            default: null 
+        deletedAt: {
+            type: Date,
+            default: null
         }
     },
     {
@@ -73,7 +73,10 @@ const GameFormatSchema = new Schema<IGameFormatDocument>(
 GameFormatSchema.plugin(mongoTenant);
 GameFormatSchema.plugin(mongoosePaginate);
 GameFormatSchema.plugin(MongooseDelete, { overrideMethods: 'all', deletedAt: true });
-
-// Export
+// index
+GameFormatSchema.index(
+    { tenantId: 1, formatType: 1, pointsPerSet: 1, sets: 1 },
+    { unique: true }
+);// Export
 export const GameFormat: ITenantModel<IGameFormatDocument> = model<IGameFormatDocument, IGameFormatModel>('GameFormat', GameFormatSchema);
 export default GameFormat;

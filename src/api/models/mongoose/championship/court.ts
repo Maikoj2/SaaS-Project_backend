@@ -3,10 +3,11 @@ import { ITenantDocument, ITenantModel } from "../../../interfaces";
 import MongooseDelete from 'mongoose-delete';
 import mongoTenant from 'mongo-tenant';
 import mongoosePaginate from 'mongoose-paginate-v2';
+import { Types } from 'mongoose';
 
 // Interfaces
 export interface ICourtDocument extends ITenantDocument {
-    championshipId: Schema.Types.ObjectId;
+
     name: string;
     type: 'indoor' | 'beach';
     status: 'available' | 'occupied' | 'maintenance';
@@ -20,6 +21,7 @@ export interface ICourtDocument extends ITenantDocument {
         description: string;
         technician?: string;
     }[];
+    currentChampionshipId?: Types.ObjectId;
     createdAt?: Date;
     updatedAt?: Date;
 }
@@ -38,10 +40,10 @@ const MaintenanceSchema = new Schema({
 
 const CourtSchema = new Schema<ICourtDocument>(
     {
-        championshipId: {
-            type: Schema.Types.ObjectId,
+        currentChampionshipId: {
+            type: Types.ObjectId,
             ref: 'Championship',
-            required: true
+            default: null
         },
         name: {
             type: String,
@@ -85,10 +87,12 @@ const CourtSchema = new Schema<ICourtDocument>(
     }
 );
 
-// Índices
-CourtSchema.index({ championshipId: 1, status: 1 });
+CourtSchema.index({ tenantId: 1, status: 1 });
+
+CourtSchema.index({ tenantId: 1, currentChampionshipId: 1 });
+
 CourtSchema.index(
-    { championshipId: 1, name: 1 },
+    { tenantId: 1, name: 1 },
     { unique: true }
 );
 

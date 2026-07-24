@@ -985,19 +985,7 @@ export class TeamService {
             {
                 path: 'championshipId',
                 select: 'name status startDate endDate',
-            },
-            {
-                path: 'players',
-                select: 'name firstName lastName email documentNumber phone',
-            },
-            {
-                path: 'registrations',
-                select: 'status paymentStatus createdAt',
-            },
-            {
-                path: 'captainId',
-                select: 'firstName lastName name email phone',
-            },
+            }
         ];
     }
 

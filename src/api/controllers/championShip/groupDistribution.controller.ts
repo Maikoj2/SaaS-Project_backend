@@ -24,15 +24,13 @@ export class groupDistribution {
         try {
             const tenant = req.clientAccount as string;
             const { championshipId } = req.params;
-            const formatType = req.body;
+            const data = req.body;
 
-            const groupDistribution = await this.groupDistributionService.createGroupDistribution(championshipId, tenant, formatType);
+            const groupDistribution = await this.groupDistributionService.createGroupDistribution(championshipId, tenant, data);
             res.status(201).json(ApiResponse.success(
-                {
-                    message: 'Group distribution created successfully',
-                    data: groupDistribution
-
-                }));
+                groupDistribution,
+                'Group distribution created successfully',
+            ));
         } catch (error: any) {
             this.logger.error('Error creating group distribution:', error);
             res.status(error.statusCode || 400).json(ApiResponse.error(error instanceof Error ? error.message : 'Error creating group distribution'));

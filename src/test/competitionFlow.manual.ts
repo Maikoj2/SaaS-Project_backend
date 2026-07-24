@@ -34,10 +34,10 @@ printSection('1. Planes de grupos');
 const expectedPlans = [
     { teams: 8, groups: 2, sizes: [4, 4] },
     { teams: 9, groups: 3, sizes: [3, 3, 3] },
-    { teams: 10, groups: 3, sizes: [4, 3, 3] },
-    { teams: 11, groups: 3, sizes: [4, 4, 3] },
+    { teams: 10, groups: 3, sizes: [3, 3, 4] },
+    { teams: 11, groups: 3, sizes: [3, 4, 4] },
     { teams: 12, groups: 3, sizes: [4, 4, 4] },
-    { teams: 13, groups: 4, sizes: [4, 3, 3, 3] },
+    { teams: 13, groups: 4, sizes: [3, 3, 3, 4] },
     { teams: 16, groups: 4, sizes: [4, 4, 4, 4] },
     { teams: 20, groups: 5, sizes: [4, 4, 4, 4, 4] },
     { teams: 24, groups: 6, sizes: [4, 4, 4, 4, 4, 4] },
