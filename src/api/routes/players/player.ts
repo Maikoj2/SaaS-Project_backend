@@ -23,6 +23,20 @@ router.post(playerRoutes.PLAYER_BY_LINK, [
     ...playerValidation.createPlayer as ValidationChain[]
 ], (controller.createPlayerByLink) as RequestHandler);
 
+router.post(
+    playerRoutes.CREATE_PLAYER_MANUALLY,
+    [
+        origin.checkDomain as RequestHandler,
+        origin.checkTenant as RequestHandler,
+        auth as RequestHandler,
+        permissionAuthorization([AuthPermission.PLAYER_CREATE]) as RequestHandler,
+        ...playerValidation.createPlayerManually as RequestHandler[],
+        trimRequest.all as RequestHandler,
+        ...(playerValidation.createPlayerManually as RequestHandler[]),
+    ],
+    controller.createPlayerManually as RequestHandler
+);
+
 router.get(
     playerRoutes.GET_PLAYERS_BY_CHAMPIONSHIP,
     [

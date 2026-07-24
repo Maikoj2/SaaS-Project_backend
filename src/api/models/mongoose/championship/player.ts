@@ -134,7 +134,8 @@ const PlayerSchema = new Schema<IPlayerDocument>(
             enum: ['left', 'right']
         },
         nationality: {
-            type: String
+            type: String,
+            default: ''
         },
         stats: {
             type: PlayerStatsSchema,
@@ -145,20 +146,24 @@ const PlayerSchema = new Schema<IPlayerDocument>(
             default: false
         },
         experience: {
-            type: Number
+            type: Number,
+            default: 0
         },
         photo: {
-            type: String
+            type: String,
+            default: ''
         },
         isTeamMember: {
             type: Boolean,
             default: false
         },
         memberSince: {
-            type: Date
+            type: Date,
+            default: Date.now
         },
         lastActive: {
-            type: Date
+            type: Date,
+            default: Date.now
         },
         deletedAt: {
             type: Date,

@@ -55,7 +55,10 @@ PositionSchema.plugin(MongooseDelete, { overrideMethods: 'all', deletedAt: true 
 
 // Índice compuesto para evitar duplicados
 PositionSchema.index({ championshipId: 1, position: 1 }, { unique: true });
-
+PositionSchema.index(
+    { championshipId: 1, teamId: 1 },
+    { unique: true }
+);
 // Export
 export const Position: ITenantModel<IPositionDocument> = model<IPositionDocument, IPositionModel>('Position', PositionSchema);
 export default Position;

@@ -1143,3 +1143,24 @@ Admin/organizador crea campeonato
 → bracket avanza automáticamente
 → se define campeón
 ```
+Agregar jugador:
+1. Verifica que el equipo exista
+2. Verifica que el jugador exista y esté activo
+3. Verifica que no esté ya en el equipo
+4. Verifica que no esté en otro equipo del mismo campeonato
+5. Valida reglas de competencia
+6. Agrega con $addToSet
+
+Quitar jugador:
+1. Verifica que el equipo exista
+2. Verifica que el jugador sí esté en ese equipo
+3. No permite quitar al capitán
+4. Valida reglas de competencia después de quitarlo
+5. Quita con $pull
+
+# reglas de negocio
+→ Todo equipo que va a competir debe tener Registration confirmada.
+
+→ Todo equipo confirmado debe tener pago aprobado o pago manual validado.
+
+→ Todo equipo confirmado debe tener Position asignada.

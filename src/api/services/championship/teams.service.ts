@@ -269,6 +269,13 @@ export class TeamService {
                 'TeamServiceError'
             );
         }
+        if (data.registrationStatus === 'confirmed' && data.feePaid === false) {
+            throw new CustomError(
+                'A confirmed registration must have the fee paid',
+                400,
+                'TeamServiceError'
+            );
+        }
 
         const team = await DatabaseHelper.create(
             Team,
@@ -294,7 +301,10 @@ export class TeamService {
                 status: 'active',
             }
         );
+        const feePaid = data.feePaid ?? true;
 
+        const registrationStatus =
+            data.registrationStatus || (feePaid ? 'confirmed' : 'pending');
         const registration = await DatabaseHelper.create(
             Registration,
             tenant,
@@ -302,19 +312,27 @@ export class TeamService {
                 championshipId: new Types.ObjectId(championshipId),
                 teamId: team._id,
                 registrationDate: new Date(),
-                registrationStatus: data.registrationStatus || 'confirmed',
-                feePaid: data.feePaid ?? true,
+                registrationStatus,
+                feePaid,
                 registrationDeadline: configuration.registrationDeadline,
-                paymentDate: data.feePaid ? new Date() : undefined,
+                paymentDate: feePaid ? new Date() : undefined,
             }
         );
 
-        await DatabaseHelper.update(
+        await DatabaseHelper.findOneAndUpdate(
             Team,
-            team._id.toString(),
             tenant,
             {
-                registrations: [registration._id],
+                _id: team._id,
+            },
+            {
+                $addToSet: {
+                    registrations: registration._id,
+                },
+            },
+            {
+                new: true,
+                runValidators: true,
             }
         );
 

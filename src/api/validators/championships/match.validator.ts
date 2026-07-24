@@ -123,7 +123,7 @@ const matchValidator = {
     getMatchesByGroup: [
         ...paramsValidator('championshipId', true),
         ...paramsValidator('groupId', true),
-        statusQueryValidator,
+        statusQueryValidator('status', allowedMatchStatuses),
         validate,
     ],
 

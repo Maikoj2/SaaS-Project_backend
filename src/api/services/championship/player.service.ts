@@ -1,5 +1,5 @@
 import { DatabaseHelper } from '../../utils/database.helper';
-import { Player, IPlayerDocument, IndoorVolleyballPosition, BeachVolleyballPosition } from '../../models/mongoose/championship/player';
+import { Player, IPlayerDocument, IndoorVolleyballPosition, BeachVolleyballPosition, EPSProvider } from '../../models/mongoose/championship/player';
 import { Logger } from '../../config/logger/WinstonLogger';
 import { User } from '../../models';
 import Club from '../../models/mongoose/championship/club';
@@ -11,16 +11,21 @@ import { Types } from 'mongoose';
 import Team from '../../models/mongoose/championship/team';
 import { PopulateOptions } from '../../interfaces/IhelperDatabase';
 import ChampionshipConfiguration from '../../models/mongoose/championship/configuration';
+import { PasswordUtil } from '../../utils';
+import { env } from '../../config';
+import { EmailService } from '../email/email.service';
 
 
 
 export class PlayerService {
     private logger: Logger;
     private registrationService: RegistrationService;
+    private emailService: EmailService;
 
     constructor() {
         this.logger = new Logger();
         this.registrationService = new RegistrationService();
+        this.emailService = new EmailService();
     }
 
     public createPlayerByLink = async (tenant: string, playerData: Partial<IPlayerDocument>, code: string): Promise<IPlayerDocument> => {
@@ -97,6 +102,184 @@ export class PlayerService {
             throw error;
         }
     }
+
+    public createPlayerManually = async (
+        tenant: string,
+        championshipId: string,
+        data: {
+            sendEmail: boolean;
+            user: {
+                name: string;
+                lastName?: string;
+                email: string;
+                phone?: string;
+                nie?: string;
+            };
+            player: {
+                eps: string;
+                gender: 'male' | 'female';
+                dateOfBirth?: Date;
+                position: string;
+                number?: number;
+                height?: number;
+                weight?: number;
+                dominantHand?: 'left' | 'right';
+                nationality?: string;
+                experience?: number;
+                photo?: string;
+            };
+        }
+    ) => {
+        try {
+            const championship = await DatabaseHelper.findOne(
+                ChampionshipConfiguration,
+                tenant,
+                {
+                    championshipId: new Types.ObjectId(championshipId)
+                },
+                {
+                    deleted: false
+                }
+            );
+
+            if (!championship) {
+                throw new CustomError(
+                    'Championship not found',
+                    404,
+                    'PlayerServiceError'
+                );
+            }
+
+            const normalizedEmail = data.user.email.trim().toLowerCase();
+
+            const existingUserByEmail = await DatabaseHelper.findOne(
+                User,
+                tenant,
+                {
+                    email: normalizedEmail,
+                }
+            );
+
+            if (existingUserByEmail) {
+                throw new CustomError(
+                    'User email already exists',
+                    400,
+                    'PlayerServiceError'
+                );
+            }
+
+            const normalizedNie = data.user.nie?.trim().toUpperCase();
+
+            if (normalizedNie) {
+                const existingUserByNie = await DatabaseHelper.findOne(
+                    User,
+                    tenant,
+                    {
+                        nie: normalizedNie,
+                    }
+                );
+
+                if (existingUserByNie) {
+                    throw new CustomError(
+                        'User NIE already exists',
+                        400,
+                        'PlayerServiceError'
+                    );
+                }
+            }
+            const volleyballType = await this.getChampionshipType(tenant, championshipId);
+
+            const validPosition = this.validatePosition(
+                data.player.position,
+                volleyballType
+            );
+
+            if (!validPosition) {
+                throw new CustomError(
+                    'Invalid player position for this championship type',
+                    400,
+                    'PlayerServiceError'
+                );
+            }
+
+            const temporaryPassword = `Temp${Date.now()}!`;
+            const hashedPassword = await PasswordUtil.hashPassword(
+                temporaryPassword
+            );
+
+            const userPayload: Record<string, any> = {
+                name: data.user.name,
+                lastName: data.user.lastName,
+                email: normalizedEmail,
+                phone: data.user.phone,
+                password: hashedPassword,
+                role: 'team_member',
+                verified: true,
+                mustChangePassword: true,
+                createFromRegistration: true,
+            };
+
+            if (normalizedNie) {
+                userPayload.nie = normalizedNie;
+            }
+
+            const user = await DatabaseHelper.create(
+                User,
+                tenant,
+                userPayload
+            );
+
+            const player = await DatabaseHelper.create(
+                Player,
+                tenant,
+                {
+                    userId: user._id,
+                    eps: data.player.eps as EPSProvider,
+                    gender: data.player.gender,
+                    dateOfBirth: data.player.dateOfBirth,
+                    position: data.player.position as (IndoorVolleyballPosition | BeachVolleyballPosition),
+                    number: data.player.number,
+                    height: data.player.height,
+                    weight: data.player.weight,
+                    dominantHand: data.player.dominantHand,
+                    nationality: data.player.nationality,
+                    experience: data.player.experience,
+                    photo: data.player.photo,
+                    status: 'active',
+                    isTeamMember: false,
+                }
+            );
+            if (data.sendEmail) {
+                await this.emailService.sendTemporaryPasswordEmail({
+                    email: user.email,
+                    name: user.name,
+                    temporaryPassword,
+                    tenant,
+                });
+            }
+
+            return {
+                user,
+                player,
+                ...(env.NODE_ENV !== "production" && {
+                    credentials: temporaryPassword
+                })
+            };
+        } catch (error) {
+            this.logger.error('Error creating player manually:', error);
+
+            throw error instanceof CustomError
+                ? error
+                : new CustomError(
+                    error instanceof Error
+                        ? error.message
+                        : 'Error creating player manually',
+                    500,
+                    'PlayerServiceError'
+                );
+        }
+    };
+
     private validatePosition(position: string, championshipType: ChampionshipType): boolean {
         try {
             if (!position) {
@@ -325,29 +508,12 @@ export class PlayerService {
         }
 
         if (data.position !== undefined) {
-            const championship = await DatabaseHelper.findOne(
-                ChampionshipConfiguration,
-                tenant,
-                {
-                    championshipId: new Types.ObjectId(championshipId)
-                },
-                {
-                    deleted: false
-                }
-            );
-
-            if (!championship) {
-                throw new CustomError(
-                    'Championship not found',
-                    404,
-                    'ChampionshipNotFoundError'
-                );
-            }
+            const volleyballType = await this.getChampionshipType(tenant, championshipId);
 
             const validPosition = this.validatePosition(
                 data.position,
-                championship.matchRules.volleyballType as ChampionshipType
-            );
+                volleyballType
+            )
 
             if (!validPosition) {
                 throw new CustomError(
@@ -421,5 +587,28 @@ export class PlayerService {
                 select: 'name logo',
             },
         ];
+    }
+
+    private async getChampionshipType(tenant: string, championshipId: string): Promise<ChampionshipType> {
+        const championship = await DatabaseHelper.findOne(
+            ChampionshipConfiguration,
+            tenant,
+            {
+                championshipId: new Types.ObjectId(championshipId)
+            },
+            {
+                deleted: false
+            }
+        );
+
+        if (!championship) {
+            throw new CustomError(
+                'Championship not found',
+                404,
+                'ChampionshipNotFoundError'
+            );
+        }
+
+        return championship.matchRules.volleyballType as ChampionshipType;
     }
 }

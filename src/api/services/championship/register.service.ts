@@ -38,6 +38,7 @@ export interface PublicPlayerRegistrationData {
     eps: EPSProvider;
     number?: number;
     clubId?: Types.ObjectId;
+    dummy?: boolean;
 }
 
 export interface PublicTeamRegistrationData {
@@ -318,7 +319,7 @@ export class RegistrationService {
                     verified: true,
                     mustChangePassword: true,
                     createFromRegistration: true,
-                    dummy: false,
+                    dummy: playerData.dummy ?? false,
                     stepper: [],
                     tag: [],
                     socialNetwork: [],

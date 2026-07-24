@@ -46,6 +46,44 @@ export class playerController {
         }
     }
 
+    public createPlayerManually = async (
+        req: IUserCustomRequest,
+        res: Response
+    ): Promise<void> => {
+        try {
+            const tenant = req.clientAccount as string;
+            const { championshipId } = req.params;
+
+            const result = await this.playerService.createPlayerManually(
+                tenant,
+                championshipId,
+                req.body
+            );
+
+            res.status(201).json(
+                ApiResponse.success(
+                    result,
+                    'Player created manually successfully'
+                )
+            );
+        } catch (error) {
+            this.logger.error('Error creating player manually:', error);
+
+            const customError =
+                error instanceof CustomError
+                    ? error
+                    : new CustomError(
+                        `Error creating player manually: ${error}`,
+                        500,
+                        'PlayerControllerError'
+                    );
+
+            res
+                .status(customError.statusCode)
+                .json(ApiResponse.error(customError.message));
+        }
+    };
+
     public getPlayersByChampionship = async (
         req: IUserCustomRequest,
         res: Response

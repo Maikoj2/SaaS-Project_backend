@@ -22,6 +22,9 @@ import {
 import Championship from "../../models/mongoose/championship/championship";
 import ChampionshipConfiguration from "../../models/mongoose/championship/configuration";
 import { PaginationOptions } from "../../interfaces";
+import { validateTeamsReadyForFixture } from "../../domain/championship/teams/teamReadiness.validator";
+import { validatePositionsReadyForFixture } from "../../domain/championship/teams/positionReadiness.validator";
+import { validateRegistrationsReadyForFixture } from "../../domain/championship/teams/registrationReadiness.validator";
 
 
 
@@ -38,11 +41,25 @@ export class GroupDistributionService {
         data: Partial<any>
     ): Promise<any> {
 
+        await validateTeamsReadyForFixture(
+            tenant,
+            championshipId
+        );
+
+        await validateRegistrationsReadyForFixture(
+            tenant,
+            championshipId
+        );
+
+        await validatePositionsReadyForFixture(
+            tenant,
+            championshipId
+        );
 
         const positions = await this.getTotalTeams(tenant, championshipId);
 
         if (positions.totalDocs === 0) {
-            throw new AuthError('No teams found');
+            throw new AuthError('No team positions found. Generate team positions before group distribution');
         }
         const existingGroupDistribution = await DatabaseHelper.findOne(
             GroupDistribution,

@@ -1,13 +1,11 @@
-// src/api/services/championship/position.service.ts
 import { DatabaseHelper } from '../../utils/database.helper';
-
 import { IRegistrationDocument, Registration } from '../../models/mongoose/championship/registration';
 import { Logger } from '../../config/logger/WinstonLogger';
 import { CustomError } from '../../errors';
-
-import { Document, Types } from 'mongoose';
-import { PaginateResult } from 'mongoose';
+import { Document, PaginateResult, Types } from 'mongoose';
 import Position, { IPositionDocument } from '../../models/mongoose/championship/position';
+import { validateRegistrationsReadyForFixture } from '../../domain/championship/teams/registrationReadiness.validator';
+import { validatePositionsReadyForFixture } from '../../domain/championship/teams/positionReadiness.validator';
 
 export class PositionService {
     private logger: Logger;
@@ -18,25 +16,52 @@ export class PositionService {
 
     public autoAssignPositions = async (tenant: string, championshipId: string): Promise<Document<IPositionDocument, any, any>[]> => {
         try {
-            // Obtener registros confirmados ordenados por fecha de registro
-            // Obtener el número total de registros confirmados para el campeonato
-            const registrations = await this.getTotalRegistrations(tenant, championshipId);
+            await validateRegistrationsReadyForFixture(
+                tenant,
+                championshipId
+            );
+
+            const registrations = await this.getTotalRegistrations(
+                tenant,
+                championshipId
+            );
+
             this.logger.info(`Registrations found: ${registrations.docs.length}`);
+
+            if (!registrations.docs.length) {
+                throw new CustomError(
+                    'No confirmed registrations found',
+                    400,
+                    'PositionServiceError'
+                );
+            }
+
+            const positions = registrations.docs.map((registration, index) => ({
+                teamId: registration.teamId.toString(),
+                position: index + 1,
+            }));
+
+            this.validatePositionPayload(positions);
 
 
             // Asignar posiciones automáticamente
-            const positions = registrations.docs.map((registration, index) => ({
+            const positionDocs = registrations.docs.map((registration: any, index: number) => ({
                 championshipId: championshipId as unknown as Types.ObjectId,
                 teamId: registration.teamId as unknown as Types.ObjectId,
                 position: index + 1,
                 assignedAutomatically: true
             }));
-            this.logger.info('Positions to be inserted:', positions);
+            this.logger.info('Positions to be inserted:', positionDocs);
 
+            const result = await this.replaceChampionshipPositions(
+                tenant,
+                championshipId,
+                positionDocs
+            );
 
-            // Guardar posiciones en la base de datos
-            const result = await DatabaseHelper.insertDocumentsConcurrently(Position, tenant, positions);
-
+            this.logger.info(
+                `Positions assigned automatically for championship ${championshipId}`
+            );
             this.logger.info(`Positions assigned automatically for championship ${championshipId}`);
             return result;
         } catch (error) {
@@ -51,6 +76,19 @@ export class PositionService {
 
     public manualAssignPositions = async (tenant: string, championshipId: string, positions: Array<{ teamId: string, position: number }>): Promise<Document<IPositionDocument, any, any>[]> => {
         try {
+            await validateRegistrationsReadyForFixture(
+                tenant,
+                championshipId
+            );
+
+            this.validatePositionPayload(positions);
+
+            await this.validatePositionTeamsAreConfirmed(
+                tenant,
+                championshipId,
+                positions
+            );
+
             // Validar y guardar posiciones manualmente
             const positionDocs = positions.map(pos => ({
                 championshipId: championshipId as unknown as Types.ObjectId,
@@ -59,11 +97,12 @@ export class PositionService {
                 assignedAutomatically: false
             }));
 
-            // Eliminar posiciones existentes para el campeonato
-            await DatabaseHelper.deleteMany(Position, tenant, { championshipId });
-
             // Guardar nuevas posiciones
-            const result = await DatabaseHelper.insertDocumentsConcurrently(Position, tenant, positionDocs);
+            const result = await this.replaceChampionshipPositions(
+                tenant,
+                championshipId,
+                positionDocs
+            );
 
             this.logger.info(`Positions assigned manually for championship ${championshipId}`);
             return result;
@@ -99,18 +138,40 @@ export class PositionService {
             const positionDoc = {
                 championshipId: registration.championshipId as unknown as Types.ObjectId,
                 teamId: registration.teamId as unknown as Types.ObjectId,
-                position: position,
-                assignedAutomatically: false
+                position,
+                assignedAutomatically: false,
             };
 
-            // Eliminar cualquier posición existente para el equipo en este campeonato
-            await DatabaseHelper.deleteMany(Position, tenant, { championshipId: registration.championshipId, teamId: registration.teamId });
+            const result = await DatabaseHelper.findOneAndUpdate(
+                Position,
+                tenant,
+                {
+                    championshipId: registration.championshipId,
+                    teamId: registration.teamId,
+                },
+                {
+                    $set: positionDoc,
+                },
+                {
+                    new: true,
+                    upsert: true,
+                    runValidators: true,
+                }
+            );
 
-            // Guardar la nueva posición
-            const result = await DatabaseHelper.insertDocumentsConcurrently(Position, tenant, [positionDoc]);
+            if (!result) {
+                throw new CustomError(
+                    'Error assigning position',
+                    500,
+                    'PositionServiceError'
+                );
+            }
 
-            this.logger.info(`Position ${position} assigned to team ${registration.teamId} for championship ${registration.championshipId}`);
-            return result;
+            this.logger.info(
+                `Position ${position} assigned to team ${registration.teamId} for championship ${registration.championshipId}`
+            );
+
+            return [result] as unknown as Document<IPositionDocument, any, any>[];
         } catch (error) {
             this.logger.error('Error assigning position by registration ID:', error);
             throw new CustomError('Error assigning position', 500, 'PositionServiceError');
@@ -119,7 +180,23 @@ export class PositionService {
 
     public assignRandomPositions = async (tenant: string, championshipId: string): Promise<Document<IPositionDocument, any, any>[]> => {
         try {
-            const registrations = await this.getTotalRegistrations(tenant, championshipId);
+            await validateRegistrationsReadyForFixture(
+                tenant,
+                championshipId
+            );
+
+            const registrations = await this.getTotalRegistrations(
+                tenant,
+                championshipId
+            );
+
+            if (!registrations.docs.length) {
+                throw new CustomError(
+                    'No confirmed registrations found',
+                    400,
+                    'PositionServiceError'
+                );
+            }
 
             const uniquePositions = new Set<number>();
             // Generar números aleatorios únicos
@@ -132,19 +209,18 @@ export class PositionService {
             const positionsArray = Array.from(uniquePositions);
 
             // Generar posiciones aleatorias
-            const positions = registrations.docs.map((registration, index) => ({
+            const positionDocs = registrations.docs.map((registration: any, index: number) => ({
                 championshipId: registration.championshipId as unknown as Types.ObjectId,
                 teamId: registration.teamId as unknown as Types.ObjectId,
                 position: positionsArray[index],
                 assignedAutomatically: true
             }));
 
-            // Eliminar posiciones existentes para el campeonato
-            await DatabaseHelper.deleteMany(Position, tenant, { championshipId: new Types.ObjectId(championshipId) });
-
-            // Guardar nuevas posiciones
-            const result = await DatabaseHelper.insertDocumentsConcurrently(Position, tenant, positions);
-
+            const result = await this.replaceChampionshipPositions(
+                tenant,
+                championshipId,
+                positionDocs
+            );
             return result;
         } catch (error) {
             this.logger.error('Error assigning random positions:', error);
@@ -193,5 +269,129 @@ export class PositionService {
             this.logger.error('Error getting total registrations:', error);
             throw new CustomError('Error getting total registrations', 500, 'PositionServiceError');
         }
+    }
+
+    private validatePositionPayload(
+        positions: Array<{ teamId: string; position: number }>
+    ): void {
+        if (!positions.length) {
+            throw new CustomError(
+                'Positions list cannot be empty',
+                400,
+                'PositionServiceError'
+            );
+        }
+
+        const teamIds = positions.map((item) => item.teamId);
+        const uniqueTeamIds = new Set(teamIds);
+
+        if (uniqueTeamIds.size !== teamIds.length) {
+            throw new CustomError(
+                'Duplicated teamId in positions',
+                400,
+                'PositionServiceError'
+            );
+        }
+
+        const positionNumbers = positions.map((item) => Number(item.position));
+        const uniquePositions = new Set(positionNumbers);
+
+        if (uniquePositions.size !== positionNumbers.length) {
+            throw new CustomError(
+                'Duplicated position number',
+                400,
+                'PositionServiceError'
+            );
+        }
+
+        const sortedPositions = [...positionNumbers].sort((a, b) => a - b);
+
+        for (let index = 0; index < sortedPositions.length; index++) {
+            const expectedPosition = index + 1;
+
+            if (sortedPositions[index] !== expectedPosition) {
+                throw new CustomError(
+                    `Positions must be consecutive from 1 to ${positions.length}`,
+                    400,
+                    'PositionServiceError'
+                );
+            }
+        }
+    }
+
+    private async validatePositionTeamsAreConfirmed(
+        tenant: string,
+        championshipId: string,
+        positions: Array<{ teamId: string; position: number }>
+    ): Promise<void> {
+        const registrations = await this.getTotalRegistrations(
+            tenant,
+            championshipId
+        );
+
+        const confirmedTeamIds = registrations.docs.map((registration: any) =>
+            registration.teamId.toString()
+        );
+
+        const positionTeamIds = positions.map((item) => item.teamId.toString());
+
+        const missingConfirmedTeams = confirmedTeamIds.filter(
+            (teamId) => !positionTeamIds.includes(teamId)
+        );
+
+        if (missingConfirmedTeams.length > 0) {
+            throw new CustomError(
+                'All confirmed teams must have an assigned position',
+                400,
+                'PositionServiceError'
+            );
+        }
+
+        const invalidTeams = positionTeamIds.filter(
+            (teamId) => !confirmedTeamIds.includes(teamId)
+        );
+
+        if (invalidTeams.length > 0) {
+            throw new CustomError(
+                'Positions contain teams without confirmed registration',
+                400,
+                'PositionServiceError'
+            );
+        }
+    }
+
+    private async replaceChampionshipPositions(
+        tenant: string,
+        championshipId: string,
+        positionDocs: Array<{
+            championshipId: Types.ObjectId;
+            teamId: Types.ObjectId;
+            position: number;
+            assignedAutomatically: boolean;
+        }>
+    ): Promise<Document<IPositionDocument, any, any>[]> {
+        await DatabaseHelper.deleteMany(
+            Position,
+            tenant,
+            {
+                championshipId: new Types.ObjectId(championshipId),
+            }
+        );
+
+        const result = await DatabaseHelper.insertDocumentsConcurrently(
+            Position,
+            tenant,
+            positionDocs
+        );
+
+        if (result.length !== positionDocs.length) {
+            throw new CustomError(
+                'Some positions could not be inserted',
+                500,
+                'PositionServiceError'
+            );
+        }
+
+        return result;
     }
 }
