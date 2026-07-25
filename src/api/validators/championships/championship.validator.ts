@@ -67,7 +67,7 @@ export const championshipValidators = {
     status: [
         check('status')
             .optional()
-            .isIn(['draft', 'active', 'completed', 'cancelled'])
+            .isIn(ChampionshipStatus)
             .withMessage('INVALID_STATUS'),
     ],
     arrayFields: (field: 'phases' | 'teams' | 'courts' | 'matches' | 'registrations') => [

@@ -3,6 +3,7 @@ import { ITenantDocument, ITenantModel } from "../../../interfaces";
 import MongooseDelete from 'mongoose-delete';
 import mongoTenant from 'mongo-tenant';
 import mongoosePaginate from 'mongoose-paginate-v2';
+import { MatchStatus, MatchStatusValue } from "../../../constants/championship.constants";
 
 interface IScore {
     homeTeam: number;
@@ -25,7 +26,7 @@ export interface IMatchDocument extends ITenantDocument {
     gameFormatId?: Types.ObjectId;
     statistics: Types.ObjectId[];
     score?: IScore;
-    status: 'scheduled' | 'in_progress' | 'finished' | 'walkover' | 'cancelled' | 'completed';
+    status: MatchStatusValue;
     isEliminationMatch: boolean;
     eliminationBracketId?: Types.ObjectId;
     bracketMatchNumber?: number;
@@ -105,7 +106,7 @@ const MatchSchema = new Schema<IMatchDocument>(
         score: ScoreSchema,
         status: {
             type: String,
-            enum: ['scheduled', 'in_progress', 'finished', 'walkover', 'cancelled', 'completed'],
+            enum: [...MatchStatus],
             default: 'scheduled'
         },
         isEliminationMatch: {

@@ -150,10 +150,19 @@ export class ChampionshipController {
             res.status(200).json(
                 ApiResponse.success(championship, 'Championship updated successfully')
             );
-        } catch (error) {
-            this.logger.error('Error updating championship status:', error);
-            res.status(error instanceof AuthError ? error.statusCode : 500)
-                .json(ApiResponse.error(error instanceof AuthError ? error : error instanceof Error ? error.message : 'Error updating championship status'));
+        } catch (error: any) {
+            this.logger.error(
+                'Error updating championship status:',
+                error
+            );
+
+            res.status(error?.statusCode ?? 500).json(
+                ApiResponse.error(
+                    error instanceof Error
+                        ? error.message
+                        : 'Error updating championship status'
+                )
+            );
         }
     }
 

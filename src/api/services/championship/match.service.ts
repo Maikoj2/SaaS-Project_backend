@@ -17,6 +17,7 @@ import {
 import { PaginationOptions } from "../../interfaces";
 import { PopulateOptions } from "../../interfaces/IhelperDatabase";
 import { ChampionshipService } from "./championship.service";
+import Championship from "../../models/mongoose/championship/championship";
 
 type RegisterMatchResultInput = {
     sets?: Array<{
@@ -50,12 +51,44 @@ export class MatchService {
                 "MatchServiceError"
             );
         }
+        const terminalMatchStatuses = [
+            'finished',
+            'walkover',
+            'completed',
+            'cancelled',
+        ];
 
-        if (match.status === "finished" || match.status === "walkover") {
+        if (terminalMatchStatuses.includes(match.status)) {
             throw new CustomError(
                 "Match already completed",
                 400,
                 "MatchServiceError"
+            );
+        }
+        const championship = await DatabaseHelper.findOne(
+            Championship,
+            tenant,
+            {
+                _id: match.championshipId,
+            },
+            {
+                throwError: false,
+            }
+        );
+
+        if (!championship) {
+            throw new CustomError(
+                'Championship not found',
+                404,
+                'MatchServiceError'
+            );
+        }
+
+        if (championship.status !== 'in_progress') {
+            throw new CustomError(
+                `Results cannot be registered while championship is ${championship.status}`,
+                409,
+                'MatchServiceError'
             );
         }
 
@@ -130,6 +163,9 @@ export class MatchService {
             tenant,
             {
                 _id: new Types.ObjectId(matchId),
+                status: {
+                    $nin: terminalMatchStatuses,
+                }
             },
             {
                 $set: {
@@ -154,17 +190,22 @@ export class MatchService {
             }
         );
 
-        if (!updatedMatch || !updatedMatch.winnerId) {
+        if (!updatedMatch) {
             throw new CustomError(
-                "Error updating match result",
-                500,
-                "MatchServiceError"
+                'Match result was already registered by another request',
+                409,
+                'MatchServiceError'
             );
         }
-        await this.championshipService.markAsInProgressIfNeeded(
-            tenant,
-            match.championshipId.toString()
-        );
+
+        if (!updatedMatch.winnerId) {
+            throw new CustomError(
+                'Error updating match result',
+                500,
+                'MatchServiceError'
+            );
+        }
+
         if (updatedMatch.isEliminationMatch) {
             const progression =
                 await this.eliminationProgressionService.advanceAfterMatchResult(

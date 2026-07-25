@@ -49,8 +49,11 @@ export class EliminationService {
             );
         }
 
+
+
         const groups = await Group.byTenant(tenant)
             .find({
+                championshipId: new Types.ObjectId(data.championshipId),
                 groupDistributionId: new Types.ObjectId(data.groupDistributionId),
             })
             .populate({
@@ -65,7 +68,7 @@ export class EliminationService {
 
         if (!groups.length) {
             throw new CustomError(
-                'No groups found for this group distribution',
+                'Group distribution does not belong to this championship or has no groups',
                 404,
                 'EliminationServiceError'
             );
