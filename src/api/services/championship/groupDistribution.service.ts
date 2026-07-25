@@ -121,6 +121,9 @@ export class GroupDistributionService {
             },
             {}
         );
+        const selectedGameFormatId = data.gameFormatId
+            ? new Types.ObjectId(data.gameFormatId)
+            : new Types.ObjectId(ChampionshipConf?.gameFormatId);
 
         const strategy = this.mapFormatTypeToDistributionStrategy(
             ChampionshipConf?.distributionStrategy || 'serpentine'
@@ -214,6 +217,7 @@ export class GroupDistributionService {
 
             const matchIds = [];
 
+
             for (const fixtureMatch of groupMatches) {
                 const matchData = {
                     championshipId: new Types.ObjectId(championshipId),
@@ -231,9 +235,7 @@ export class GroupDistributionService {
                         ? new Types.ObjectId(data.courtId)
                         : undefined,
 
-                    gameFormatId: data.gameFormatId
-                        ? new Types.ObjectId(data.gameFormatId)
-                        : undefined,
+                    gameFormatId: selectedGameFormatId,
 
                     statistics: [],
                     status: 'scheduled' as 'scheduled',
