@@ -218,6 +218,18 @@ export type CourtSchedulingOptions = {
      * a jugar dos turnos seguidos.
      */
     avoidBackToBackMatches?: boolean;
+
+    /**
+     * Si es true, intenta balancear la cantidad de partidos
+     * entre los grupos.
+     */
+    balanceGroups?: boolean;
+
+    /**
+     * Número mínimo de turnos de descanso entre partidos
+     * para el mismo equipo.
+     */
+    minRestSlots?: number;
 };
 
 export type ScheduledMatch = CompetitionMatch & {
@@ -232,6 +244,7 @@ export type CourtScheduleResult = {
     matches: ScheduledMatch[];
     totalMatches: number;
     totalSlots: number;
+    warnings: string[];
 };
 /**************************************** */
 export type MatchResultSummary = {

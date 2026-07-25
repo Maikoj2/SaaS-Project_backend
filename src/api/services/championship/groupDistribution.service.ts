@@ -7,7 +7,6 @@ import Position, { IPositionDocument } from "../../models/mongoose/championship/
 import { Schema, Types } from "mongoose";
 import Group from "../../models/mongoose/championship/group";
 import Match from "../../models/mongoose/championship/match";
-import Court from "../../models/mongoose/championship/court";
 
 import {
     DistributionStrategy,
@@ -268,12 +267,18 @@ export class GroupDistributionService {
         };
 
         if (data.schedule?.enabled) {
+            const groupById = new Map(
+                createdGroups.map((group: any) => [
+                    group._id.toString(),
+                    group.name,
+                ])
+            );
 
             const matchesForScheduling = createdMatches.map(
                 (match: any, index: number) => ({
                     id: match._id.toString(),
                     matchNumber: index + 1,
-                    groupName: '',
+                    groupName: groupById.get(match.groupId.toString()) || '',
                     teamA: {
                         id: match.homeTeamId.toString(),
                         name: '',
@@ -303,12 +308,16 @@ export class GroupDistributionService {
                         data.schedule.breakMinutes ?? 0,
                     avoidBackToBackMatches:
                         data.schedule.avoidBackToBackMatches ?? true,
+                    minRestSlots:
+                        data.schedule.minRestSlots ?? 1,
+                    balanceGroups:
+                        data.schedule.balanceGroups ?? true,
                 }
             );
 
             for (const scheduledMatch of scheduledResult.matches) {
                 const startTime = scheduledMatch.time
-                    ? new Date(`${scheduledMatch.date}T${scheduledMatch.time}`)
+                    ? new Date(`${scheduledMatch.date}T${scheduledMatch.time}:00-05:00`)
                     : undefined;
 
                 const endTime = startTime
@@ -359,6 +368,12 @@ export class GroupDistributionService {
                     data.schedule.breakMinutes ?? 0,
                 avoidBackToBackMatches:
                     data.schedule.avoidBackToBackMatches ?? true,
+                minRestSlots:
+                    data.schedule.minRestSlots ?? 1,
+                balanceGroups:
+                    data.schedule.balanceGroups ?? true,
+                warnings:
+                    scheduledResult.warnings ?? [],
             } as any;
         }
 
@@ -445,6 +460,8 @@ export class GroupDistributionService {
             matchDurationMinutes?: number;
             breakMinutes?: number;
             avoidBackToBackMatches?: boolean;
+            minRestSlots?: number;
+            balanceGroups?: boolean;
         }
     ): Promise<any> {
         if (!Types.ObjectId.isValid(championshipId)) {
@@ -611,10 +628,16 @@ export class GroupDistributionService {
                 })),
                 date: data.date,
                 startTime: data.startTime,
-                matchDurationMinutes: data.matchDurationMinutes ?? 60,
-                breakMinutes: data.breakMinutes ?? 0,
+                matchDurationMinutes:
+                    data.matchDurationMinutes ?? 60,
+                breakMinutes:
+                    data.breakMinutes ?? 0,
                 avoidBackToBackMatches:
                     data.avoidBackToBackMatches ?? true,
+                minRestSlots:
+                    data.minRestSlots ?? 1,
+                balanceGroups:
+                    data.balanceGroups ?? true,
             }
         );
 
@@ -671,7 +694,14 @@ export class GroupDistributionService {
                 breakMinutes: data.breakMinutes ?? 0,
                 avoidBackToBackMatches:
                     data.avoidBackToBackMatches ?? true,
+                minRestSlots:
+                    data.minRestSlots ?? 1,
+                balanceGroups:
+                    data.balanceGroups ?? true,
+                warnings:
+                    scheduledResult.warnings ?? [],
             },
+            warnings: scheduledResult.warnings ?? [],
         };
     }
 
