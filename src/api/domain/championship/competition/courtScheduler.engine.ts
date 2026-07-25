@@ -44,6 +44,7 @@ export function scheduleMatchesOnCourts(
         matches: scheduledMatches,
         totalMatches: scheduledMatches.length,
         totalSlots: Math.ceil(scheduledMatches.length / options.courts.length),
+
     };
 }
 

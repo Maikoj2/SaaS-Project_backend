@@ -433,6 +433,246 @@ export class GroupDistributionService {
         return groupDistribution;
     }
 
+    async scheduleGroupDistributionMatches(
+        tenant: string,
+        championshipId: string,
+        groupDistributionId: string,
+        data: {
+            date: string;
+            startTime: string;
+            matchDurationMinutes?: number;
+            breakMinutes?: number;
+            avoidBackToBackMatches?: boolean;
+        }
+    ): Promise<any> {
+        if (!Types.ObjectId.isValid(championshipId)) {
+            throw new CustomError(
+                'Invalid championshipId',
+                400,
+                'GroupDistributionServiceError'
+            );
+        }
+
+        if (!Types.ObjectId.isValid(groupDistributionId)) {
+            throw new CustomError(
+                'Invalid groupDistributionId',
+                400,
+                'GroupDistributionServiceError'
+            );
+        }
+
+        if (!data.date) {
+            throw new CustomError(
+                'date is required',
+                400,
+                'GroupDistributionServiceError'
+            );
+        }
+
+        if (!data.startTime) {
+            throw new CustomError(
+                'startTime is required',
+                400,
+                'GroupDistributionServiceError'
+            );
+        }
+
+        const groupDistribution = await DatabaseHelper.findOne(
+            GroupDistribution,
+            tenant,
+            {
+                _id: new Types.ObjectId(groupDistributionId),
+                championshipId: new Types.ObjectId(championshipId),
+            }
+        );
+
+        if (!groupDistribution) {
+            throw new CustomError(
+                'Group distribution not found',
+                404,
+                'GroupDistributionServiceError'
+            );
+        }
+
+        const championship = await DatabaseHelper.findOneWithRelations(
+            Championship,
+            tenant,
+            {
+                _id: new Types.ObjectId(championshipId),
+            },
+            {
+                basic: ['courts'],
+            }
+        );
+
+        if (!championship) {
+            throw new CustomError(
+                'Championship not found',
+                404,
+                'GroupDistributionServiceError'
+            );
+        }
+
+        const availableCourts = ((championship as any).courts || []).filter(
+            (court: any) =>
+                court.status === 'reserved' &&
+                court.currentChampionshipId?.toString() === championshipId
+        );
+
+        if (!availableCourts.length) {
+            throw new CustomError(
+                'No reserved courts found for this championship',
+                400,
+                'GroupDistributionServiceError'
+            );
+        }
+
+        const groups = await DatabaseHelper.find(
+            Group,
+            tenant,
+            {
+                championshipId: new Types.ObjectId(championshipId),
+                groupDistributionId: new Types.ObjectId(groupDistributionId),
+                status: 'active',
+            }
+        );
+
+        if (!groups.length) {
+            throw new CustomError(
+                'No groups found for this group distribution',
+                404,
+                'GroupDistributionServiceError'
+            );
+        }
+
+        const groupIds = groups.map((group: any) => group._id);
+
+        const matches = await DatabaseHelper.find(Match, tenant, {
+            championshipId: new Types.ObjectId(championshipId),
+            groupId: {
+                $in: groupIds,
+            },
+            status: 'scheduled',
+            isEliminationMatch: false,
+        });
+
+        if (!matches.length) {
+            throw new CustomError(
+                'No matches found to schedule',
+                404,
+                'GroupDistributionServiceError'
+            );
+        }
+
+        const alreadyScheduledMatches = matches.filter(
+            (match: any) => match.courtId || match.startTime || match.endTime
+        );
+
+        if (alreadyScheduledMatches.length > 0) {
+            throw new CustomError(
+                'Some matches are already scheduled',
+                400,
+                'GroupDistributionServiceError'
+            );
+        }
+
+        const groupById = new Map(
+            groups.map((group: any) => [
+                group._id.toString(),
+                group.name,
+            ])
+        );
+
+        const matchesForScheduling = matches.map(
+            (match: any, index: number) => ({
+                id: match._id.toString(),
+                matchNumber: index + 1,
+                groupName: groupById.get(match.groupId.toString()) || '',
+                teamA: {
+                    id: match.homeTeamId.toString(),
+                    name: '',
+                },
+                teamB: {
+                    id: match.awayTeamId.toString(),
+                    name: '',
+                },
+                status: 'scheduled' as MatchStatus,
+            })
+        );
+
+        const scheduledResult = scheduleMatchesOnCourts(
+            matchesForScheduling,
+            {
+                courts: availableCourts.map((court: any) => ({
+                    id: court._id.toString(),
+                    name: court.name,
+                })),
+                date: data.date,
+                startTime: data.startTime,
+                matchDurationMinutes: data.matchDurationMinutes ?? 60,
+                breakMinutes: data.breakMinutes ?? 0,
+                avoidBackToBackMatches:
+                    data.avoidBackToBackMatches ?? true,
+            }
+        );
+
+        const updatedMatches = [];
+
+        for (const scheduledMatch of scheduledResult.matches) {
+            const startTime = scheduledMatch.time
+                ? new Date(`${scheduledMatch.date}T${scheduledMatch.time}`)
+                : undefined;
+
+            const endTime = startTime
+                ? new Date(
+                    startTime.getTime() +
+                    (data.matchDurationMinutes ?? 60) * 60 * 1000
+                )
+                : undefined;
+
+            const updatedMatch = await DatabaseHelper.findOneAndUpdate(
+                Match,
+                tenant,
+                {
+                    _id: new Types.ObjectId(scheduledMatch.id),
+                    championshipId: new Types.ObjectId(championshipId),
+                },
+                {
+                    $set: {
+                        courtId: new Types.ObjectId(scheduledMatch.courtId),
+                        startTime,
+                        endTime,
+                    },
+                },
+                {
+                    new: true,
+                    runValidators: true,
+                }
+            );
+
+            if (updatedMatch) {
+                updatedMatches.push(updatedMatch);
+            }
+        }
+
+        return {
+            groupDistribution,
+            matches: updatedMatches,
+            schedule: {
+                enabled: true,
+                courtsUsed: availableCourts.length,
+                totalMatches: scheduledResult.totalMatches,
+                totalSlots: scheduledResult.totalSlots,
+                date: data.date,
+                startTime: data.startTime,
+                matchDurationMinutes: data.matchDurationMinutes ?? 60,
+                breakMinutes: data.breakMinutes ?? 0,
+                avoidBackToBackMatches:
+                    data.avoidBackToBackMatches ?? true,
+            },
+        };
+    }
+
     private mapFormatTypeToDistributionStrategy(
         formatType: string
     ): DistributionStrategy {

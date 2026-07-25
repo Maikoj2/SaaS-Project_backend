@@ -36,6 +36,43 @@ export class groupDistribution {
             res.status(error.statusCode || 400).json(ApiResponse.error(error instanceof Error ? error.message : 'Error creating group distribution'));
         }
     }
+    scheduleGroupDistributionMatches = async (
+        req: IUserCustomRequest,
+        res: Response
+    ): Promise<void> => {
+        try {
+            const tenant = req.clientAccount as string;
+            const { championshipId, groupDistributionId } = req.params;
+
+            const result =
+                await this.groupDistributionService.scheduleGroupDistributionMatches(
+                    tenant,
+                    championshipId,
+                    groupDistributionId,
+                    req.body
+                );
+
+            res.status(200).json(
+                ApiResponse.success(
+                    result,
+                    'Group distribution matches scheduled successfully'
+                )
+            );
+        } catch (error: any) {
+            this.logger.error(
+                'Error scheduling group distribution matches:',
+                error
+            );
+
+            res.status(error.statusCode || 400).json(
+                ApiResponse.error(
+                    error instanceof Error
+                        ? error.message
+                        : 'Error scheduling group distribution matches'
+                )
+            );
+        }
+    };
 
 
 

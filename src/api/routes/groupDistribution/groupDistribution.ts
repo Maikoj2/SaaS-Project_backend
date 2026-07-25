@@ -51,5 +51,20 @@ router.get(
     controller.getGroupDistributionById as RequestHandler
 );
 
+router.patch(
+    groupDistributionRoutes.SCHEDULE_GROUP_DISTRIBUTION_MATCHES,
+    [
+        origin.checkDomain as RequestHandler,
+        origin.checkTenant as RequestHandler,
+        auth as RequestHandler,
+        permissionAuthorization([
+            AuthPermission.GROUP_DISTRIBUTION_UPDATE,
+        ]) as RequestHandler,
+        trimRequest.all as RequestHandler,
+        ...validateGroupDistribution.scheduleGroupDistributionMatches,
+    ] as RequestHandler[],
+    controller.scheduleGroupDistributionMatches as RequestHandler
+);
+
 
 export default router;
