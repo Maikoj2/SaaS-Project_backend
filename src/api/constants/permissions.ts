@@ -31,6 +31,8 @@ export enum AuthPermission {
     // game formats
     GAME_FORMAT_CREATE = 'game-format:create',
     GAME_FORMAT_READ = 'game-format:read',
+    GAME_FORMAT_UPDATE = 'game-format:update',
+    GAME_FORMAT_DELETE = 'game-format:delete',
 
     // court
     COURT_CREATE = 'court:create',
@@ -113,7 +115,11 @@ export const RolePermissions: Record<AuthRole, AuthPermission[]> = {
         AuthPermission.PROFILE_READ,
         AuthPermission.PROFILE_UPDATE,
         AuthPermission.USER_READ,
-        AuthPermission.USER_READ_DETAIL
+        AuthPermission.USER_READ_DETAIL,
+        AuthPermission.GAME_FORMAT_CREATE,
+        AuthPermission.GAME_FORMAT_READ,
+        AuthPermission.GAME_FORMAT_UPDATE,
+        AuthPermission.GAME_FORMAT_DELETE,
     ],
     [AuthRole.REFEREE]: [
         AuthPermission.CHAMPIONSHIP_READ,
@@ -127,6 +133,7 @@ export const RolePermissions: Record<AuthRole, AuthPermission[]> = {
         AuthPermission.MATCH_READ,
         AuthPermission.PLAYER_READ,
         AuthPermission.ELIMINATION_BRACKET_READ,
+        AuthPermission.GAME_FORMAT_READ,
 
     ],
     [AuthRole.TEAM_MEMBER]: [
@@ -141,6 +148,7 @@ export const RolePermissions: Record<AuthRole, AuthPermission[]> = {
         AuthPermission.PLAYER_READ,
         AuthPermission.PLAYER_REGISTER,
         AuthPermission.ELIMINATION_BRACKET_READ,
+        AuthPermission.GAME_FORMAT_READ,
     ],
     [AuthRole.VIEWER]: [
         AuthPermission.CHAMPIONSHIP_READ,
@@ -150,5 +158,6 @@ export const RolePermissions: Record<AuthRole, AuthPermission[]> = {
         AuthPermission.COURT_READ,
         AuthPermission.MATCH_READ,
         AuthPermission.ELIMINATION_BRACKET_READ,
+        AuthPermission.GAME_FORMAT_READ,
     ]
 }

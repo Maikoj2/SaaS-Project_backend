@@ -26,15 +26,13 @@ export class ConfigurationService {
             if (!championship) {
                 throw new Error('Championship not found');
             }
-            const gameFormat = await DatabaseHelper.findOne(
-                GameFormat,
-                tenant,
-                { _id: configData.gameFormatId },
-                { throwError: true, errorMessage: 'Game format not found' }
-            );
-
-            if (!gameFormat) {
-                throw new Error('Game format not found');
+            if (configData.gameFormatId) {
+                await DatabaseHelper.findOne(
+                    GameFormat,
+                    tenant,
+                    { _id: configData.gameFormatId },
+                    { throwError: true, errorMessage: 'Game format not found' }
+                );
             }
 
             // Crear configuración

@@ -10,7 +10,7 @@ export interface ICourtDocument extends ITenantDocument {
 
     name: string;
     type: 'indoor' | 'beach';
-    status: 'available' | 'occupied' | 'maintenance';
+    status: 'available' | 'reserved' | 'occupied' | 'maintenance';
     capacity: number;
     location?: string;           // Ubicación específica de la cancha
     dimensions?: string;         // Dimensiones de la cancha
@@ -56,7 +56,7 @@ const CourtSchema = new Schema<ICourtDocument>(
         },
         status: {
             type: String,
-            enum: ['available', 'occupied', 'maintenance'],
+            enum: ['available', 'reserved', 'occupied', 'maintenance'],
             default: 'available'
         },
         capacity: {

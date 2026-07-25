@@ -190,7 +190,7 @@ export const validateCreateChampionshipConfiguration: any[] = [
         .withMessage('MISSING')
         .notEmpty()
         .withMessage('IS_EMPTY')
-        .isIn([CompetitionRulePreset])
+        .isIn(Object.values(CompetitionRulePreset))
         .withMessage('INVALID_COMPETITION_RULE_PRESET'),
     ...championshipConfigurationValidators.matchDurationLimit,
     ...championshipConfigurationValidators.setDurationLimit,

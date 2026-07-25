@@ -86,7 +86,7 @@ export interface IEliminationSettings {
 export interface IConfigurationDocument extends ITenantDocument {
     championshipId: Types.ObjectId;
     maxTeams: number;
-    gameFormatId: Types.ObjectId;
+    gameFormatId?: Types.ObjectId;
     tieBreakerCriteria: ITieBreakerCriteria;
     eliminationSettings: IEliminationSettings;
     matchRules: IMatchRules;
@@ -373,7 +373,8 @@ const ChampionshipConfigurationSchema = new Schema<IConfigurationDocument>(
         gameFormatId: {
             type: Types.ObjectId,
             ref: 'GameFormat',
-            required: true
+            required: false,
+            default: null
         },
         matchRules: {
             type: MatchRulesSchema,

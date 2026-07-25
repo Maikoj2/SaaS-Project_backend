@@ -1,9 +1,8 @@
 import { Response } from 'express';
+import { Logger } from '../../config/logger/WinstonLogger';
 import { IUserCustomRequest } from '../../interfaces';
 import { ApiResponse } from '../../responses';
-import { Logger } from '../../config/logger/WinstonLogger';
 import { CourtService } from '../../services/championship/court.service';
-
 
 export class CourtController {
     private logger: Logger;
@@ -35,7 +34,7 @@ export class CourtController {
         } catch (error: any) {
             this.logger.error('Error creating court:', error);
 
-            res.status(error.statusCode || 500).json(
+            res.status(error.statusCode || 400).json(
                 ApiResponse.error(
                     error instanceof Error
                         ? error.message
@@ -52,12 +51,12 @@ export class CourtController {
         try {
             const tenant = req.clientAccount as string;
 
-            const courts = await this.courtService.getCourts(
+            const result = await this.courtService.getCourts(
                 tenant,
                 {
-                    championshipId: req.query.championshipId as string,
-                    type: req.query.type as string,
                     status: req.query.status as string,
+                    type: req.query.type as string,
+                    currentChampionshipId: req.query.currentChampionshipId as string,
                 },
                 {
                     page: Number(req.query.page) || 1,
@@ -67,7 +66,7 @@ export class CourtController {
 
             res.status(200).json(
                 ApiResponse.success(
-                    courts,
+                    result,
                     'Courts retrieved successfully'
                 )
             );
@@ -79,6 +78,40 @@ export class CourtController {
                     error instanceof Error
                         ? error.message
                         : 'Error retrieving courts'
+                )
+            );
+        }
+    };
+
+    getAvailableCourts = async (
+        req: IUserCustomRequest,
+        res: Response
+    ): Promise<void> => {
+        try {
+            const tenant = req.clientAccount as string;
+
+            const result = await this.courtService.getAvailableCourts(
+                tenant,
+                {
+                    page: Number(req.query.page) || 1,
+                    limit: Number(req.query.limit) || 20,
+                }
+            );
+
+            res.status(200).json(
+                ApiResponse.success(
+                    result,
+                    'Available courts retrieved successfully'
+                )
+            );
+        } catch (error: any) {
+            this.logger.error('Error retrieving available courts:', error);
+
+            res.status(error.statusCode || 500).json(
+                ApiResponse.error(
+                    error instanceof Error
+                        ? error.message
+                        : 'Error retrieving available courts'
                 )
             );
         }
@@ -139,7 +172,7 @@ export class CourtController {
         } catch (error: any) {
             this.logger.error('Error updating court:', error);
 
-            res.status(error.statusCode || 500).json(
+            res.status(error.statusCode || 400).json(
                 ApiResponse.error(
                     error instanceof Error
                         ? error.message
@@ -171,7 +204,7 @@ export class CourtController {
         } catch (error: any) {
             this.logger.error('Error deleting court:', error);
 
-            res.status(error.statusCode || 500).json(
+            res.status(error.statusCode || 400).json(
                 ApiResponse.error(
                     error instanceof Error
                         ? error.message
@@ -181,7 +214,7 @@ export class CourtController {
         }
     };
 
-    getAvailableCourtsByChampionship = async (
+    attachCourtsToChampionship = async (
         req: IUserCustomRequest,
         res: Response
     ): Promise<void> => {
@@ -189,26 +222,127 @@ export class CourtController {
             const tenant = req.clientAccount as string;
             const { championshipId } = req.params;
 
-            const courts =
-                await this.courtService.getAvailableCourtsByChampionship(
+            const result = await this.courtService.attachCourtsToChampionship(
+                tenant,
+                championshipId,
+                req.body
+            );
+
+            res.status(200).json(
+                ApiResponse.success(
+                    result,
+                    'Courts attached to championship successfully'
+                )
+            );
+        } catch (error: any) {
+            this.logger.error('Error attaching courts to championship:', error);
+
+            res.status(error.statusCode || 400).json(
+                ApiResponse.error(
+                    error instanceof Error
+                        ? error.message
+                        : 'Error attaching courts to championship'
+                )
+            );
+        }
+    };
+
+    detachCourtsFromChampionship = async (
+        req: IUserCustomRequest,
+        res: Response
+    ): Promise<void> => {
+        try {
+            const tenant = req.clientAccount as string;
+            const { championshipId } = req.params;
+
+            const result =
+                await this.courtService.detachCourtsFromChampionship(
                     tenant,
-                    championshipId
+                    championshipId,
+                    req.body
                 );
 
             res.status(200).json(
                 ApiResponse.success(
-                    courts,
-                    'Available courts retrieved successfully'
+                    result,
+                    'Courts detached from championship successfully'
                 )
             );
         } catch (error: any) {
-            this.logger.error('Error retrieving available courts:', error);
+            this.logger.error(
+                'Error detaching courts from championship:',
+                error
+            );
 
-            res.status(error.statusCode || 500).json(
+            res.status(error.statusCode || 400).json(
                 ApiResponse.error(
                     error instanceof Error
                         ? error.message
-                        : 'Error retrieving available courts'
+                        : 'Error detaching courts from championship'
+                )
+            );
+        }
+    };
+
+    markCourtAsOccupied = async (
+        req: IUserCustomRequest,
+        res: Response
+    ): Promise<void> => {
+        try {
+            const tenant = req.clientAccount as string;
+            const { courtId } = req.params;
+
+            const court = await this.courtService.markCourtAsOccupied(
+                tenant,
+                courtId
+            );
+
+            res.status(200).json(
+                ApiResponse.success(
+                    court,
+                    'Court marked as occupied successfully'
+                )
+            );
+        } catch (error: any) {
+            this.logger.error('Error marking court as occupied:', error);
+
+            res.status(error.statusCode || 400).json(
+                ApiResponse.error(
+                    error instanceof Error
+                        ? error.message
+                        : 'Error marking court as occupied'
+                )
+            );
+        }
+    };
+
+    markCourtAsReserved = async (
+        req: IUserCustomRequest,
+        res: Response
+    ): Promise<void> => {
+        try {
+            const tenant = req.clientAccount as string;
+            const { courtId } = req.params;
+
+            const court = await this.courtService.markCourtAsReserved(
+                tenant,
+                courtId
+            );
+
+            res.status(200).json(
+                ApiResponse.success(
+                    court,
+                    'Court marked as reserved successfully'
+                )
+            );
+        } catch (error: any) {
+            this.logger.error('Error marking court as reserved:', error);
+
+            res.status(error.statusCode || 400).json(
+                ApiResponse.error(
+                    error instanceof Error
+                        ? error.message
+                        : 'Error marking court as reserved'
                 )
             );
         }

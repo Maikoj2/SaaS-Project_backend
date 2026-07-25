@@ -96,7 +96,9 @@ export class GroupDistributionService {
             }
 
             availableCourts = ((championship as any).courts || []).filter(
-                (court: any) => court.status === 'available'
+                (court: any) =>
+                    court.status === 'reserved' &&
+                    court.currentChampionshipId?.toString() === championshipId
             );
 
             if (!availableCourts.length) {

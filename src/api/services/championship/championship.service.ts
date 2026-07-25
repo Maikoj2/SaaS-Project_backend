@@ -248,11 +248,8 @@ export class ChampionshipService {
             tenant,
             { _id: id },
             {
-                basic: ['idCreatorChampionship'],
-                nested: [{
-                    path: 'idCreatorChampionship',
-                    select: selectFieldsCreator.join(' ')
-                }]
+                basic: ['idCreatorChampionship', 'courts'],
+                nested: this.populateOption()
             }
         );
         if (!championship) {
@@ -397,5 +394,17 @@ export class ChampionshipService {
         } catch (error: any) {
             throw new CustomError(error instanceof Error ? error.message : 'Error deleting registrationId', 500, 'ChampionshipServiceError');
         }
+    }
+
+    private populateOption() {
+        return [
+            {
+                path: 'teams courts matches registrations',
+                select: '',
+                populate: [
+
+                ],
+            },
+        ]
     }
 } 
