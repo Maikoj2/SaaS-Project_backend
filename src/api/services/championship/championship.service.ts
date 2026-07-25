@@ -6,6 +6,7 @@ import { DatabaseHelper } from "../../utils/database.helper";
 import { Types } from "mongoose";
 import ChampionshipConfiguration, { IConfigurationDocument } from "../../models/mongoose/championship/configuration";
 import { CustomError } from "../../errors";
+import Court from "../../models/mongoose/championship/court";
 
 
 
@@ -396,6 +397,109 @@ export class ChampionshipService {
         }
     }
 
+    async markAsInProgressIfNeeded(
+        tenant: string,
+        championshipId: string
+    ): Promise<IChampionshipDocument | null> {
+        const championship = await DatabaseHelper.findOne(
+            Championship,
+            tenant,
+            {
+                _id: new Types.ObjectId(championshipId),
+            }
+        );
+
+        if (!championship) {
+            throw new CustomError(
+                'Championship not found',
+                404,
+                'ChampionshipServiceError'
+            );
+        }
+
+        if (['completed', 'canceled'].includes(championship.status)) {
+            return championship;
+        }
+
+        if (championship.status === 'in_progress') {
+            return championship;
+        }
+
+        return DatabaseHelper.findOneAndUpdate(
+            Championship,
+            tenant,
+            {
+                _id: new Types.ObjectId(championshipId),
+            },
+            {
+                $set: {
+                    status: 'in_progress',
+                },
+            },
+            {
+                new: true,
+            }
+        );
+    }
+
+    async completeChampionshipAndReleaseCourts(
+        tenant: string,
+        championshipId: string
+    ): Promise<{
+        championship: IChampionshipDocument | null;
+        releasedCourts: number;
+    }> {
+        const championship = await DatabaseHelper.findOneAndUpdate(
+            Championship,
+            tenant,
+            {
+                _id: new Types.ObjectId(championshipId),
+            },
+            {
+                $set: {
+                    status: 'completed',
+                    completedAt: new Date(),
+                },
+            },
+            {
+                new: true,
+            }
+        );
+
+        if (!championship) {
+            throw new CustomError(
+                'Championship not found',
+                404,
+                'ChampionshipServiceError'
+            );
+        }
+
+        const releaseResult = await Court.byTenant(tenant).updateMany(
+            {
+                currentChampionshipId: new Types.ObjectId(championshipId),
+                status: {
+                    $in: ['reserved', 'occupied'],
+                },
+            },
+            {
+                $set: {
+                    status: 'available',
+                },
+                $unset: {
+                    currentChampionshipId: '',
+                },
+            }
+        );
+
+        return {
+            championship,
+            releasedCourts:
+                (releaseResult as any).modifiedCount ??
+                (releaseResult as any).nModified ??
+                0,
+        };
+    }
+
     private populateOption() {
         return [
             {
@@ -407,4 +511,6 @@ export class ChampionshipService {
             },
         ]
     }
+
+
 } 

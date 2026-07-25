@@ -25,7 +25,7 @@ export interface IMatchDocument extends ITenantDocument {
     gameFormatId?: Types.ObjectId;
     statistics: Types.ObjectId[];
     score?: IScore;
-    status: 'scheduled' | 'in_progress' | 'finished' | 'walkover' | 'cancelled'
+    status: 'scheduled' | 'in_progress' | 'finished' | 'walkover' | 'cancelled' | 'completed';
     isEliminationMatch: boolean;
     eliminationBracketId?: Types.ObjectId;
     bracketMatchNumber?: number;
@@ -105,7 +105,7 @@ const MatchSchema = new Schema<IMatchDocument>(
         score: ScoreSchema,
         status: {
             type: String,
-            enum: ['scheduled', 'in_progress', 'finished', 'walkover', 'cancelled'],
+            enum: ['scheduled', 'in_progress', 'finished', 'walkover', 'cancelled', 'completed'],
             default: 'scheduled'
         },
         isEliminationMatch: {

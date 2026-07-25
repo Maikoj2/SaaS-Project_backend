@@ -16,6 +16,7 @@ import {
 } from "../../domain/championship/competition";
 import { PaginationOptions } from "../../interfaces";
 import { PopulateOptions } from "../../interfaces/IhelperDatabase";
+import { ChampionshipService } from "./championship.service";
 
 type RegisterMatchResultInput = {
     sets?: Array<{
@@ -28,6 +29,7 @@ type RegisterMatchResultInput = {
 export class MatchService {
 
     private eliminationProgressionService = new EliminationProgressionService();
+    private championshipService = new ChampionshipService();
 
 
     async registerMatchResult(
@@ -159,7 +161,10 @@ export class MatchService {
                 "MatchServiceError"
             );
         }
-
+        await this.championshipService.markAsInProgressIfNeeded(
+            tenant,
+            match.championshipId.toString()
+        );
         if (updatedMatch.isEliminationMatch) {
             const progression =
                 await this.eliminationProgressionService.advanceAfterMatchResult(
@@ -169,10 +174,16 @@ export class MatchService {
                         winnerTeamId: updatedMatch.winnerId.toString(),
                     }
                 );
+            const championshipCompletion =
+                await this.completeChampionshipIfTournamentFinished(
+                    tenant,
+                    updatedMatch
+                );
 
             return {
                 match: updatedMatch,
                 progression,
+                championshipCompletion,
             };
         }
         if (!match.groupId) {
@@ -527,4 +538,63 @@ export class MatchService {
 
         return team.name || "";
     }
+    private async completeChampionshipIfTournamentFinished(
+        tenant: string,
+        match: any
+    ): Promise<{
+        completed: boolean;
+        releasedCourts?: number;
+    }> {
+        const isFinalMatch =
+            match.isEliminationMatch === true &&
+            match.bracketRoundName === 'final' &&
+            ['finished', 'walkover'].includes(match.status);
+
+        const isThirdPlaceMatch =
+            match.isEliminationMatch === true &&
+            match.bracketRoundName === 'third_place' &&
+            ['finished', 'walkover'].includes(match.status);
+
+        if (!isFinalMatch && !isThirdPlaceMatch) {
+            return {
+                completed: false,
+            };
+        }
+
+        const championshipId = match.championshipId.toString();
+
+        const pendingFinalOrThirdPlace = await DatabaseHelper.findOne(
+            Match,
+            tenant,
+            {
+                championshipId: new Types.ObjectId(championshipId),
+                isEliminationMatch: true,
+                bracketRoundName: {
+                    $in: ['final', 'third_place'],
+                },
+                status: {
+                    $nin: ['finished', 'walkover', 'cancelled'],
+                },
+            }
+        );
+
+        if (pendingFinalOrThirdPlace) {
+            return {
+                completed: false,
+            };
+        }
+
+        const result =
+            await this.championshipService.completeChampionshipAndReleaseCourts(
+                tenant,
+                championshipId
+            );
+
+        return {
+            completed: true,
+            releasedCourts: result.releasedCourts,
+        };
+    }
+
+
 }

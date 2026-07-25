@@ -37,7 +37,7 @@ export class EliminationController {
             );
         } catch (error: any) {
             this.logger.error(error, 'Error generating elimination bracket');
-            res.status(error.statusCode || 500).json(
+            res.status(error.statusCode || 500 || error.status).json(
                 ApiResponse.error(
                     error.message || 'Error generating elimination bracket',
                 )

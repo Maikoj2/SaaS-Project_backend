@@ -162,6 +162,10 @@ export class EliminationService {
         }
 
         const firstRoundMatches = this.getFirstRoundMatches(bracket);
+        console.log(
+            'FIRST ROUND MATCHES:',
+            JSON.stringify(firstRoundMatches, null, 2)
+        );
 
         this.validateFirstRoundMatches(firstRoundMatches);
 
@@ -388,9 +392,12 @@ export class EliminationService {
     }
 
     private validateFirstRoundMatches(firstRoundMatches: any[]): void {
-        const invalidMatch = firstRoundMatches.find(
-            (match) => !match.teamA?.team?.id || !match.teamB?.team?.id
-        );
+        const invalidMatch = firstRoundMatches.find((match) => {
+            const teamAId = this.getBracketMatchTeamAId(match);
+            const teamBId = this.getBracketMatchTeamBId(match);
+
+            return !teamAId || !teamBId;
+        });
 
         if (invalidMatch) {
             throw new CustomError(
@@ -410,6 +417,16 @@ export class EliminationService {
         const createdMatches = [];
 
         for (const bracketMatch of firstRoundMatches) {
+            const teamAId = this.getBracketMatchTeamAId(bracketMatch);
+            const teamBId = this.getBracketMatchTeamBId(bracketMatch);
+
+            if (!teamAId || !teamBId) {
+                throw new CustomError(
+                    `Cannot create elimination match ${bracketMatch.matchNumber}. Team A or Team B is missing.`,
+                    400,
+                    'EliminationServiceError'
+                );
+            }
             const createdMatch = await DatabaseHelper.create(
                 Match,
                 tenant,
@@ -441,5 +458,29 @@ export class EliminationService {
         }
 
         return createdMatches;
+    }
+
+    private getBracketMatchTeamAId(bracketMatch: any): string {
+        return (
+            bracketMatch.teamA?.team?.id ||
+            bracketMatch.teamA?.id ||
+            bracketMatch.homeTeam?.team?.id ||
+            bracketMatch.homeTeam?.id ||
+            bracketMatch.seedA?.team?.id ||
+            bracketMatch.seedA?.id ||
+            ''
+        );
+    }
+
+    private getBracketMatchTeamBId(bracketMatch: any): string {
+        return (
+            bracketMatch.teamB?.team?.id ||
+            bracketMatch.teamB?.id ||
+            bracketMatch.awayTeam?.team?.id ||
+            bracketMatch.awayTeam?.id ||
+            bracketMatch.seedB?.team?.id ||
+            bracketMatch.seedB?.id ||
+            ''
+        );
     }
 }

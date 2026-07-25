@@ -15,7 +15,7 @@ export interface IChampionshipDocument extends ITenantDocument {
     description?: string;
     startDate: Date;
     endDate: Date;
-    status: 'draft' | 'registration' | 'active' | 'completed' | 'cancelled';
+    status: 'draft' | 'registration' | 'active' | 'completed' | 'cancelled' | 'in_progress';
     phases: Types.ObjectId[];
     teams: Types.ObjectId[];
     courts: Types.ObjectId[];
@@ -52,7 +52,7 @@ const ChampionshipSchema = new Schema<IChampionshipDocument>(
         },
         status: {
             type: String,
-            enum: ['draft', 'registration', 'active', 'completed', 'cancelled'],
+            enum: ['draft', 'registration', 'active', 'completed', 'cancelled', 'in_progress'],
             default: 'draft'
         },
         phases: [{
