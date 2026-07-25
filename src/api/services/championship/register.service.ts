@@ -6,10 +6,17 @@ import Registration, { IRegistrationDocument } from '../../models/mongoose/champ
 
 import { DatabaseHelper } from '../../utils/database.helper';
 import { PaymentResponse } from 'mercadopago/dist/clients/payment/commonTypes';
-import Team from '../../models/mongoose/championship/team';
+import Team, { ITeamDocument } from '../../models/mongoose/championship/team';
 import { CustomError } from '../../errors';
 import { generate_link, getPaymentDetails } from '../../plugin/mercadopago';
-import Championship from '../../models/mongoose/championship/championship';
+import { Types } from 'mongoose';
+import Player, { BeachVolleyballPosition, EPSProvider, IndoorVolleyballPosition } from '../../models/mongoose/championship/player';
+import { User } from '../../models';
+import { PasswordUtil } from '../../utils';
+import { EmailService } from '../email/email.service';
+import { env } from '../../config';
+import { validateCompetitionRulesForTeam } from '../../domain/championship/rules/competitionRules.validator';
+import { validateChampionshipTeamCapacity } from '../../domain/championship/rules/championshipCapacity.validator';
 export interface PayerData {
     name: string;
     surname?: string;
@@ -19,16 +26,43 @@ export interface PayerData {
     areaCode?: string;
     address?: string;
 }
+export interface PublicPlayerRegistrationData {
+    nie: string;
+    name: string;
+    lastName?: string;
+    email: string;
+    phone?: string;
+    gender: 'male' | 'female';
+    dateOfBirth?: Date;
+    position: IndoorVolleyballPosition | BeachVolleyballPosition;
+    eps: EPSProvider;
+    number?: number;
+    clubId?: Types.ObjectId;
+    dummy?: boolean;
+}
+
+export interface PublicTeamRegistrationData {
+    team: {
+        name: string;
+        logo?: string;
+        categoryId?: string;
+        captainEmail?: string;
+    };
+    players: PublicPlayerRegistrationData[];
+    payerData: PayerData;
+}
 
 // import InvitationLink from '../../models/mongoose/championship/invitationLink';
 
 export class RegistrationService {
     // private notificationService: NotificationService;
     private logger: Logger;
+    private emailService: EmailService;
 
     constructor() {
         // this.notificationService = new NotificationService();
         this.logger = new Logger();
+        this.emailService = new EmailService();
     }
 
     async registerWithInvitation(
@@ -42,7 +76,6 @@ export class RegistrationService {
         try {
             const { invitationLink, configuration } = await this.validateInitialRegistration(tenant, code);
 
-            this.logger.info('Payer Data received:', payerData);
 
             const existTeam = await DatabaseHelper.findOne(
                 Team,
@@ -141,6 +174,362 @@ export class RegistrationService {
                 error instanceof Error
                     ? error.message
                     : 'Error in registration',
+                500,
+                'RegistrationServiceError'
+            );
+        }
+    }
+    async registerTeamUsersAndPlayersWithInvitation(
+        tenant: string,
+        code: string,
+        data: PublicTeamRegistrationData
+    ): Promise<any> {
+        const createdUsers: any[] = [];
+        const createdPlayers: any[] = [];
+        const createdCredentials: {
+            email: string;
+            name: string;
+            temporaryPassword: string;
+        }[] = [];
+
+        let createdTeam: any;
+        let registration: IRegistrationDocument | undefined;
+
+        try {
+            const { invitationLink, configuration } =
+                await this.validateInitialRegistration(tenant, code);
+
+            const championshipId = invitationLink.championshipId;
+            await validateChampionshipTeamCapacity(
+                tenant,
+                championshipId,
+                configuration.maxTeams,
+                'RegistrationServiceError'
+            );
+
+            if (!data.team?.name) {
+                throw new CustomError(
+                    'Team name is required',
+                    400,
+                    'RegistrationServiceError'
+                );
+            }
+
+            if (!data.players || data.players.length === 0) {
+                throw new CustomError(
+                    'At least one player is required',
+                    400,
+                    'RegistrationServiceError'
+                );
+            }
+
+            const competitionRules = configuration.competitionRules;
+
+
+            if (competitionRules) {
+                validateCompetitionRulesForTeam({
+                    competitionRules,
+                    players: data.players,
+                    categoryId: data.team.categoryId,
+                    errorSource: 'RegistrationServiceError',
+                });
+            }
+
+            if (competitionRules?.categories?.enabled) {
+                const categoryExists = competitionRules.categories.list.some(
+                    (category: any) => category.id === data.team.categoryId
+                );
+
+                if (!categoryExists) {
+                    throw new CustomError(
+                        'Invalid category for this championship',
+                        400,
+                        'RegistrationServiceError'
+                    );
+                }
+            }
+
+            const existingTeam = await DatabaseHelper.findOne(
+                Team,
+                tenant,
+                {
+                    championshipId,
+                    name: data.team.name,
+                }
+            );
+
+            if (existingTeam) {
+                throw new CustomError(
+                    'A team with this name already exists in this championship',
+                    400,
+                    'RegistrationServiceError'
+                );
+            }
+
+            for (const playerData of data.players) {
+                const existingUserByEmail = await DatabaseHelper.findOne(
+                    User,
+                    tenant,
+                    {
+                        email: playerData.email.toLowerCase(),
+                    }
+                );
+
+                if (existingUserByEmail) {
+                    throw new CustomError(
+                        `A user with email ${playerData.email} already exists`,
+                        400,
+                        'RegistrationServiceError'
+                    );
+                }
+
+                if (playerData.nie) {
+                    const existingUserByNie = await DatabaseHelper.findOne(
+                        User,
+                        tenant,
+                        {
+                            nie: playerData.nie.trim().toUpperCase(),
+                        }
+                    );
+
+                    if (existingUserByNie) {
+                        throw new CustomError(
+                            `A user with NIE ${playerData.nie} already exists`,
+                            400,
+                            'RegistrationServiceError'
+                        );
+                    }
+                }
+            }
+
+            for (const playerData of data.players) {
+                const temporaryPassword = this.generateTemporaryPassword();
+
+
+                const hashedPassword = await PasswordUtil.hashPassword(temporaryPassword);
+                const normalizedNIE = playerData.nie?.trim().toUpperCase();
+
+                const userPayload: Record<string, any> = {
+                    name: playerData.name,
+                    lastName: playerData.lastName,
+                    email: playerData.email.toLowerCase(),
+                    phone: playerData.phone,
+                    password: hashedPassword,
+                    role: 'team_member',
+                    verified: true,
+                    mustChangePassword: true,
+                    createFromRegistration: true,
+                    dummy: playerData.dummy ?? false,
+                    stepper: [],
+                    tag: [],
+                    socialNetwork: [],
+                };
+
+                if (normalizedNIE) {
+                    userPayload.nie = normalizedNIE;
+                }
+                const user = await DatabaseHelper.create(User, tenant, userPayload);
+
+                createdUsers.push(user);
+
+                const player = await DatabaseHelper.create(
+                    Player,
+                    tenant,
+                    {
+                        userId: user._id,
+                        clubId: playerData.clubId,
+                        position: playerData.position,
+                        eps: playerData.eps,
+                        gender: playerData.gender,
+                        dateOfBirth: playerData.dateOfBirth,
+                        number: playerData.number,
+                        status: 'active',
+                        isIndependent: !playerData.clubId,
+                        isTeamMember: true,
+                        memberSince: new Date(),
+                        lastActive: new Date(),
+                    }
+                );
+
+                createdPlayers.push(player);
+
+                createdCredentials.push({
+                    email: playerData.email,
+                    name: `${playerData.name} ${playerData.lastName || ''}`.trim(),
+                    temporaryPassword,
+                });
+            }
+
+            const captain = data.team.captainEmail
+                ? createdPlayers.find((player) => {
+                    const user = createdUsers.find(
+                        (createdUser) =>
+                            createdUser._id.toString() ===
+                            player.userId.toString()
+                    );
+
+                    return (
+                        user?.email?.toLowerCase() ===
+                        data.team.captainEmail?.toLowerCase()
+                    );
+                })
+                : createdPlayers[0];
+
+            createdTeam = await DatabaseHelper.create(
+                Team,
+                tenant,
+                {
+                    championshipId,
+                    name: data.team.name,
+                    logo: data.team.logo,
+                    categoryId: data.team.categoryId,
+                    players: createdPlayers.map((player) => player._id),
+                    captainId: captain?._id,
+                    registrations: [],
+                    participationHistory: [
+                        {
+                            championshipId,
+                            year: new Date().getFullYear(),
+                            position: 0,
+                        },
+                    ],
+                    registrationType: 'public_link',
+                    status: 'pending',
+                }
+            );
+
+            registration = await DatabaseHelper.create(
+                Registration,
+                tenant,
+                {
+                    championshipId,
+                    teamId: createdTeam._id,
+                    registrationDate: new Date(),
+                    registrationStatus: 'pending',
+                    feePaid: false,
+                    registrationDeadline: configuration.registrationDeadline,
+                }
+            );
+
+            await DatabaseHelper.update(
+                Team,
+                createdTeam._id.toString(),
+                tenant,
+                {
+                    registrations: [registration._id],
+                }
+            );
+
+            const paymentData = {
+                price: Number(configuration.registrationFee),
+                description: `Inscripción al campeonato - Equipo ${createdTeam.name}`,
+                track: registration._id.toString(),
+                currency: configuration.currency,
+            };
+
+            const fullName = data.payerData.name?.trim() || '';
+            const [firstName, ...lastNameParts] = fullName.split(' ');
+
+            const payer = {
+                role: 'admin',
+                name: firstName,
+                surname:
+                    data.payerData.surname || lastNameParts.join(' '),
+                email: data.payerData.email,
+                areaCode: data.payerData.areaCode || '57',
+                phoneNumber:
+                    data.payerData.phoneNumber || data.payerData.phone,
+                address: data.payerData.address || '',
+            };
+
+            const paymentLink = await generate_link(
+                {},
+                null,
+                paymentData,
+                tenant,
+                payer
+            );
+
+            if (!paymentLink || paymentLink.error) {
+                throw new CustomError(
+                    'Error generating payment link',
+                    500,
+                    'RegistrationServiceError'
+                );
+            }
+
+            for (const credential of createdCredentials) {
+                await this.emailService.sendTemporaryPasswordEmail({
+                    email: credential.email,
+                    name: credential.name,
+                    temporaryPassword: credential.temporaryPassword,
+                    tenant,
+                    locale: 'es',
+                });
+            }
+
+            await DatabaseHelper.findOneAndUpdate(
+                InvitationLink,
+                tenant,
+                { code },
+                {
+                    $inc: {
+                        usedCount: 1,
+                    },
+                }
+            );
+
+            return {
+                team: createdTeam,
+                players: createdPlayers,
+                registration,
+                paymentLink,
+                ...(env.NODE_ENV !== "production" && {
+                    credentials: createdCredentials
+                }),
+            };
+        } catch (error) {
+            this.logger.error(
+                'Error in public team registration:',
+                error
+            );
+
+            if (registration) {
+                await DatabaseHelper.delete(
+                    Registration,
+                    registration._id.toString(),
+                    tenant
+                );
+            }
+
+            if (createdTeam) {
+                await DatabaseHelper.delete(
+                    Team,
+                    createdTeam._id.toString(),
+                    tenant
+                );
+            }
+
+            for (const player of createdPlayers) {
+                await DatabaseHelper.delete(
+                    Player,
+                    player._id.toString(),
+                    tenant
+                );
+            }
+
+            for (const user of createdUsers) {
+                await DatabaseHelper.delete(
+                    User,
+                    user._id.toString(),
+                    tenant
+                );
+            }
+
+            throw new CustomError(
+                error instanceof Error
+                    ? error.message
+                    : 'Error registering team with players',
                 500,
                 'RegistrationServiceError'
             );
@@ -245,6 +634,19 @@ export class RegistrationService {
 
     async deleteRegistrationId(registrationId: string, tenant: string): Promise<void> {
         await DatabaseHelper.delete(Registration, tenant, registrationId);
+    }
+
+    private generateTemporaryPassword(length = 10): string {
+        const chars =
+            'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789@$';
+
+        let password = '';
+
+        for (let i = 0; i < length; i++) {
+            password += chars.charAt(Math.floor(Math.random() * chars.length));
+        }
+
+        return password;
     }
 
 }

@@ -10,10 +10,17 @@ export interface ITeamDocument extends ITenantDocument {
     name: string;
     logo?: string;
     players: Types.ObjectId[];
-    registrations: Types.ObjectId[];
-    status: 'active' | 'inactive';
-    createdAt?: Date;
-    updatedAt?: Date;
+    captainId?: Types.ObjectId;
+    categoryId?: string;
+    registrationType: 'manual' | 'public_link';
+    clubId?: Types.ObjectId;
+    status: 'pending' | 'active' | 'inactive' | 'rejected';
+    registrations?: Types.ObjectId[];
+    participationHistory: {
+        championshipId: Types.ObjectId;
+        year?: number;
+        position?: number;
+    }[];
 }
 
 export interface ITeamModel extends ITenantModel<ITeamDocument> {
@@ -34,6 +41,10 @@ const TeamSchema = new Schema<ITeamDocument>(
             type: String,
             required: true
         },
+        captainId: {
+            type: Types.ObjectId,
+            ref: 'Player',
+        },
         logo: {
             type: String
         },
@@ -41,14 +52,42 @@ const TeamSchema = new Schema<ITeamDocument>(
             type: Types.ObjectId,
             ref: 'Player'
         }],
+        participationHistory: [{
+            championshipId: {
+                type: Types.ObjectId,
+                ref: 'Championship'
+            },
+            year: {
+                type: Number,
+                required: true
+            },
+            position: {
+                type: Number,
+                required: true
+            }
+        }],
+        clubId: {
+            type: Types.ObjectId,
+            ref: 'Club'
+        },
         registrations: [{
             type: Types.ObjectId,
             ref: 'Registration'
         }],
+        registrationType: {
+            type: String,
+            enum: ['manual', 'public_link'],
+            default: 'manual'
+        },
+        categoryId: {
+            type: String,
+            required: false,
+            trim: true,
+        },
         status: {
             type: String,
-            enum: ['active', 'inactive'],
-            default: 'active'
+            enum: ['active', 'inactive', 'pending', 'rejected'],
+            default: 'pending'
         }
     },
     {

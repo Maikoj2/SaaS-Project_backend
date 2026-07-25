@@ -200,6 +200,48 @@ export class AuthController {
         }
     };
 
+    changeTemporaryPassword = async (
+        req: IUserCustomRequest,
+        res: Response
+    ): Promise<void> => {
+        try {
+            const tenant = req.clientAccount as string;
+
+            const userId =
+                req.user?._id?.toString() ||
+                req.user?.id?.toString();
+
+            if (!userId) {
+                res.status(401).json(
+                    ApiResponse.error('Authenticated user not found')
+                );
+                return;
+            }
+
+            const result = await this.authService.changeTemporaryPassword(
+                tenant,
+                userId,
+                req.body.currentPassword,
+                req.body.newPassword
+            );
+
+            res.status(200).json(
+                ApiResponse.success({
+                    message: 'Password changed successfully',
+                    data: result,
+                })
+            );
+        } catch (error: any) {
+            res.status(error.statusCode || 400).json(
+                ApiResponse.error(
+                    error instanceof Error
+                        ? error.message
+                        : 'Error changing password'
+                )
+            );
+        }
+    };
+
     private validateField(field: any, message: string): void {
         if (!field) {
             throw new AuthError(message, 404);

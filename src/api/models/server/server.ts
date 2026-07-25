@@ -9,6 +9,7 @@ import '../../config/passport/passport'
 import passport from 'passport';
 import { seedGameFormats } from '../../seeds/gameFormats.seed';
 import { seedCourts } from '../../seeds/courts.seed';
+import { seedClubs } from '../../seeds/clubs.seed';
 
 
 
@@ -74,6 +75,8 @@ export class Server {
             this.logger.info('Formatos de juego inicializados');
             await seedCourts('miapp');
             this.logger.info('Courts inicializados');
+            await seedClubs('miapp');
+            this.logger.info('Clubs inicializados');
             this.server = this.app.listen(this.port, () => {
                 this.logger.info(`Servidor corriendo en puerto ${this.port}`);
             });

@@ -3,6 +3,7 @@ import { ITenantDocument, ITenantModel } from "../../../interfaces";
 import MongooseDelete from 'mongoose-delete';
 import mongoTenant from 'mongo-tenant';
 import mongoosePaginate from 'mongoose-paginate-v2';
+import { MatchStatus, MatchStatusValue } from "../../../constants/championship.constants";
 
 interface IScore {
     homeTeam: number;
@@ -25,7 +26,13 @@ export interface IMatchDocument extends ITenantDocument {
     gameFormatId?: Types.ObjectId;
     statistics: Types.ObjectId[];
     score?: IScore;
-    status: 'scheduled' | 'in_progress' | 'finished' | 'walkover' | 'cancelled'
+    status: MatchStatusValue;
+    isEliminationMatch: boolean;
+    eliminationBracketId?: Types.ObjectId;
+    bracketMatchNumber?: number;
+    bracketRoundName?: string;
+    bracketRoundLabel?: string;
+    bracketPosition?: number;
     startTime?: Date;
     endTime?: Date;
 }
@@ -99,8 +106,33 @@ const MatchSchema = new Schema<IMatchDocument>(
         score: ScoreSchema,
         status: {
             type: String,
-            enum: ['scheduled', 'in_progress', 'finished', 'walkover', 'cancelled'],
+            enum: [...MatchStatus],
             default: 'scheduled'
+        },
+        isEliminationMatch: {
+            type: Boolean,
+            default: false,
+        },
+        eliminationBracketId: {
+            type: Schema.Types.ObjectId,
+            ref: 'EliminationBracket',
+            required: false,
+        },
+        bracketMatchNumber: {
+            type: Number,
+            required: false,
+        },
+        bracketRoundName: {
+            type: String,
+            required: false,
+        },
+        bracketRoundLabel: {
+            type: String,
+            required: false,
+        },
+        bracketPosition: {
+            type: Number,
+            required: false,
         },
         startTime: Date,
         endTime: Date

@@ -4,21 +4,53 @@ import MongooseDelete from 'mongoose-delete';
 import mongoTenant from 'mongo-tenant';
 import mongoosePaginate from 'mongoose-paginate-v2';
 import { Types } from "mongoose";
+import { CompetitionRulePreset } from "../../../domain/championship/rules/competitionRules.presets";
 
 // Interfaces
-interface ITieBreakerCriteria {
+export interface ITeamSizeRules {
+    minPlayers: number;
+    maxPlayers: number;
+    starters: number;
+}
+
+export interface IMixedRules {
+    minMalePlayers?: number;
+    minFemalePlayers?: number;
+}
+
+export interface ICompetitionCategory {
+    id: string;
+    name: string;
+    genderMode: 'male' | 'female' | 'mixed' | 'open';
+    minAge?: number;
+    maxAge?: number;
+    maxTeams?: number;
+    teamSize?: ITeamSizeRules;
+    mixedRules?: IMixedRules;
+}
+
+export interface ICompetitionRules {
+    genderMode: 'male' | 'female' | 'mixed' | 'open';
+    teamSize: ITeamSizeRules;
+    mixedRules?: IMixedRules;
+    categories: {
+        enabled: boolean;
+        list: ICompetitionCategory[];
+    };
+}
+export interface ITieBreakerCriteria {
     setRatio: boolean;
     pointRatio: boolean;
     draw: boolean;
 }
 
-interface ITablePointsPolicy {
+export interface ITablePointsPolicy {
     winPoints: number;
     lossPoints: number;
     walkoverLossPoints: number;
     walkoverWinPoints?: number;
 }
-interface IMatchRules {
+export interface IMatchRules {
     volleyballType: 'beach' | 'indoor';
     setsToWin: number;
     maxSets: number;
@@ -26,7 +58,7 @@ interface IMatchRules {
     tieBreakPoints: number;
     minimumPointDifference: number;
 }
-interface IEliminationSettings {
+export interface IEliminationSettings {
     enabled: boolean;
 
     qualificationMode: 'topPerGroup' | 'topPerGroupPlusBestThirds' | 'bestOverall';
@@ -54,10 +86,12 @@ interface IEliminationSettings {
 export interface IConfigurationDocument extends ITenantDocument {
     championshipId: Types.ObjectId;
     maxTeams: number;
-    gameFormatId: Types.ObjectId;
+    gameFormatId?: Types.ObjectId;
     tieBreakerCriteria: ITieBreakerCriteria;
     eliminationSettings: IEliminationSettings;
     matchRules: IMatchRules;
+    competitionRulePreset: string;
+    competitionRules?: ICompetitionRules;
     customRules?: string;
     tablePointsPolicy?: ITablePointsPolicy;
     distributionStrategy?: string;
@@ -75,6 +109,127 @@ export interface IConfigurationModel extends ITenantModel<IConfigurationDocument
 }
 
 // Schema
+
+const TeamSizeRulesSchema = new Schema<ITeamSizeRules>(
+    {
+        minPlayers: {
+            type: Number,
+            required: true,
+            min: 1,
+            default: 2,
+        },
+        maxPlayers: {
+            type: Number,
+            required: true,
+            min: 1,
+            default: 4,
+        },
+        starters: {
+            type: Number,
+            required: true,
+            min: 1,
+            default: 2,
+        },
+    },
+    { _id: false }
+);
+
+const MixedRulesSchema = new Schema<IMixedRules>(
+    {
+        minMalePlayers: {
+            type: Number,
+            min: 0,
+            required: false,
+        },
+        minFemalePlayers: {
+            type: Number,
+            min: 0,
+            required: false,
+        },
+    },
+    { _id: false }
+);
+
+const CompetitionCategorySchema = new Schema<ICompetitionCategory>(
+    {
+        id: {
+            type: String,
+            required: true,
+            trim: true,
+        },
+        name: {
+            type: String,
+            required: true,
+            trim: true,
+        },
+        genderMode: {
+            type: String,
+            enum: ['male', 'female', 'mixed', 'open'],
+            required: true,
+            default: 'open',
+        },
+        minAge: {
+            type: Number,
+            min: 0,
+            required: false,
+        },
+        maxAge: {
+            type: Number,
+            min: 0,
+            required: false,
+        },
+        maxTeams: {
+            type: Number,
+            min: 1,
+            required: false,
+        },
+        teamSize: {
+            type: TeamSizeRulesSchema,
+            required: false,
+        },
+        mixedRules: {
+            type: MixedRulesSchema,
+            required: false,
+        },
+    },
+    { _id: false }
+);
+
+const CompetitionRulesSchema = new Schema<ICompetitionRules>(
+    {
+        genderMode: {
+            type: String,
+            enum: ['male', 'female', 'mixed', 'open'],
+            required: true,
+            default: 'open',
+        },
+        teamSize: {
+            type: TeamSizeRulesSchema,
+            required: true,
+            default: () => ({
+                minPlayers: 2,
+                maxPlayers: 4,
+                starters: 2,
+            }),
+        },
+        mixedRules: {
+            type: MixedRulesSchema,
+            required: false,
+        },
+        categories: {
+            enabled: {
+                type: Boolean,
+                default: false,
+            },
+            list: {
+                type: [CompetitionCategorySchema],
+                default: [],
+            },
+        },
+    },
+    { _id: false }
+);
+
 const TablePointsPolicySchema = new Schema<ITablePointsPolicy>({
     winPoints: {
         type: Number,
@@ -218,7 +373,8 @@ const ChampionshipConfigurationSchema = new Schema<IConfigurationDocument>(
         gameFormatId: {
             type: Types.ObjectId,
             ref: 'GameFormat',
-            required: true
+            required: false,
+            default: null
         },
         matchRules: {
             type: MatchRulesSchema,
@@ -250,6 +406,28 @@ const ChampionshipConfigurationSchema = new Schema<IConfigurationDocument>(
             type: String,
             enum: ['serpentine', 'linear', 'random', 'balancedByClub'],
             default: 'serpentine'
+        },
+        competitionRulePreset: {
+            type: String,
+            enum: Object.values(CompetitionRulePreset),
+            required: true,
+            default: CompetitionRulePreset.BEACH_MALE_2V2
+        },
+        competitionRules: {
+            type: CompetitionRulesSchema,
+            required: true,
+            default: () => ({
+                genderMode: 'open',
+                teamSize: {
+                    minPlayers: 2,
+                    maxPlayers: 4,
+                    starters: 2,
+                },
+                categories: {
+                    enabled: false,
+                    list: [],
+                },
+            }),
         },
         tablePointsPolicy: {
             type: TablePointsPolicySchema,
@@ -317,6 +495,27 @@ ChampionshipConfigurationSchema.pre('save', function (next) {
             next(new Error('the match duration limit must be greater than the set duration limit'));
         }
     }
+
+    const teamSize = this.competitionRules?.teamSize;
+
+    if (teamSize) {
+        if (teamSize.minPlayers > teamSize.maxPlayers) {
+            next(new Error('minPlayers cannot be greater than maxPlayers'));
+        }
+
+        if (teamSize.starters > teamSize.maxPlayers) {
+            next(new Error('starters cannot be greater than maxPlayers'));
+        }
+    }
+
+    if (this.competitionRules?.genderMode === 'mixed') {
+        const mixedRules = this.competitionRules.mixedRules;
+
+        if (!mixedRules?.minMalePlayers || !mixedRules?.minFemalePlayers) {
+            next(new Error('mixed competitions require minMalePlayers and minFemalePlayers'));
+        }
+    }
+
     next();
 });
 

@@ -1,76 +1,189 @@
-// src/api/validators/gameFormat.validator.ts
-import { check } from 'express-validator';
+import { body, query } from 'express-validator';
 import { validate } from '../../middlewares';
+import { paramsValidator } from '../expressValidatorHelper';
 
-export const gameFormatValidators = {
-    formatType: [
-        check('formatType')
-            .exists()
-            .withMessage('MISSING')
+const allowedFormatTypes = [
+    'single_set',
+    'best_of_3',
+    'best_of_2',
+    'custom',
+];
+
+export const validateGameFormat = {
+    createGameFormat: [
+        body('formatType')
             .notEmpty()
-            .withMessage('IS_EMPTY')
-            .isIn(['single_set', 'best_of_2', 'best_of_3', 'custom'])
-            .withMessage('INVALID_FORMAT_TYPE'),
-    ],
+            .withMessage('formatType is required')
+            .isIn(allowedFormatTypes)
+            .withMessage('Invalid formatType'),
 
-    description: [
-        check('description')
-            .exists()
-            .withMessage('MISSING')
+        body('description')
+            .optional()
+            .isString()
+            .withMessage('description must be a string'),
+
+        body('sets')
             .notEmpty()
-            .withMessage('IS_EMPTY')
-            .isLength({ max: 200 })
-            .withMessage('DESCRIPTION_TOO_LONG'),
+            .withMessage('sets is required')
+            .isInt({ min: 1 })
+            .withMessage('sets must be greater than zero'),
+
+        body('pointsPerSet')
+            .notEmpty()
+            .withMessage('pointsPerSet is required')
+            .isInt({ min: 1 })
+            .withMessage('pointsPerSet must be greater than zero'),
+
+        body('tiebreakerPoints')
+            .optional({ nullable: true })
+            .isInt({ min: 1 })
+            .withMessage('tiebreakerPoints must be greater than zero'),
+
+        body('maxPointsPerSet')
+            .optional({ nullable: true })
+            .isInt({ min: 1 })
+            .withMessage('maxPointsPerSet must be greater than zero'),
+
+        body('minAdvantage')
+            .notEmpty()
+            .withMessage('minAdvantage is required')
+            .isInt({ min: 1 })
+            .withMessage('minAdvantage must be greater than zero'),
+
+        body('customRules')
+            .optional()
+            .isString()
+            .withMessage('customRules must be a string'),
+
+        body('formatType').custom((formatType, { req }) => {
+            const sets = Number(req.body.sets);
+
+            if (formatType === 'single_set' && sets !== 1) {
+                throw new Error('single_set format must have exactly 1 set');
+            }
+
+            if (formatType === 'best_of_3' && sets !== 3) {
+                throw new Error('best_of_3 format must have exactly 3 sets');
+            }
+
+            if (formatType === 'best_of_2' && sets !== 2) {
+                throw new Error('best_of_2 format must have exactly 2 sets');
+            }
+
+            return true;
+        }),
+
+        body('maxPointsPerSet').custom((maxPointsPerSet, { req }) => {
+            if (
+                maxPointsPerSet !== undefined &&
+                maxPointsPerSet !== null &&
+                Number(maxPointsPerSet) < Number(req.body.pointsPerSet)
+            ) {
+                throw new Error(
+                    'maxPointsPerSet cannot be lower than pointsPerSet'
+                );
+            }
+
+            return true;
+        }),
+
+        validate,
     ],
 
-    sets: [
-        check('sets')
-            .exists()
-            .withMessage('MISSING')
-            .isInt({ min: 1, max: 5 })
-            .withMessage('SETS_BETWEEN_1_AND_5'),
+    getGameFormats: [
+        query('formatType')
+            .optional()
+            .isIn(allowedFormatTypes)
+            .withMessage('Invalid formatType'),
+
+        query('page')
+            .optional()
+            .isInt({ min: 1 })
+            .withMessage('Page must be greater than zero'),
+
+        query('limit')
+            .optional()
+            .isInt({ min: 1 })
+            .withMessage('Limit must be greater than zero'),
+
+        validate,
     ],
 
-    pointsPerSet: [
-        check('pointsPerSet')
-            .exists()
-            .withMessage('MISSING')
-            .isInt({ min: 15, max: 30 })
-            .withMessage('POINTS_BETWEEN_15_AND_30'),
+    getGameFormatById: [
+        ...paramsValidator('gameFormatId', true),
+        validate,
     ],
 
-    tiebreakerPoints: [
-        check('tiebreakerPoints')
-            .exists()
-            .withMessage('MISSING')
-            .isInt({ min: 1, max: 25 })
-            .withMessage('TIEBREAKER_BETWEEN_1_AND_25'),
+    updateGameFormat: [
+        ...paramsValidator('gameFormatId', true),
+
+        body('description')
+            .optional()
+            .isString()
+            .withMessage('description must be a string'),
+
+        body('sets')
+            .optional()
+            .isInt({ min: 1 })
+            .withMessage('sets must be greater than zero'),
+
+        body('pointsPerSet')
+            .optional()
+            .isInt({ min: 1 })
+            .withMessage('pointsPerSet must be greater than zero'),
+
+        body('tiebreakerPoints')
+            .optional({ nullable: true })
+            .isInt({ min: 1 })
+            .withMessage('tiebreakerPoints must be greater than zero'),
+
+        body('maxPointsPerSet')
+            .optional({ nullable: true })
+            .isInt({ min: 1 })
+            .withMessage('maxPointsPerSet must be greater than zero'),
+
+        body('minAdvantage')
+            .optional()
+            .isInt({ min: 1 })
+            .withMessage('minAdvantage must be greater than zero'),
+
+        body('customRules')
+            .optional()
+            .isString()
+            .withMessage('customRules must be a string'),
+
+        body('maxPointsPerSet').custom((maxPointsPerSet, { req }) => {
+            if (
+                maxPointsPerSet !== undefined &&
+                maxPointsPerSet !== null &&
+                req.body.pointsPerSet !== undefined &&
+                Number(maxPointsPerSet) < Number(req.body.pointsPerSet)
+            ) {
+                throw new Error(
+                    'maxPointsPerSet cannot be lower than pointsPerSet'
+                );
+            }
+
+            return true;
+        }),
+
+        validate,
     ],
 
-    maxPointsPerSet: [
-        check('maxPointsPerSet')
-            .exists()
-            .withMessage('MISSING')
-            .isInt({ min: 25, max: 40 })
-            .withMessage('MAX_POINTS_BETWEEN_25_AND_40'),
+    deleteGameFormat: [
+        ...paramsValidator('gameFormatId', true),
+        validate,
     ],
 
-    minAdvantage: [
-        check('minAdvantage')
-            .exists()
-            .withMessage('MISSING')
-            .isBoolean()
-            .withMessage('MUST_BE_BOOLEAN'),
+    assignGameFormatToChampionshipConfiguration: [
+        ...paramsValidator('championshipId', true),
+
+        body('gameFormatId')
+            .notEmpty()
+            .withMessage('gameFormatId is required')
+            .isMongoId()
+            .withMessage('Invalid gameFormatId'),
+
+        validate,
     ],
 };
-
-export const validateCreateGameFormat = [
-    ...gameFormatValidators.formatType,
-    ...gameFormatValidators.description,
-    ...gameFormatValidators.sets,
-    ...gameFormatValidators.pointsPerSet,
-    ...gameFormatValidators.tiebreakerPoints,
-    ...gameFormatValidators.maxPointsPerSet,
-    ...gameFormatValidators.minAdvantage,
-    validate,
-];

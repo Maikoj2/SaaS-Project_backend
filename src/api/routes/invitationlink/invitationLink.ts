@@ -25,7 +25,6 @@ router.post(InvitationLinkRoutes.GENERATE_LINK, [
 router.post(InvitationLinkRoutes.USE_LINK, [
     origin.checkDomain as RequestHandler,
     origin.checkTenant as RequestHandler,
-    auth as RequestHandler,
     ...validateUseInvitationLink,
     trimRequest.all as RequestHandler,
 ] as RequestHandler[], controller.useInvitationLink as RequestHandler);

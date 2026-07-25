@@ -6,14 +6,14 @@ import { DatabaseHelper } from "../../utils/database.helper";
 import { Types } from "mongoose";
 import ChampionshipConfiguration, { IConfigurationDocument } from "../../models/mongoose/championship/configuration";
 import { CustomError } from "../../errors";
+import Court from "../../models/mongoose/championship/court";
+import { ChampionshipStatusValue } from "../../constants/championship.constants";
 
 
 
-type ChampionshipStatus = 'draft' | 'registration' | 'in_progress' | 'completed' | 'canceled';
-const selectFields = ['id', 'name', 'startDate', 'endDate', 'status', 'teams', 'courts', 'description', 'registrations', 'idCreatorChampionship'];
-const selectFieldsCreator = ['name', 'email'];
+
 const selectFieldsChampionship = ['status', 'teams'];
-const selectFieldsConfiguration = ['maxTeams', 'gameFormatId', 'tieBreakerCriteria'];
+
 const selectFieldsGameFormat = ['name', 'description'];
 const selectFieldsCourts = ['name', 'description', 'status'];
 
@@ -37,38 +37,70 @@ export class ChampionshipService {
     /**
      * Actualizar estado del campeonato
      */
-    async updateStatus(championshipId: string, tenant: string, newStatus: ChampionshipStatus): Promise<IChampionshipDocument> {
+    async updateStatus(championshipId: string, tenant: string, newStatus: ChampionshipStatusValue): Promise<IChampionshipDocument> {
         try {
-            //TODO validar para los cambios si ya estan registrados todos los equipos 
-            const championship = await DatabaseHelper.findOneAndUpdate(
+            const allowedTransitions: Record<
+                ChampionshipStatusValue,
+                ChampionshipStatusValue[]
+            > = {
+                draft: ['registration', 'cancelled'],
+                registration: ['in_progress', 'cancelled'],
+                in_progress: ['completed', 'cancelled'],
+                completed: [],
+                cancelled: [],
+            };
+            const currentChampionship = await DatabaseHelper.findOne(
                 Championship,
                 tenant,
                 { _id: championshipId },
-                { status: newStatus as any }
+                { throwError: false }
             );
-            if (!championship) {
-                throw new Error('Championship not found');
+
+            if (!currentChampionship) {
+                throw new CustomError(
+                    'Championship not found',
+                    404,
+                    'ChampionshipServiceError'
+                );
             }
-            // 2. Buscar con populate
-            const populatedChampionship = await DatabaseHelper.findOneWithRelations(
+            const currentStatus =
+                currentChampionship.status as ChampionshipStatusValue;
+
+            if (!allowedTransitions[currentStatus]?.includes(newStatus)) {
+                throw new CustomError(
+                    `Invalid championship transition: ${currentStatus} -> ${newStatus}`,
+                    409,
+                    'ChampionshipServiceError'
+                );
+            }
+
+            const championship = await DatabaseHelper.findOneAndUpdate(
                 Championship,
                 tenant,
-                { _id: championship._id },
                 {
-                    basic: ['idCreatorChampionship'],
-                    nested: [{
-                        path: 'idCreatorChampionship',
-                        select: 'name email' // el -_id es opcional, si no quieres el ID
-                    }]
+                    _id: championshipId,
+                    status: currentStatus,
+                },
+                {
+                    $set: {
+                        status: newStatus,
+                    },
+                },
+                {
+                    new: true,
+                    runValidators: true,
                 }
             );
 
-
-            if (!populatedChampionship) {
-                throw new Error('Championship not found');
+            if (!championship) {
+                throw new CustomError(
+                    'Championship status changed concurrently',
+                    409,
+                    'ChampionshipServiceError'
+                );
             }
 
-            return populatedChampionship;
+            return championship;
         } catch (error: any) {
             throw new Error(`Error updating championship status: ${error.message}`);
         }
@@ -85,8 +117,12 @@ export class ChampionshipService {
             }
 
             // Validaciones de negocio
-            if (championship.status !== 'draft') {
-                throw new Error('Registration period is closed');
+            if (championship.status !== 'registration') {
+                throw new CustomError(
+                    'Registration period is closed',
+                    409,
+                    'ChampionshipServiceError'
+                );
             }
 
             if (championship.registeredTeams && championship.registeredTeams.length >= championship.numberOfTeams) {
@@ -110,7 +146,17 @@ export class ChampionshipService {
 
             return updatedChampionship
         } catch (error: any) {
-            throw new Error(`Error registering team: ${error.message}`);
+            if (error instanceof CustomError) {
+                throw error;
+            }
+
+            throw new CustomError(
+                error instanceof Error
+                    ? `Error registering team: ${error.message}`
+                    : 'Error registering team',
+                500,
+                'ChampionshipServiceError'
+            );
         }
     }
 
@@ -248,11 +294,8 @@ export class ChampionshipService {
             tenant,
             { _id: id },
             {
-                basic: ['idCreatorChampionship'],
-                nested: [{
-                    path: 'idCreatorChampionship',
-                    select: selectFieldsCreator.join(' ')
-                }]
+                basic: ['idCreatorChampionship', 'courts'],
+                nested: this.populateOption()
             }
         );
         if (!championship) {
@@ -398,4 +441,121 @@ export class ChampionshipService {
             throw new CustomError(error instanceof Error ? error.message : 'Error deleting registrationId', 500, 'ChampionshipServiceError');
         }
     }
+
+    async markAsInProgressIfNeeded(
+        tenant: string,
+        championshipId: string
+    ): Promise<IChampionshipDocument | null> {
+        const championship = await DatabaseHelper.findOne(
+            Championship,
+            tenant,
+            {
+                _id: new Types.ObjectId(championshipId),
+            }
+        );
+
+        if (!championship) {
+            throw new CustomError(
+                'Championship not found',
+                404,
+                'ChampionshipServiceError'
+            );
+        }
+
+        if (['completed', 'cancelled'].includes(championship.status)) {
+            return championship;
+        }
+
+        if (championship.status === 'in_progress') {
+            return championship;
+        }
+
+        return DatabaseHelper.findOneAndUpdate(
+            Championship,
+            tenant,
+            {
+                _id: new Types.ObjectId(championshipId),
+            },
+            {
+                $set: {
+                    status: 'in_progress',
+                },
+            },
+            {
+                new: true,
+            }
+        );
+    }
+
+    async completeChampionshipAndReleaseCourts(
+        tenant: string,
+        championshipId: string
+    ): Promise<{
+        championship: IChampionshipDocument | null;
+        releasedCourts: number;
+    }> {
+        const championship = await DatabaseHelper.findOneAndUpdate(
+            Championship,
+            tenant,
+            {
+                _id: new Types.ObjectId(championshipId),
+            },
+            {
+                $set: {
+                    status: 'completed',
+                    completedAt: new Date(),
+                },
+            },
+            {
+                new: true,
+            }
+        );
+
+        if (!championship) {
+            throw new CustomError(
+                'Championship not found',
+                404,
+                'ChampionshipServiceError'
+            );
+        }
+
+        const releaseResult = await Court.byTenant(tenant).updateMany(
+            {
+                currentChampionshipId: new Types.ObjectId(championshipId),
+                status: {
+                    $in: ['reserved', 'occupied'],
+                },
+            },
+            {
+                $set: {
+                    status: 'available',
+                },
+                $unset: {
+                    currentChampionshipId: '',
+                },
+            }
+        );
+
+        return {
+            championship,
+            releasedCourts:
+                (releaseResult as any).modifiedCount ??
+                (releaseResult as any).nModified ??
+                0,
+        };
+    }
+
+    private populateOption() {
+        return [
+            {
+                path: 'teams courts matches registrations',
+                select: '',
+                populate: [
+
+                ],
+            },
+        ]
+    }
+
+
 } 

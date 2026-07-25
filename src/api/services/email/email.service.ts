@@ -3,6 +3,14 @@ import { Logger } from '../../config/logger/WinstonLogger';
 import { AuthError } from '../../errors/AuthError';
 // import nodemailer from 'nodemailer'; // dependent to send emails
 
+interface TemporaryPasswordEmailData {
+    email: string;
+    name: string;
+    temporaryPassword: string;
+    tenant: string;
+    locale?: string;
+}
+
 interface ResetPasswordData {
     email: string;
     name: string;
@@ -56,7 +64,7 @@ export class EmailService {
                 tenant,
                 resetLink: `https://your-domain.com/reset-password?urlId=${data.token}`
             });
-            
+
         } catch (error) {
             this.logger.error('Error enviando email:', error);
             throw error;
@@ -71,7 +79,7 @@ export class EmailService {
             // // Leer la plantilla HTML
             // const templatePath = join(__dirname, `../templates/verification-${locale}.html`);
             // const template = readFileSync(templatePath, 'utf-8');
-            
+
             // // Compilar la plantilla con los datos
             // const compiledTemplate = compile(template);
             // const html = compiledTemplate({
@@ -98,12 +106,12 @@ export class EmailService {
                 tenant,
                 verificationLink: verificationLink
             });
-            
+
         } catch (error) {
             this.logger.error('Error sending verification email:', error);
             throw new AuthError('Error sending verification email', 500);
         }
-    
+
     }
 
     public async sendRegistrationEmail(data: RegistrationEmailData): Promise<void> {
@@ -142,6 +150,50 @@ export class EmailService {
 
         } catch (error) {
             this.logger.error('Error sending registration email:', error);
+            throw error;
+        }
+    }
+
+    public async sendTemporaryPasswordEmail(
+        data: TemporaryPasswordEmailData
+    ): Promise<void> {
+        try {
+            const { email, name, temporaryPassword, tenant, locale = 'es' } = data;
+
+            this.logger.info('Simulando envío de email con contraseña temporal:', {
+                to: email,
+                tenant,
+                locale,
+                name,
+                temporaryPassword,
+                loginUrl: 'https://your-frontend-url.com/login',
+                message:
+                    'Tu usuario fue creado correctamente. Inicia sesión con esta contraseña temporal y cámbiala al entrar.',
+            });
+
+            /*
+            await this.transporter.sendMail({
+                from: `"${process.env.EMAIL_FROM_NAME}" <${process.env.EMAIL_FROM_ADDRESS}>`,
+                to: email,
+                subject:
+                    locale === 'es'
+                        ? 'Acceso a tu cuenta del campeonato'
+                        : 'Access to your championship account',
+                html: `
+                    <h2>Hola ${name}</h2>
+                    <p>Tu cuenta fue creada correctamente.</p>
+                    <p><strong>Email:</strong> ${email}</p>
+                    <p><strong>Contraseña temporal:</strong> ${temporaryPassword}</p>
+                    <p>Cuando ingreses, deberás cambiar tu contraseña.</p>
+                    <a href="${process.env.FRONTEND_URL}/login">Ingresar</a>
+                `,
+            });
+            */
+        } catch (error) {
+            this.logger.error(
+                'Error sending temporary password email:',
+                error
+            );
             throw error;
         }
     }

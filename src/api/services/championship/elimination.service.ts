@@ -14,7 +14,7 @@ import {
     qualifyTeamsFromGroupStandings,
 } from '../../domain/championship/competition';
 import EliminationBracket from '../../models/mongoose/championship/eliminationBracket';
-import { IMatchDocument } from '../../models/mongoose/championship/match';
+import { IMatchDocument, Match } from '../../models/mongoose/championship/match';
 
 type GenerateBracketInput = {
     championshipId: string;
@@ -22,6 +22,7 @@ type GenerateBracketInput = {
 };
 
 export class EliminationService {
+
     async generateBracketFromGroupDistribution(
         tenant: string,
         data: GenerateBracketInput
@@ -48,22 +49,26 @@ export class EliminationService {
             );
         }
 
-        const groups = await DatabaseHelper.findOneWithRelations(
-            Group,
-            tenant,
-            {
-                _id: new Types.ObjectId(data.groupDistributionId),
-            },
-            {
-                nested: [
-                    { path: 'matches', select: 'status matchNumber homeTeamId awayTeamId' },
-                    { path: 'rankings.teamId', select: 'name' }
-                ]
-            }
-        )
-        if (!groups) {
+
+
+        const groups = await Group.byTenant(tenant)
+            .find({
+                championshipId: new Types.ObjectId(data.championshipId),
+                groupDistributionId: new Types.ObjectId(data.groupDistributionId),
+            })
+            .populate({
+                path: 'matches',
+                select: 'status matchNumber homeTeamId awayTeamId',
+            })
+            .populate({
+                path: 'rankings.teamId',
+                select: 'name',
+            })
+            .sort({ name: 1 });
+
+        if (!groups.length) {
             throw new CustomError(
-                'No groups found for this group distribution',
+                'Group distribution does not belong to this championship or has no groups',
                 404,
                 'EliminationServiceError'
             );
@@ -159,6 +164,14 @@ export class EliminationService {
             )
         }
 
+        const firstRoundMatches = this.getFirstRoundMatches(bracket);
+        console.log(
+            'FIRST ROUND MATCHES:',
+            JSON.stringify(firstRoundMatches, null, 2)
+        );
+
+        this.validateFirstRoundMatches(firstRoundMatches);
+
         const createdEliminationBracket = await DatabaseHelper.create(
             EliminationBracket,
             tenant,
@@ -172,20 +185,96 @@ export class EliminationService {
                     eliminationSettings,
                     tieBreakerCriteria: configuration.tieBreakerCriteria,
                 },
+                matches: [],
                 status: 'active',
-
             }
-        )
+        );
+
+        const createdMatches = await this.createFirstRoundMatches(
+            tenant,
+            data,
+            firstRoundMatches,
+            configuration,
+            createdEliminationBracket._id
+        );
+
+        const updatedEliminationBracket = await DatabaseHelper.findOneAndUpdate(
+            EliminationBracket,
+            tenant,
+            { _id: createdEliminationBracket._id },
+            {
+                $set: {
+                    matches: createdMatches,
+                },
+            },
+            { upsert: true, new: true }
+        );
 
         return {
             championshipId: data.championshipId,
             groupDistributionId: data.groupDistributionId,
-            eliminationBracketId: createdEliminationBracket._id,
-            settings: createdEliminationBracket.settings,
-            qualification: createdEliminationBracket.qualification,
-            bracket: createdEliminationBracket.bracket,
-            status: createdEliminationBracket.status,
+            eliminationBracketId: updatedEliminationBracket?._id,
+            settings: updatedEliminationBracket?.settings,
+            qualification: updatedEliminationBracket?.qualification,
+            bracket: updatedEliminationBracket?.bracket,
+            matches: updatedEliminationBracket?.matches,
+            status: updatedEliminationBracket?.status,
         };
+    }
+
+    async getActiveBracketByChampionshipId(
+        tenant: string,
+        championshipId: string
+    ) {
+        const eliminationBracket = await DatabaseHelper.findOne(
+            EliminationBracket,
+            tenant,
+            {
+                championshipId: new Types.ObjectId(championshipId),
+                status: { $in: ['active', 'draft', 'completed'] }
+            },
+            {
+                throwError: true,
+                errorMessage: 'Elimination bracket not found',
+            }
+        );
+
+        return eliminationBracket;
+    }
+
+    async getBracketById(tenant: string, championshipId: string, eliminationBracketId: string) {
+        const eliminationBracket = await DatabaseHelper.find(
+            EliminationBracket,
+            tenant,
+            {
+                _id: new Types.ObjectId(eliminationBracketId),
+                championshipId: new Types.ObjectId(championshipId),
+            },
+            {
+                throwError: true,
+                errorMessage: 'Elimination bracket not found',
+            }
+        );
+
+        return eliminationBracket;
+    }
+
+    async getBracketsByChampionship(
+        tenant: string,
+        championshipId: string
+    ) {
+        const eliminationBrackets = await DatabaseHelper.find(
+            EliminationBracket,
+            tenant,
+            {
+                championshipId: new Types.ObjectId(championshipId),
+            },
+            {
+                throwError: true,
+                errorMessage: 'Elimination brackets not found',
+            }
+        );
+        return eliminationBrackets;
     }
 
     private mapGroupToGroupStandingsResult(group: any): GroupStandingsResult {
@@ -275,7 +364,7 @@ export class EliminationService {
         return Number(value);
     }
 
-    private validateGroupMatchesAreCompleted(groups: IGroupDocument): void {
+    private validateGroupMatchesAreCompleted(groups: any[]): void {
         const pendingMatches = groups.flatMap((group: IMatchDocument) =>
             (group.matches || []).filter(
                 (match: IMatchDocument) => !['finished', 'walkover'].includes(match.status)
@@ -289,5 +378,112 @@ export class EliminationService {
                 'EliminationServiceError'
             );
         }
+    }
+
+    private getFirstRoundMatches(bracket: any): any[] {
+        const firstRound = bracket.rounds?.[0];
+
+        if (!firstRound || !firstRound.matches?.length) {
+            throw new CustomError(
+                'Cannot create elimination matches. First round was not generated.',
+                400,
+                'EliminationServiceError'
+            );
+        }
+
+        return firstRound.matches;
+    }
+
+    private validateFirstRoundMatches(firstRoundMatches: any[]): void {
+        const invalidMatch = firstRoundMatches.find((match) => {
+            const teamAId = this.getBracketMatchTeamAId(match);
+            const teamBId = this.getBracketMatchTeamBId(match);
+
+            return !teamAId || !teamBId;
+        });
+
+        if (invalidMatch) {
+            throw new CustomError(
+                `Cannot create elimination match ${invalidMatch.matchNumber}. Team A or Team B is missing.`,
+                400,
+                'EliminationServiceError'
+            );
+        }
+    }
+    private async createFirstRoundMatches(
+        tenant: string,
+        data: GenerateBracketInput,
+        firstRoundMatches: any[],
+        configuration: any,
+        eliminationBracketId: Types.ObjectId
+    ) {
+        const createdMatches = [];
+
+        for (const bracketMatch of firstRoundMatches) {
+            const teamAId = this.getBracketMatchTeamAId(bracketMatch);
+            const teamBId = this.getBracketMatchTeamBId(bracketMatch);
+
+            if (!teamAId || !teamBId) {
+                throw new CustomError(
+                    `Cannot create elimination match ${bracketMatch.matchNumber}. Team A or Team B is missing.`,
+                    400,
+                    'EliminationServiceError'
+                );
+            }
+            const createdMatch = await DatabaseHelper.create(
+                Match,
+                tenant,
+                {
+                    championshipId: new Types.ObjectId(data.championshipId),
+
+                    homeTeamId: new Types.ObjectId(bracketMatch.teamA.team.id),
+                    awayTeamId: new Types.ObjectId(bracketMatch.teamB.team.id),
+
+                    gameFormatId: configuration.gameFormatId,
+
+                    status: 'scheduled',
+                    isEliminationMatch: true,
+                    eliminationBracketId,
+                    bracketMatchNumber: bracketMatch.matchNumber,
+                    bracketRoundName: bracketMatch.roundName,
+                    bracketRoundLabel: bracketMatch.roundLabel,
+                    bracketPosition: bracketMatch.bracketPosition
+                }
+            );
+
+            createdMatches.push({
+                matchNumber: bracketMatch.matchNumber,
+                matchId: createdMatch._id,
+                roundName: bracketMatch.roundName,
+                roundLabel: bracketMatch.roundLabel,
+                bracketPosition: bracketMatch.bracketPosition,
+            });
+        }
+
+        return createdMatches;
+    }
+
+    private getBracketMatchTeamAId(bracketMatch: any): string {
+        return (
+            bracketMatch.teamA?.team?.id ||
+            bracketMatch.teamA?.id ||
+            bracketMatch.homeTeam?.team?.id ||
+            bracketMatch.homeTeam?.id ||
+            bracketMatch.seedA?.team?.id ||
+            bracketMatch.seedA?.id ||
+            ''
+        );
+    }
+
+    private getBracketMatchTeamBId(bracketMatch: any): string {
+        return (
+            bracketMatch.teamB?.team?.id ||
+            bracketMatch.teamB?.id ||
+            bracketMatch.awayTeam?.team?.id ||
+            bracketMatch.awayTeam?.id ||
+            bracketMatch.seedB?.team?.id ||
+            bracketMatch.seedB?.id ||
+            ''
+        );
     }
 }

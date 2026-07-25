@@ -5,7 +5,7 @@ import { DatabaseHelper } from "../../utils/database.helper";
 import Match from "../../models/mongoose/championship/match";
 import Group from "../../models/mongoose/championship/group";
 import ChampionshipConfiguration from "../../models/mongoose/championship/configuration";
-
+import { EliminationProgressionService } from "./eliminationProgression.service";
 import {
     CompetitionMatch,
     MatchStatus,
@@ -14,6 +14,10 @@ import {
     applyMatchResult,
     calculateStandingsFromMatches,
 } from "../../domain/championship/competition";
+import { PaginationOptions } from "../../interfaces";
+import { PopulateOptions } from "../../interfaces/IhelperDatabase";
+import { ChampionshipService } from "./championship.service";
+import Championship from "../../models/mongoose/championship/championship";
 
 type RegisterMatchResultInput = {
     sets?: Array<{
@@ -24,6 +28,11 @@ type RegisterMatchResultInput = {
 };
 
 export class MatchService {
+
+    private eliminationProgressionService = new EliminationProgressionService();
+    private championshipService = new ChampionshipService();
+
+
     async registerMatchResult(
         tenant: string,
         matchId: string,
@@ -42,18 +51,50 @@ export class MatchService {
                 "MatchServiceError"
             );
         }
+        const terminalMatchStatuses = [
+            'finished',
+            'walkover',
+            'completed',
+            'cancelled',
+        ];
 
-        if (match.status === "finished" || match.status === "walkover") {
+        if (terminalMatchStatuses.includes(match.status)) {
             throw new CustomError(
                 "Match already completed",
                 400,
                 "MatchServiceError"
             );
         }
+        const championship = await DatabaseHelper.findOne(
+            Championship,
+            tenant,
+            {
+                _id: match.championshipId,
+            },
+            {
+                throwError: false,
+            }
+        );
 
-        if (!match.groupId) {
+        if (!championship) {
             throw new CustomError(
-                "Match does not belong to a group",
+                'Championship not found',
+                404,
+                'MatchServiceError'
+            );
+        }
+
+        if (championship.status !== 'in_progress') {
+            throw new CustomError(
+                `Results cannot be registered while championship is ${championship.status}`,
+                409,
+                'MatchServiceError'
+            );
+        }
+
+        if (!match.groupId && !match.isEliminationMatch) {
+            throw new CustomError(
+                "Match does not belong to a group or elimination bracket",
                 400,
                 "MatchServiceError"
             );
@@ -122,6 +163,9 @@ export class MatchService {
             tenant,
             {
                 _id: new Types.ObjectId(matchId),
+                status: {
+                    $nin: terminalMatchStatuses,
+                }
             },
             {
                 $set: {
@@ -148,8 +192,53 @@ export class MatchService {
 
         if (!updatedMatch) {
             throw new CustomError(
-                "Error updating match result",
+                'Match result was already registered by another request',
+                409,
+                'MatchServiceError'
+            );
+        }
+
+        if (!updatedMatch.winnerId) {
+            throw new CustomError(
+                'Error updating match result',
                 500,
+                'MatchServiceError'
+            );
+        }
+
+        if (updatedMatch.isEliminationMatch) {
+            const progression =
+                await this.eliminationProgressionService.advanceAfterMatchResult(
+                    tenant,
+                    {
+                        matchId: updatedMatch._id.toString(),
+                        winnerTeamId: updatedMatch.winnerId.toString(),
+                    }
+                );
+            const championshipCompletion =
+                await this.completeChampionshipIfTournamentFinished(
+                    tenant,
+                    updatedMatch
+                );
+
+            return {
+                match: updatedMatch,
+                progression,
+                championshipCompletion,
+            };
+        }
+        if (!match.groupId) {
+            throw new CustomError(
+                "Match does not belong to a group",
+                400,
+                "MatchServiceError"
+            );
+        }
+
+        if (!['finished', 'walkover'].includes(updatedMatch.status)) {
+            throw new CustomError(
+                "Match is not completed yet",
+                400,
                 "MatchServiceError"
             );
         }
@@ -175,6 +264,143 @@ export class MatchService {
             },
             group: updatedGroup,
         };
+    }
+
+    async getMatchesByChampionship(
+        tenant: string,
+        championshipId: string,
+        filters: {
+            status?: string;
+            isEliminationMatch?: string;
+            groupId?: string;
+            eliminationBracketId?: string;
+        },
+        options?: PaginationOptions
+    ) {
+        const query: Record<string, any> = {
+            championshipId: new Types.ObjectId(championshipId),
+        };
+
+        if (filters.status) {
+            query.status = filters.status;
+        }
+
+        if (filters.isEliminationMatch !== undefined) {
+            query.isEliminationMatch = filters.isEliminationMatch === 'true';
+        }
+
+        if (filters.groupId) {
+            query.groupId = new Types.ObjectId(filters.groupId);
+        }
+
+        if (filters.eliminationBracketId) {
+            query.eliminationBracketId = new Types.ObjectId(
+                filters.eliminationBracketId
+            );
+        }
+
+        const optionsPopulate = this.populateOptions;
+
+        const matches = await DatabaseHelper.getItemsWithRelations(
+            Match,
+            tenant,
+            query,
+            options,
+            {
+                nested: optionsPopulate,
+            }
+        );
+        return matches;
+    }
+
+    async getMatchById(
+        tenant: string,
+        championshipId: string,
+        matchId: string
+    ) {
+
+        const optionsPopulate = this.populateOptions;
+
+        const match = await DatabaseHelper.findOneWithRelations(
+            Match,
+            tenant,
+            {
+                _id: new Types.ObjectId(matchId),
+                championshipId: new Types.ObjectId(championshipId),
+            },
+            {
+                nested: optionsPopulate,
+            }
+        );
+
+        if (!match) {
+            throw new CustomError(
+                'Match not found',
+                404,
+                'MatchServiceError'
+            );
+        }
+
+        return match;
+    }
+
+    async getMatchesByGroup(
+        tenant: string,
+        championshipId: string,
+        groupId: string,
+        filters: {
+            status?: string;
+        }
+    ) {
+        return this.getMatchesByChampionship(tenant, championshipId, {
+            ...filters,
+            groupId,
+            isEliminationMatch: 'false',
+        });
+    }
+
+    async getMatchesByEliminationBracket(
+        tenant: string,
+        championshipId: string,
+        eliminationBracketId: string,
+        filters: {
+            status?: string;
+        }
+    ) {
+        return this.getMatchesByChampionship(tenant, championshipId, {
+            ...filters,
+            eliminationBracketId,
+            isEliminationMatch: 'true',
+        });
+    }
+
+    private get populateOptions(): PopulateOptions[] {
+        return [
+            {
+                path: 'homeTeamId',
+                select: 'name clubName teamName',
+            },
+            {
+                path: 'awayTeamId',
+                select: 'name clubName teamName',
+            },
+            {
+                path: 'groupId',
+                select: 'name status',
+            },
+            {
+                path: 'courtId',
+                select: 'name type status location',
+            },
+            {
+                path: 'gameFormatId',
+                select: 'name formatType sets pointsPerSet',
+            },
+            {
+                path: 'eliminationBracketId',
+                select: 'name status groupDistributionId',
+            },
+        ];
     }
 
     private async recalculateGroupStandings(
@@ -353,4 +579,63 @@ export class MatchService {
 
         return team.name || "";
     }
+    private async completeChampionshipIfTournamentFinished(
+        tenant: string,
+        match: any
+    ): Promise<{
+        completed: boolean;
+        releasedCourts?: number;
+    }> {
+        const isFinalMatch =
+            match.isEliminationMatch === true &&
+            match.bracketRoundName === 'final' &&
+            ['finished', 'walkover'].includes(match.status);
+
+        const isThirdPlaceMatch =
+            match.isEliminationMatch === true &&
+            match.bracketRoundName === 'third_place' &&
+            ['finished', 'walkover'].includes(match.status);
+
+        if (!isFinalMatch && !isThirdPlaceMatch) {
+            return {
+                completed: false,
+            };
+        }
+
+        const championshipId = match.championshipId.toString();
+
+        const pendingFinalOrThirdPlace = await DatabaseHelper.findOne(
+            Match,
+            tenant,
+            {
+                championshipId: new Types.ObjectId(championshipId),
+                isEliminationMatch: true,
+                bracketRoundName: {
+                    $in: ['final', 'third_place'],
+                },
+                status: {
+                    $nin: ['finished', 'walkover', 'cancelled'],
+                },
+            }
+        );
+
+        if (pendingFinalOrThirdPlace) {
+            return {
+                completed: false,
+            };
+        }
+
+        const result =
+            await this.championshipService.completeChampionshipAndReleaseCourts(
+                tenant,
+                championshipId
+            );
+
+        return {
+            completed: true,
+            releasedCourts: result.releasedCourts,
+        };
+    }
+
+
 }

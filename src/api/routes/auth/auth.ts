@@ -100,6 +100,18 @@ router.post(
     authController.resetPassword as RequestHandler
 )
 
+router.post(
+    AuthRoute.CHANGE_TEMPORARY_PASSWORD,
+    [
+        origin.checkDomain as RequestHandler,
+        origin.checkTenant as RequestHandler,
+        auth as RequestHandler,
+        trimRequest.all,
+        ...authValidation.changeTemporaryPassword as ValidationChain[]
+    ],
+    authController.changeTemporaryPassword as RequestHandler
+)
+
 // auth route to refresh token
 router.post(
     AuthRoute.REFRESH,

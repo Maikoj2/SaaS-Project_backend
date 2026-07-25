@@ -1,5 +1,6 @@
 // src/utils/queryParamHelper.ts
 
+import { query } from 'express-validator';
 import { ParsedQs } from 'qs';
 
 /**
@@ -15,3 +16,21 @@ export function parseQueryParamToNumber(param: string | ParsedQs | string[] | Pa
     }
     return defaultValue;
 }
+
+export const statusQueryValidator = (paramName: string, allowedStatuses: string[]) =>
+    query(paramName)
+        .optional()
+        .isIn(allowedStatuses)
+        .withMessage(
+            `${paramName}_MUST_BE_ONE_OF_${allowedStatuses.join('_OR_')}`
+        );
+
+export const searchQueryValidator = (paramName: string) =>
+    query(paramName)
+        .optional()
+        .isString()
+        .trim()
+        .isLength({ min: 3 })
+        .withMessage(
+            `${paramName.toUpperCase()}_MUST_BE_AT_LEAST_3_CHARACTERS`
+        );

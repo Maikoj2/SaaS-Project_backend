@@ -9,8 +9,9 @@ import { ApiResponse } from '../../responses';
 import { CustomError } from '../../errors';
 
 import { IUserCustomRequest } from '../../interfaces';
-import { parseQueryParamToNumber } from '../../utils/QueryPatams.helper';
+
 import { PositionService } from '../../services/championship/position.service';
+import { parseQueryParamToNumber } from '../../utils/QueryParams.helper';
 
 @Injectable()
 export class PositionController {
@@ -22,17 +23,17 @@ export class PositionController {
         this.logger = new Logger();
     }
 
-    public  autoAssignPositions = async (req: IUserCustomRequest, res: Response) => {
+    public autoAssignPositions = async (req: IUserCustomRequest, res: Response) => {
         try {
             const { championshipId } = req.params;
             const tenant = req.clientAccount as string;
-        
+
             const result = await this.positionService.autoAssignPositions(tenant, championshipId);
             res.status(200).json(
                 ApiResponse.success(result, 'Positions assigned successfully')
             );
         } catch (error: any) {
-            
+
             this.logger.error('Error auto-assigning positions:', error);
             res.status(error instanceof CustomError ? error.statusCode : 500)
                 .json(ApiResponse.error(error instanceof CustomError ? error : new CustomError('Error auto-assigning positions', 500, 'PositionControllerError')));
@@ -87,7 +88,7 @@ export class PositionController {
             const sort = req.query.sort as string;
             const page = parseQueryParamToNumber(req.query.page, 1);
             const limit = parseQueryParamToNumber(req.query.limit, 50);
-        
+
             const result = await this.positionService.getPositionsByChampionshipId(tenant, championshipId, limit, page, sort);
             res.status(200).json(result);
         } catch (error: any) {
@@ -96,5 +97,5 @@ export class PositionController {
         }
     }
 
-    
+
 }

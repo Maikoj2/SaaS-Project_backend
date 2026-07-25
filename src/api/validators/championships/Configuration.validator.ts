@@ -2,6 +2,7 @@ import { check } from "express-validator";
 import { validate } from "../../middlewares";
 import { paramsValidator, validateField } from "../expressValidatorHelper";
 import { validateMongoIds } from "./championship.validator";
+import { IMatchRules } from "../../models/mongoose/championship/configuration";
 
 const distributionStrategies = ['serpentine', 'linear', 'random', 'balancedByClub'];
 const volleyballTypes = ['beach', 'indoor'];
@@ -10,7 +11,8 @@ const volleyballTypes = ['beach', 'indoor'];
 export const championshipConfigurationValidators = {
 
     updateChampionshipConfiguration: [
-        ...paramsValidator("idConfiguration", true),
+        ...paramsValidator("championshipId", true),
+        ...paramsValidator("configurationId", true),
         ...validateField("maxTeams", false),
         check("maxTeams")
             .optional()

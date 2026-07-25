@@ -21,7 +21,7 @@ interface ITeamRanking {
 }
 
 export interface IGroupDocument extends ITenantDocument {
-    phaseId?: Types.ObjectId;
+    championshipId?: Types.ObjectId;
     groupDistributionId?: Types.ObjectId;
     name: string;
     teams: Types.ObjectId[];
@@ -94,9 +94,9 @@ const TeamRankingSchema = new Schema({
 
 const GroupSchema = new Schema<IGroupDocument>(
     {
-        phaseId: {
+        championshipId: {
             type: Schema.Types.ObjectId,
-            ref: 'Phase',
+            ref: 'Championship',
             required: false
         },
         groupDistributionId: {
@@ -131,8 +131,19 @@ const GroupSchema = new Schema<IGroupDocument>(
 
 
 // Índices
-GroupSchema.index({ phaseId: 1, name: 1 }, { unique: true, sparse: true });
-GroupSchema.index({ groupDistributionId: 1, name: 1 }, { unique: true, sparse: true });
+// Índices
+GroupSchema.index(
+    { tenantId: 1, groupDistributionId: 1, name: 1 },
+    { unique: true, sparse: true }
+);
+
+GroupSchema.index(
+    { tenantId: 1, championshipId: 1 }
+);
+
+GroupSchema.index(
+    { tenantId: 1, status: 1 }
+);
 // Plugins
 GroupSchema.plugin(mongoTenant);
 GroupSchema.plugin(mongoosePaginate);

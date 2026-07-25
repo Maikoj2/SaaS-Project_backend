@@ -1,15 +1,16 @@
-import { Request, Response } from 'express';
+import { Response } from 'express';
 import { ChampionshipService } from '../../services/championship/championship.service';
 import { ApiResponse } from '../../responses/apiResponse';
 import { Logger } from '../../config';
 import { IUserCustomRequest } from '../../interfaces/ICustomrequest';
 import { Injectable } from '@decorators/di';
 import { ConfigurationService } from '../../services/championship/configuration.service';
-import { Types } from 'mongoose';
+
 import { AuthError } from '../../errors/AuthError';
 import Championship, { IChampionshipDocument } from '../../models/mongoose/championship/championship';
 import { DatabaseHelper } from '../../utils/database.helper';
 import ChampionshipConfiguration, { IConfigurationDocument } from '../../models/mongoose/championship/configuration';
+import { getCompetitionRulesByPreset } from '../../domain/championship/rules/competitionRules.presets';
 
 @Injectable()
 export class ChampionshipController {
@@ -42,7 +43,8 @@ export class ChampionshipController {
             matchDurationLimit,
             setDurationLimit,
             registrationDeadline,
-            registrationFee
+            registrationFee,
+            competitionRulePreset
         } = req.body;
 
         try {
@@ -56,6 +58,9 @@ export class ChampionshipController {
                 idCreatorChampionship: req.user?._id as any
             });
 
+            const competitionRules = getCompetitionRulesByPreset(
+                competitionRulePreset
+            );
 
             // create configuration
             configuration = await this.configurationService.create(tenant, {
@@ -67,7 +72,9 @@ export class ChampionshipController {
                 matchDurationLimit,
                 setDurationLimit,
                 registrationDeadline,
-                registrationFee
+                registrationFee,
+                competitionRulePreset,
+                competitionRules
             });
 
 
@@ -143,10 +150,19 @@ export class ChampionshipController {
             res.status(200).json(
                 ApiResponse.success(championship, 'Championship updated successfully')
             );
-        } catch (error) {
-            this.logger.error('Error updating championship status:', error);
-            res.status(error instanceof AuthError ? error.statusCode : 500)
-                .json(ApiResponse.error(error instanceof AuthError ? error : error instanceof Error ? error.message : 'Error updating championship status'));
+        } catch (error: any) {
+            this.logger.error(
+                'Error updating championship status:',
+                error
+            );
+
+            res.status(error?.statusCode ?? 500).json(
+                ApiResponse.error(
+                    error instanceof Error
+                        ? error.message
+                        : 'Error updating championship status'
+                )
+            );
         }
     }
 

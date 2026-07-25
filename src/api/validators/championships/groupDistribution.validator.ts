@@ -1,75 +1,144 @@
 import { Request, Response, NextFunction } from 'express';
-import { body, param } from 'express-validator';
+import { validate } from '../../middlewares';
+import { paramsValidator } from '../expressValidatorHelper';
+import { statusQueryValidator } from '../../utils/QueryParams.helper';
+import { check } from 'express-validator';
 
-export const validateCreateGroupDistribution = [
-    param('championshipId')
-        .notEmpty()
-        .withMessage('championshipId is required')
-        .isMongoId()
-        .withMessage('championshipId must be a valid Mongo ID'),
+const allowedStatuses = ['active', 'draft', 'finalized',];
+function isTodayOrFutureDateInBogota(value: string): boolean {
+    const todayInBogota = new Intl.DateTimeFormat('en-CA', {
+        timeZone: 'America/Bogota',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+    }).format(new Date());
 
-    body('name')
-        .optional()
-        .isString()
-        .withMessage('name must be a string')
-        .isLength({ min: 3, max: 100 })
-        .withMessage('name must be between 3 and 100 characters'),
+    return value >= todayInBogota;
+}
 
-    body('formatType')
-        .optional()
-        .isIn(['serpentine', 'linear', 'random', 'balancedByClub'])
-        .withMessage(
-            'formatType must be one of: serpentine, linear, random, balancedByClub'
-        ),
 
-    body('numberOfGroups')
-        .optional()
-        .isInt({ min: 2, max: 32 })
-        .withMessage('numberOfGroups must be an integer between 2 and 32')
-        .toInt(),
+export const validateGroupDistribution = {
+    createGroupDistribution: [
+        ...paramsValidator('championshipId', true),
 
-    body('cantGroups')
-        .optional()
-        .isInt({ min: 2, max: 32 })
-        .withMessage('cantGroups must be an integer between 2 and 32')
-        .toInt(),
+        check('schedule.enabled')
+            .optional()
+            .isBoolean()
+            .withMessage('MUST_BE_BOOLEAN'),
 
-    body('maxTeamsPerGroup')
-        .optional()
-        .isInt({ min: 2, max: 8 })
-        .withMessage('maxTeamsPerGroup must be an integer between 2 and 8')
-        .toInt(),
+        check('schedule.date')
+            .if(check('schedule.enabled').equals('true'))
+            .exists()
+            .withMessage('MISSING')
+            .notEmpty()
+            .withMessage('IS_EMPTY')
+            .isISO8601()
+            .withMessage('MUST_BE_VALID_DATE')
+            .custom((value) => {
+                if (!isTodayOrFutureDateInBogota(value)) {
+                    throw new Error('DATE_MUST_BE_TODAY_OR_FUTURE');
+                }
 
-    body('groupSizePreference')
-        .optional()
-        .isIn(['preferGroupsOf3', 'preferGroupsOf4', 'preferGroupsOf5'])
-        .withMessage(
-            'groupSizePreference must be one of: preferGroupsOf3, preferGroupsOf4, preferGroupsOf5'
-        ),
+                return true;
+            }),
 
-    body('avoidSameClub')
-        .optional()
-        .isBoolean()
-        .withMessage('avoidSameClub must be a boolean')
-        .toBoolean(),
+        check('schedule.startTime')
+            .if(check('schedule.enabled').equals('true'))
+            .exists()
+            .withMessage('MISSING')
+            .notEmpty()
+            .withMessage('IS_EMPTY')
+            .matches(/^([01]\d|2[0-3]):([0-5]\d)$/)
+            .withMessage('MUST_BE_VALID_TIME_HH_MM'),
 
-    body('minTeams')
-        .optional()
-        .isInt({ min: 2, max: 64 })
-        .withMessage('minTeams must be an integer between 2 and 64')
-        .toInt(),
+        check('schedule.matchDurationMinutes')
+            .optional()
+            .isInt({ min: 1 })
+            .withMessage('MUST_BE_POSITIVE_INTEGER'),
 
-    body('maxTeams')
-        .optional()
-        .isInt({ min: 2, max: 64 })
-        .withMessage('maxTeams must be an integer between 2 and 64')
-        .toInt(),
+        check('schedule.breakMinutes')
+            .optional()
+            .isInt({ min: 0 })
+            .withMessage('MUST_BE_ZERO_OR_POSITIVE_INTEGER'),
 
-    body('customRules')
-        .optional()
-        .isString()
-        .withMessage('customRules must be a string'),
-];
+        check('schedule.avoidBackToBackMatches')
+            .optional()
+            .isBoolean()
+            .withMessage('MUST_BE_BOOLEAN'),
+
+        check('schedule.minRestSlots')
+            .optional()
+            .isInt({ min: 0 })
+            .withMessage('MUST_BE_ZERO_OR_POSITIVE_INTEGER'),
+
+        check('schedule.balanceGroups')
+            .optional()
+            .isBoolean()
+            .withMessage('MUST_BE_BOOLEAN'),
+
+        validate,
+    ],
+    getGroupDistributionsByChampionship: [
+        ...paramsValidator('championshipId', true),
+        statusQueryValidator("status", allowedStatuses),
+        validate,
+    ],
+    getGroupDistributionById: [
+        ...paramsValidator('championshipId', true),
+        ...paramsValidator('groupDistributionId', true),
+        statusQueryValidator("status", allowedStatuses),
+        validate,
+    ],
+    getGroupStandings: [
+        ...paramsValidator('championshipId', true),
+        ...paramsValidator('groupDistributionId', true),
+        validate,
+    ],
+    scheduleGroupDistributionMatches: [
+        ...paramsValidator('championshipId', true),
+        ...paramsValidator('groupDistributionId', true),
+
+        check('date')
+            .exists()
+            .withMessage('MISSING')
+            .notEmpty()
+            .withMessage('IS_EMPTY')
+            .isISO8601()
+            .withMessage('MUST_BE_VALID_DATE')
+            .custom((value) => {
+                if (!isTodayOrFutureDateInBogota(value)) {
+                    throw new Error('DATE_MUST_BE_TODAY_OR_FUTURE');
+                }
+
+                return true;
+            }),
+
+        check('startTime')
+            .exists()
+            .withMessage('MISSING')
+            .notEmpty()
+            .withMessage('IS_EMPTY')
+            .matches(/^([01]\d|2[0-3]):([0-5]\d)$/)
+            .withMessage('MUST_BE_VALID_TIME_HH_MM'),
+
+        check('matchDurationMinutes')
+            .optional()
+            .isInt({ min: 1 })
+            .withMessage('MUST_BE_POSITIVE_INTEGER'),
+
+        check('breakMinutes')
+            .optional()
+            .isInt({ min: 0 })
+            .withMessage('MUST_BE_ZERO_OR_POSITIVE_INTEGER'),
+
+        check('avoidBackToBackMatches')
+            .optional()
+            .isBoolean()
+            .withMessage('MUST_BE_BOOLEAN'),
+
+        validate,
+    ],
+};
 
 
 export function validateGroupDistributionRules(

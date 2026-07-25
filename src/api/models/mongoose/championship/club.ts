@@ -9,8 +9,8 @@ import { Types } from "mongoose";
 export interface IClubDocument extends ITenantDocument {
     name: string;
     location: string;
-    founded: Date;
-    president: string;
+    founded?: Date;
+    president?: string;
     teams: Types.ObjectId[];
     website?: string;
     logo?: string;
@@ -35,11 +35,9 @@ const ClubSchema = new Schema<IClubDocument>(
         },
         founded: {
             type: Date,
-            required: true
         },
         president: {
             type: String,
-            required: true
         },
         teams: [{
             type: Types.ObjectId,

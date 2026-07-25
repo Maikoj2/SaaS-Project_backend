@@ -5,6 +5,7 @@ import { ITenantDocument, ITenantModel } from "../../../interfaces";
 import MongooseDelete from 'mongoose-delete';
 import mongoTenant from 'mongo-tenant';
 import mongoosePaginate from 'mongoose-paginate-v2';
+import { ChampionshipStatus, ChampionshipStatusValue } from "../../../constants/championship.constants";
 
 export enum ChampionshipType {
     INDOOR = 'indoor',
@@ -15,7 +16,7 @@ export interface IChampionshipDocument extends ITenantDocument {
     description?: string;
     startDate: Date;
     endDate: Date;
-    status: 'draft' | 'registration' | 'active' | 'completed' | 'cancelled';
+    status: ChampionshipStatusValue;
     phases: Types.ObjectId[];
     teams: Types.ObjectId[];
     courts: Types.ObjectId[];
@@ -52,7 +53,7 @@ const ChampionshipSchema = new Schema<IChampionshipDocument>(
         },
         status: {
             type: String,
-            enum: ['draft', 'registration', 'active', 'completed', 'cancelled'],
+            enum: [...ChampionshipStatus],
             default: 'draft'
         },
         phases: [{

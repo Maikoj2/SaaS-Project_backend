@@ -28,6 +28,7 @@ import moment from 'moment';
 import { gameFormats } from '../../seeds/gameFormats.seed';
 import GameFormat from '../../models/mongoose/championship/gameFormat';
 import { IUserDocument } from '../../models/mongoose/user/User';
+import { CustomError } from '../../errors';
 
 
 
@@ -445,6 +446,69 @@ export class AuthService {
         }
     }
 
+    async changeTemporaryPassword(
+        tenant: string,
+        userId: string,
+        currentPassword: string,
+        newPassword: string
+    ) {
+        const user = await User.byTenant(tenant)
+            .findById(userId)
+            .select('+password');
+
+        if (!user) {
+            throw new CustomError(
+                'User not found',
+                404,
+                'AuthServiceError'
+            );
+        }
+
+        if (!user.mustChangePassword) {
+            throw new CustomError(
+                'Password change is not required for this user',
+                400,
+                'AuthServiceError'
+            );
+        }
+
+        const isCurrentPasswordValid = await PasswordUtil.comparePassword(
+            currentPassword,
+            user.password
+        );
+
+        if (!isCurrentPasswordValid) {
+            throw new CustomError(
+                'Current password is incorrect',
+                400,
+                'AuthServiceError'
+            );
+        }
+
+        const isSamePassword = await PasswordUtil.comparePassword(
+            newPassword,
+            user.password
+        );
+
+        if (isSamePassword) {
+            throw new CustomError(
+                'New password must be different from current password',
+                400,
+                'AuthServiceError'
+            );
+        }
+
+        user.password = await PasswordUtil.hashPassword(newPassword);
+        user.mustChangePassword = false;
+
+        await user.save();
+
+        return {
+            userId: user._id,
+            email: user.email,
+            mustChangePassword: user.mustChangePassword,
+        };
+    }
     // private methods
     private async checkLoginAttemptsAndBlockExpires(user: any) {
 
@@ -481,6 +545,7 @@ export class AuthService {
             email: user.email,
             role: user.role,
             verified: user.verified,
+            mustChangePassword: user.mustChangePassword
         };
     }
 

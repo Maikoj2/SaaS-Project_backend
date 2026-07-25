@@ -3,6 +3,7 @@ import { InvitationLink } from '../../models/mongoose/championship/invitationLin
 import { DatabaseHelper } from '../../utils/database.helper';
 import { env } from '../../config/env.config';
 import { Logger } from '../../config';
+import { PaginationOptions } from '../../interfaces';
 
 const logger = new Logger()
 export class InvitationLinkService {
@@ -26,7 +27,8 @@ export class InvitationLinkService {
             const baseUrl = env.FRONTEND_URL || `${env.FRONTEND_URL_DEV}${env.API_PREFIX}/championships/${championshipId}`;
             return {
                 invitationLink: `${baseUrl}/register?code=${code}`,
-                expiresAt: invitationLink.expiresAt
+                expiresAt: invitationLink.expiresAt,
+                code: code
             };
         } catch (error: any) {
             logger.debug('Error detallado:', {
@@ -131,11 +133,21 @@ export class InvitationLinkService {
         };
     }
 
-    async getAllLinks(tenant: string, championshipId: string) {
-        return await DatabaseHelper.getItems(
+    async getAllLinks(
+        tenant: string,
+        paginationOptions: PaginationOptions,
+    ) {
+        return await DatabaseHelper.getItemsWithRelations(
             InvitationLink,
             tenant,
-            { championshipId, sort: { createdAt: -1 } }
+            {},
+            { ...paginationOptions, select: ['championshipId', 'expiresAt', 'maxUses', 'usedCount', 'isActive', 'code'] },
+            {
+                nested: [{
+                    path: 'championshipId',
+                    select: 'name'
+                }],
+            }
         );
     }
 }

@@ -28,39 +28,47 @@ router.post(positionRoutes.AUTO_ASSIGN_POSITIONS,
     ], positionController.autoAssignPositions as RequestHandler);
 
 // put positions manually according to the number of confirmed registrations and registration date
-// app.post(positionRoutes.MANUAL_ASSIGN_POSITIONS,
-//     [
-//         origin.checkDomain as RequestHandler,
-//         origin.checkTenant as RequestHandler,
-//         trimRequest.all as RequestHandler,
-//         ...(positionValidator as RequestHandler[]),
-//     ], positionController.manualAssignPositions as RequestHandler);
+router.post(positionRoutes.MANUAL_ASSIGN_POSITIONS,
+    [
+        origin.checkDomain as RequestHandler,
+        origin.checkTenant as RequestHandler,
+        trimRequest.all as RequestHandler,
+        auth as RequestHandler,
+        permissionAuthorization([AuthPermission.CHAMPIONSHIP_UPDATE]) as RequestHandler,
+        ...(positionValidator.manualAssignPositions as RequestHandler[]),
+    ], positionController.manualAssignPositions as RequestHandler);
 
 // assign position to a registration by registration id
-// app.post(positionRoutes.ASSIGN_POSITION_BY_REGISTRATION_ID,
-//     [
-//         origin.checkDomain as RequestHandler,
-//         origin.checkTenant as RequestHandler,
-//         trimRequest.all as RequestHandler,
-//         ...(positionValidator as RequestHandler[]),
-//     ], positionController.assignPositionByRegistrationId as RequestHandler);
+router.post(positionRoutes.ASSIGN_POSITION_BY_REGISTRATION_ID,
+    [
+        origin.checkDomain as RequestHandler,
+        origin.checkTenant as RequestHandler,
+        trimRequest.all as RequestHandler,
+        auth as RequestHandler,
+        permissionAuthorization([AuthPermission.CHAMPIONSHIP_UPDATE]) as RequestHandler,
+        ...(positionValidator.assignPositionByRegistrationId as RequestHandler[]),
+    ], positionController.assignPositionByRegistrationId as RequestHandler);
 
 // assign random positions to all confirmed registrations
-// app.post(positionRoutes.ASSIGN_RANDOM_POSITIONS,
-//     [
-//         origin.checkDomain as RequestHandler,
-//         origin.checkTenant as RequestHandler,
-//         trimRequest.all as RequestHandler,
-//         ...(positionValidator as RequestHandler[]),
-//     ], positionController.assignRandomPositions as RequestHandler);
+router.post(positionRoutes.ASSIGN_RANDOM_POSITIONS,
+    [
+        origin.checkDomain as RequestHandler,
+        origin.checkTenant as RequestHandler,
+        trimRequest.all as RequestHandler,
+        auth as RequestHandler,
+        permissionAuthorization([AuthPermission.CHAMPIONSHIP_UPDATE]) as RequestHandler,
+        ...(positionValidator.assignPositions as RequestHandler[]),
+    ], positionController.assignRandomPositions as RequestHandler);
 
 // get all positions of a championship by championship id
-// app.get(positionRoutes.GET_POSITIONS_BY_CHAMPIONSHIP_ID,
-//     [
-//         origin.checkDomain as RequestHandler,
-//         origin.checkTenant as RequestHandler,
-//         trimRequest.all as RequestHandler,
-//         ...(positionValidator as RequestHandler[]),
-//     ], positionController.getPositionsByChampionshipId as RequestHandler);
+router.get(positionRoutes.GET_POSITIONS_BY_CHAMPIONSHIP_ID,
+    [
+        origin.checkDomain as RequestHandler,
+        origin.checkTenant as RequestHandler,
+        trimRequest.all as RequestHandler,
+        auth as RequestHandler,
+        permissionAuthorization([AuthPermission.CHAMPIONSHIP_READ]) as RequestHandler,
+        ...(positionValidator.assignPositions as RequestHandler[]),
+    ], positionController.getPositionsByChampionshipId as RequestHandler);
 
 export default router;
