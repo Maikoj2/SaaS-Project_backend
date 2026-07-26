@@ -17,6 +17,7 @@ import { EmailService } from '../email/email.service';
 import { env } from '../../config';
 import { validateCompetitionRulesForTeam } from '../../domain/championship/rules/competitionRules.validator';
 import { validateChampionshipTeamCapacity } from '../../domain/championship/rules/championshipCapacity.validator';
+import { Image } from '../../models/mongoose/championship/championship';
 export interface PayerData {
     name: string;
     surname?: string;
@@ -44,7 +45,7 @@ export interface PublicPlayerRegistrationData {
 export interface PublicTeamRegistrationData {
     team: {
         name: string;
-        logo?: string;
+        logo?: Image;
         categoryId?: string;
         captainEmail?: string;
     };
@@ -381,7 +382,10 @@ export class RegistrationService {
                 {
                     championshipId,
                     name: data.team.name,
-                    logo: data.team.logo,
+                    logo: data.team.logo! || {
+                        url: env.IMAGE_NO_FOUND || null,
+                        publicId: null,
+                    },
                     categoryId: data.team.categoryId,
                     players: createdPlayers.map((player) => player._id),
                     captainId: captain?._id,

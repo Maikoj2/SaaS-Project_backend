@@ -9,4 +9,5 @@ export const teamRoutes = {
     ADD_PLAYER_TO_TEAM: '/championships/:championshipId/teams/:teamId/players',
     REMOVE_PLAYER_FROM_TEAM: '/championships/:championshipId/teams/:teamId/players/:playerId',
     REPLACE_PLAYER_IN_TEAM: '/championships/:championshipId/teams/:teamId/players/replace',
+    UPDATE_TEAM_LOGO: '/:teamId/logo',
 }

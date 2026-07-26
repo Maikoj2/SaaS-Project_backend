@@ -7,17 +7,23 @@ import { CustomError } from "../../errors";
 import { IUserCustomRequest } from "../../interfaces";
 import { TeamService } from "../../services/championship/teams.service";
 import { ChampionshipService } from "../../services/championship/championship.service";
+import { UploadService } from "../../services/upload/upload.service";
+import Team from "../../models/mongoose/championship/team";
 
 
 export class TeamController {
     private readonly teamService: TeamService;
     private readonly logger: Logger;
     private readonly championshipService: ChampionshipService;
+    private uploadService: UploadService;
 
     constructor() {
         this.logger = new Logger();
         this.teamService = new TeamService();
         this.championshipService = new ChampionshipService();
+        this.uploadService = new UploadService();
+
+
     }
 
     createTeamByLink = async (req: IUserCustomRequest, res: Response) => {
@@ -315,6 +321,46 @@ export class TeamController {
                     ? error
                     : new CustomError(
                         `Error replacing player in team: ${error}`,
+                        500,
+                        'TeamControllerError'
+                    );
+
+            res
+                .status(customError.statusCode)
+                .json(ApiResponse.error(customError.message));
+        }
+    };
+
+    public updateTeamLogo = async (
+        req: IUserCustomRequest,
+        res: Response
+    ): Promise<void> => {
+        try {
+            const tenant = req.clientAccount as string;
+            const { teamId } = req.params;
+            if (!req.file) {
+                throw new CustomError(
+                    'No file uploaded',
+                    400,
+                    'TeamControllerError'
+                );
+            }
+            const result = await this.uploadService.uploadFileToModel(Team, teamId, tenant, req.file, 'logo');
+
+            res.status(200).json(
+                ApiResponse.success(
+                    result,
+                    'Team logo updated successfully'
+                )
+            );
+        } catch (error) {
+            this.logger.error('Error updating team logo:', error);
+
+            const customError =
+                error instanceof CustomError
+                    ? error
+                    : new CustomError(
+                        `Error updating team logo: ${error}`,
                         500,
                         'TeamControllerError'
                     );

@@ -9,6 +9,7 @@ import { stepperValidation } from '../../validators/user/profile.validate';
 import { AuthRole, ProfileRoute } from '../../constants/apiRoutes';
 import { permissionAuthorization } from '../../middlewares/auth/permissionAuthorization.middleware';
 import { AuthPermission } from '../../constants/permissions';
+import { uploadLogoImage } from '../../middlewares/uploadImage.middleware';
 
 const router: Router = Router();
 const profileController = new ProfileController();
@@ -63,5 +64,21 @@ router.patch(ProfileRoute.STEPPER, [
     trimRequest.all,
     ...stepperValidation.stepper
 ], profileController.updateStepper as RequestHandler);
+
+router.patch(
+    ProfileRoute.USER_UPDATE_AVATAR,
+    [
+        origin.checkDomain as RequestHandler,
+        origin.checkTenant as RequestHandler,
+        auth as RequestHandler,
+        permissionAuthorization([
+            AuthPermission.PROFILE_UPDATE,
+        ]) as RequestHandler,
+        uploadLogoImage.single("image"),
+        ...profileValidation.userUpdateAvatar,
+        trimRequest.all,
+    ],
+    profileController.updateAvatar as RequestHandler
+);
 
 export default router;

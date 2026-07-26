@@ -1,10 +1,10 @@
 import { Types } from "mongoose";
-import Championship from "../../models/mongoose/championship/championship";
+import Championship, { Image } from "../../models/mongoose/championship/championship";
 import Club from "../../models/mongoose/championship/club";
 import Team, { ITeamDocument } from "../../models/mongoose/championship/team";
 import { DatabaseHelper } from "../../utils/database.helper";
 import { CustomError } from "../../errors";
-import { Logger } from "../../config";
+import { env, Logger } from "../../config";
 import Player from "../../models/mongoose/championship/player";
 import { RegistrationService } from "./register.service";
 import { PaginationOptions } from "../../interfaces";
@@ -137,7 +137,7 @@ export class TeamService {
         championshipId: string,
         data: {
             name: string;
-            logo?: string;
+            logo?: Image;
             categoryId?: string;
             captainId?: string;
             players: string[];
@@ -283,7 +283,10 @@ export class TeamService {
             {
                 championshipId: new Types.ObjectId(championshipId),
                 name: data.name,
-                logo: data.logo,
+                logo: data.logo! || {
+                    url: env.IMAGE_NO_FOUND || null,
+                    publicId: null,
+                },
                 categoryId: data.categoryId,
                 captainId: data.captainId
                     ? new Types.ObjectId(data.captainId)
@@ -912,6 +915,45 @@ export class TeamService {
     }
 
 
+
+    async updateTeamBanner(file: Express.Multer.File, teamId: string, tenant: string) {
+
+        const team = await DatabaseHelper.findOne(
+            Team,
+            tenant,
+            {
+                _id: new Types.ObjectId(teamId),
+            }
+        );
+
+        if (!team) {
+            throw new CustomError(
+                'Team not found',
+                404,
+                'TeamServiceError'
+            );
+        }
+
+        const updatedTeam = await DatabaseHelper.findOneAndUpdate(
+            Team,
+            tenant,
+            {
+                _id: new Types.ObjectId(teamId),
+            },
+            {
+                $set: {
+                    banner: file,
+                },
+            },
+            {
+                new: true,
+                runValidators: true,
+            }
+        );
+
+        return updatedTeam;
+    }
+
     private async validatePlayers(playerIds: string[], tenant: string): Promise<void> {
         try {
             // Verificar que todos los IDs son válidos
@@ -978,6 +1020,7 @@ export class TeamService {
             );
         }
     }
+
 
 
     private get populateOptions() {

@@ -1,3 +1,4 @@
+import { check } from "express-validator";
 import { validate } from "../../middlewares";
 import { SocialUrlValidator } from "../custom";
 import { optionalSocialUrl, password, stepper, validateField } from "../expressValidatorHelper";
@@ -14,6 +15,18 @@ export const profileValidation = {
         ...optionalSocialUrl("urlFacebook", SocialUrlValidator.validateFacebookUrl, "facebook"),
         ...optionalSocialUrl("urlInstagram", SocialUrlValidator.validateInstagramUrl, "instagram"),
 
+        validate,
+    ],
+    userUpdateAvatar: [
+        ...validateField("userId", true),
+        check("image")
+            .custom((value, { req }) => {
+                if (!req.file) {
+                    throw new Error("IMAGE_REQUIRED");
+                }
+                return true;
+            })
+            .withMessage("IMAGE_REQUIRED"),
         validate,
     ],
 };

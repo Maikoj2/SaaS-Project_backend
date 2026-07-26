@@ -191,5 +191,18 @@ export const teamValidator = {
         validate,
     ],
 
+    updateTeamLogo: [
+        ...paramsValidator("teamId", true),
+        check("image")
+            .custom((value, { req }) => {
+                if (!req.file) {
+                    throw new Error("IMAGE_REQUIRED");
+                }
+                return true;
+            })
+            .withMessage("IMAGE_REQUIRED"),
+        validate,
+    ],
+
 
 }

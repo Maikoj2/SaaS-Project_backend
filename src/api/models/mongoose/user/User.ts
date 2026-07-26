@@ -9,6 +9,7 @@ import { ITenantDocument, ITenantModel } from '../../../interfaces/model.interfa
 import { AuthRole } from "../../../constants/apiRoutes";
 import { email } from "envalid";
 import { trim } from "validator";
+import { Image } from "../championship/championship";
 
 export interface IUserDocument extends ITenantDocument {
     name: string;
@@ -21,7 +22,7 @@ export interface IUserDocument extends ITenantDocument {
     verification?: string;
     verified: boolean;
     tag: any[];
-    avatar?: string;
+    avatar?: Image;
     description?: string;
     nameBusiness?: string;
     phone?: string;
@@ -77,7 +78,16 @@ const UserSchema = new Schema(
         verification: { type: String },
         verified: { type: Boolean, default: false },
         tag: { type: Array, default: [] },
-        avatar: { type: String },
+        avatar: {
+            url: {
+                type: String,
+                default: null
+            },
+            publicId: {
+                type: String,
+                default: ''
+            }
+        },
         description: { type: String },
         nameBusiness: { type: String },
         phone: { type: String, required: false },

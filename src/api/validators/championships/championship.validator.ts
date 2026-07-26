@@ -219,6 +219,27 @@ export const validateUpdateChampionshipStatus: any[] = [
     validate,
 ];
 
+export const validateSoftDeleteChampionship: any[] = [
+    check('championshipId')
+        .exists()
+        .withMessage('MISSING')
+        .notEmpty()
+        .withMessage('IS_EMPTY')
+        .isMongoId()
+        .withMessage('INVALID_ID_FORMAT'),
+    check('deleteReason')
+        .exists()
+        .withMessage('MISSING')
+        .bail()
+        .isString()
+        .withMessage('MUST_BE_STRING')
+        .bail()
+        .trim()
+        .isLength({ min: 3, max: 500 })
+        .withMessage('DELETE_REASON_LENGTH_3_500'),
+    validate,
+];
+
 export const validateRegisterTeam: any[] = [
     check('championshipId')
         .exists()

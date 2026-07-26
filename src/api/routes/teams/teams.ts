@@ -9,6 +9,7 @@ import { teamRoutes } from "../../constants/apiRoutes/championship/teams";
 import trimRequest from "trim-request";
 import { teamValidator } from "../../validators/championships/teams.validatos";
 import { TeamController } from "../../controllers/championship/teams.controller";
+import { uploadLogoImage } from "../../middlewares/uploadImage.middleware";
 
 const router = Router();
 const controller = new TeamController();
@@ -110,6 +111,20 @@ router.patch(
         ...(teamValidator.replacePlayerInTeam as RequestHandler[]),
     ],
     controller.replacePlayerInTeam as RequestHandler
+);
+
+router.patch(
+    teamRoutes.UPDATE_TEAM_LOGO,
+    [
+        origin.checkDomain as RequestHandler,
+        origin.checkTenant as RequestHandler,
+        auth as RequestHandler,
+        permissionAuthorization([AuthPermission.TEAM_UPDATE]) as RequestHandler,
+        uploadLogoImage.single("image"),
+        trimRequest.all as RequestHandler,
+        ...(teamValidator.updateTeamLogo as RequestHandler[]),
+    ],
+    controller.updateTeamLogo as RequestHandler
 );
 
 

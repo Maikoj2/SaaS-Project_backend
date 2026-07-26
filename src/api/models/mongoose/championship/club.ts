@@ -4,6 +4,7 @@ import MongooseDelete from 'mongoose-delete';
 import mongoTenant from 'mongo-tenant';
 import mongoosePaginate from 'mongoose-paginate-v2';
 import { Types } from "mongoose";
+import { Image } from "./championship";
 
 // Interfaces
 export interface IClubDocument extends ITenantDocument {
@@ -13,7 +14,7 @@ export interface IClubDocument extends ITenantDocument {
     president?: string;
     teams: Types.ObjectId[];
     website?: string;
-    logo?: string;
+    logo?: Image;
     createdAt?: Date;
     updatedAt?: Date;
 }
@@ -47,7 +48,14 @@ const ClubSchema = new Schema<IClubDocument>(
             type: String
         },
         logo: {
-            type: String
+            url: {
+                type: String,
+                default: null
+            },
+            publicId: {
+                type: String,
+                default: null
+            }
         },
         deletedAt: {
             type: Date,

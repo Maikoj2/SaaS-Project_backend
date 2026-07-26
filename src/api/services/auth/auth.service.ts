@@ -545,7 +545,8 @@ export class AuthService {
             email: user.email,
             role: user.role,
             verified: user.verified,
-            mustChangePassword: user.mustChangePassword
+            mustChangePassword: user.mustChangePassword,
+            avatar: user.avatar.url
         };
     }
 

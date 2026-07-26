@@ -11,11 +11,19 @@ export enum ChampionshipType {
     INDOOR = 'indoor',
     BEACH = 'beach'
 }
+
+export interface Image {
+    url: string;
+    publicId: string;
+}
+
 export interface IChampionshipDocument extends ITenantDocument {
     name: string;
     description?: string;
     startDate: Date;
     endDate: Date;
+    logo?: Image;
+    banner?: Image;
     status: ChampionshipStatusValue;
     phases: Types.ObjectId[];
     teams: Types.ObjectId[];
@@ -23,6 +31,10 @@ export interface IChampionshipDocument extends ITenantDocument {
     matches: Types.ObjectId[];
     registrations: Types.ObjectId[];
     idCreatorChampionship: Types.ObjectId;
+    deleted?: boolean;
+    deletedAt?: Date | null;
+    deletedBy?: Types.ObjectId;
+    deleteReason?: string;
     createdAt?: Date;
     updatedAt?: Date;
 }
@@ -50,6 +62,24 @@ const ChampionshipSchema = new Schema<IChampionshipDocument>(
         endDate: {
             type: Date,
             required: true
+        },
+        logo: {
+            url: {
+                type: String,
+                default: null
+            },
+            publicId: {
+                type: String,
+                default: ''
+            }
+        },
+        banner: {
+            url: {
+                type: String
+            },
+            publicId: {
+                type: String
+            }
         },
         status: {
             type: String,
@@ -81,9 +111,23 @@ const ChampionshipSchema = new Schema<IChampionshipDocument>(
             ref: 'User',
             required: true
         },
+        deleted: {
+            type: Boolean,
+            default: false
+        },
         deletedAt: {
             type: Date,
             default: null
+        },
+        deletedBy: {
+            type: Types.ObjectId,
+            ref: 'User',
+            required: false
+        },
+        deleteReason: {
+            type: String,
+            trim: true,
+            required: false
         }
     },
     {

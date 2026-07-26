@@ -3,12 +3,13 @@ import { ITenantDocument, ITenantModel } from "../../../interfaces";
 import MongooseDelete from 'mongoose-delete';
 import mongoTenant from 'mongo-tenant';
 import mongoosePaginate from 'mongoose-paginate-v2';
+import { Image } from "./championship";
 
 // Interfaces
 export interface ITeamDocument extends ITenantDocument {
     championshipId: Types.ObjectId;
     name: string;
-    logo?: string;
+    logo?: Image;
     players: Types.ObjectId[];
     captainId?: Types.ObjectId;
     categoryId?: string;
@@ -46,7 +47,14 @@ const TeamSchema = new Schema<ITeamDocument>(
             ref: 'Player',
         },
         logo: {
-            type: String
+            url: {
+                type: String,
+                default: null
+            },
+            publicId: {
+                type: String,
+                default: ''
+            }
         },
         players: [{
             type: Types.ObjectId,

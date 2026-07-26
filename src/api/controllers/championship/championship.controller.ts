@@ -1,7 +1,7 @@
-import { Response } from 'express';
+import { NextFunction, Response } from 'express';
 import { ChampionshipService } from '../../services/championship/championship.service';
 import { ApiResponse } from '../../responses/apiResponse';
-import { Logger } from '../../config';
+import { env, Logger } from '../../config';
 import { IUserCustomRequest } from '../../interfaces/ICustomrequest';
 import { Injectable } from '@decorators/di';
 import { ConfigurationService } from '../../services/championship/configuration.service';
@@ -11,17 +11,21 @@ import Championship, { IChampionshipDocument } from '../../models/mongoose/champ
 import { DatabaseHelper } from '../../utils/database.helper';
 import ChampionshipConfiguration, { IConfigurationDocument } from '../../models/mongoose/championship/configuration';
 import { getCompetitionRulesByPreset } from '../../domain/championship/rules/competitionRules.presets';
+import { CustomError } from '../../errors';
+import { UploadService } from '../../services/upload/upload.service';
 
 @Injectable()
 export class ChampionshipController {
     private championshipService: ChampionshipService;
     private configurationService: ConfigurationService;
     private logger: Logger;
+    private uploadService: UploadService;
 
     constructor() {
         this.championshipService = new ChampionshipService();
         this.configurationService = new ConfigurationService();
         this.logger = new Logger();
+        this.uploadService = new UploadService();
     }
 
     public create = async (req: IUserCustomRequest, res: Response) => {
@@ -44,8 +48,12 @@ export class ChampionshipController {
             setDurationLimit,
             registrationDeadline,
             registrationFee,
-            competitionRulePreset
+            competitionRulePreset,
+            logo,
+            banner
         } = req.body;
+
+
 
         try {
             // create championship
@@ -55,6 +63,14 @@ export class ChampionshipController {
                 startDate,
                 endDate,
                 status: 'draft',
+                logo: logo || {
+                    url: env.IMAGE_NO_FOUND || null,
+                    publicId: null,
+                },
+                banner: banner || {
+                    url: env.IMAGE_NO_FOUND || null,
+                    publicId: null,
+                },
                 idCreatorChampionship: req.user?._id as any
             });
 
@@ -185,6 +201,49 @@ export class ChampionshipController {
         }
     }
 
+    public softDelete = async (
+        req: IUserCustomRequest,
+        res: Response
+    ): Promise<void> => {
+        try {
+            const tenant = req.clientAccount as string;
+            const deletedBy = req.user?._id?.toString();
+            const { championshipId } = req.params;
+            const { deleteReason } = req.body;
+
+            if (!tenant) {
+                throw new AuthError('Tenant not found', 404);
+            }
+
+            if (!deletedBy) {
+                throw new AuthError('Authenticated user not found', 401);
+            }
+
+            const championship = await this.championshipService.softDelete(
+                tenant,
+                championshipId,
+                deletedBy,
+                deleteReason
+            );
+
+            res.status(200).json(
+                ApiResponse.success(
+                    championship,
+                    'Championship deleted successfully'
+                )
+            );
+        } catch (error: any) {
+            this.logger.error('Error deleting championship:', error);
+            res.status(error?.statusCode ?? 500).json(
+                ApiResponse.error(
+                    error instanceof Error
+                        ? error.message
+                        : 'Error deleting championship'
+                )
+            );
+        }
+    }
+
     public updateChampionshipConfiguration = async (req: IUserCustomRequest, res: Response) => {
         try {
             const { idConfiguration } = req.params;
@@ -218,19 +277,96 @@ export class ChampionshipController {
     }
 
 
-    // async getAll(req: Request, res: Response) {
-    //     try {
-    //         const championships = await this.championshipService.getAll();
-    //         res.status(200).json(
-    //             ApiResponse.success(championships, 'All championships retrieved successfully')
-    //         );
-    //     } catch (error) {
-    //         this.logger.error('Error getting all championships:', error);
-    //         res.status(500).json(
-    //             ApiResponse.error('Error getting all championships')
-    //         );
-    //     }
-    // }
+    async getAll(req: IUserCustomRequest, res: Response) {
+        try {
+            const tenant = req.clientAccount as string;
+            if (!tenant) {
+                throw new AuthError('Tenant not found', 404);
+            }
+            const championships = await this.championshipService.getAll(
+                tenant,
+                {
+                    status: String(req.query.status) || '',
+                    search: String(req.query.search) || '',
+                },
+                {
+                    page: Number(req.query.page) || 1,
+                    limit: Number(req.query.limit) || 20,
+                    sort: {
+                        createdAt: Number(req.query.sort) as 1 | -1 || -1
+                    }
+                }
+            );
+            res.status(200).json(
+                ApiResponse.success(championships, 'All championships retrieved successfully')
+            );
+        } catch (error) {
+            this.logger.error('Error getting all championships:', error);
+            res.status(500).json(
+                ApiResponse.error('Error getting all championships')
+            );
+        }
+    }
 
+    async uploadLogo(req: IUserCustomRequest, res: Response, next: NextFunction): Promise<void> {
+        try {
+            const tenant = req.clientAccount as string;
+            const { championshipId } = req.params;
+
+            if (!req.file) {
+                throw new CustomError(
+                    'Image file is required',
+                    400,
+                    'ChampionshipControllerError'
+                );
+            }
+
+            const image = await this.uploadService.uploadFileToModel(Championship, championshipId, tenant, req.file, 'logo');
+            res.status(200).json(
+                ApiResponse.success(
+                    image,
+                    'Championship logo uploaded successfully'
+                )
+            );
+        } catch (error) {
+            this.logger.error('Error uploading championship logo:', error);
+            res.status(error instanceof CustomError ? error.statusCode : 500).json(
+                ApiResponse.error(error instanceof CustomError ? error.message : 'Error uploading championship logo')
+            );
+        }
+    }
+
+    public uploadBanner = async (
+        req: IUserCustomRequest,
+        res: Response,
+        next: NextFunction
+    ): Promise<void> => {
+        try {
+            const tenant = req.clientAccount as string;
+            const { championshipId } = req.params;
+
+            if (!req.file) {
+                throw new CustomError(
+                    'Image file is required',
+                    400,
+                    'ChampionshipControllerError'
+                );
+            }
+
+            const image = await this.uploadService.uploadFileToModel(Championship, championshipId, tenant, req.file, 'banner');
+
+            res.status(200).json(
+                ApiResponse.success(
+                    image,
+                    'Championship banner uploaded successfully'
+                )
+            );
+        } catch (error) {
+            this.logger.error('Error uploading championship banner:', error);
+            res.status(error instanceof CustomError ? error.statusCode : 500).json(
+                ApiResponse.error(error instanceof CustomError ? error.message : 'Error uploading championship banner')
+            );
+        }
+    };
     // ... más métodos del controlador
 }

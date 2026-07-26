@@ -47,5 +47,12 @@ export const env = cleanEnv(process.env, {
     BACKEND_URL: str({ default: 'https://ed22-190-158-28-208.ngrok-free.app' }),
     MP_MODE: str({ choices: ['sandbox', 'production'], default: 'sandbox' }),
     MP_ACCESS_TOKEN: str({ default: '' }),
-    MP_CLIENT_ID: str({ default: '' })
+    MP_CLIENT_ID: str({ default: '' }),
+
+    CLOUDINARY_CLOUD_NAME: str(),
+    CLOUDINARY_APY_KEY: str(),
+    CLOUDINARY_API_SECRET: str(),
+    IMAGE_NO_FOUND: str(),
+    CLOUDINARY_URL: str(),
+
 }); 

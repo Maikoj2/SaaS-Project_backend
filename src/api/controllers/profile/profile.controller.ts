@@ -5,15 +5,20 @@ import { ProfileService } from '../../services/profile/profile.service';
 import { matchedData } from 'express-validator';
 import { MongooseHelper } from '../../utils';
 import { IUserCustomRequest } from '../../interfaces';
+import { User } from '../../models';
+import { UploadService } from '../../services/upload/upload.service';
+import { CustomError } from '../../errors';
 
 export class ProfileController {
     private readonly logger: Logger;
     private readonly profileService: ProfileService;
+    private uploadService: UploadService;
 
 
     constructor() {
         this.logger = new Logger();
         this.profileService = new ProfileService();
+        this.uploadService = new UploadService();
     }
 
     public getProfile = async (req: IUserCustomRequest, res: Response): Promise<void> => {
@@ -22,9 +27,9 @@ export class ProfileController {
             const tenant = req.clientAccount as string;
             // Validar ID
             await MongooseHelper.validateId(userId);
-            
+
             const profile = await this.profileService.getProfile(userId, tenant);
-            
+
             res.status(200).json(
                 ApiResponse.success(profile, 'Profile retrieved successfully')
             );
@@ -43,7 +48,7 @@ export class ProfileController {
             const updateData = req.body;  // data to update
             // Validar ID
             await MongooseHelper.validateId(userId);
-            
+
             // validate that there is data to update
             if (!updateData || Object.keys(updateData).length === 0) {
                 res.status(400).json(
@@ -53,11 +58,11 @@ export class ProfileController {
             }
             req = matchedData(req)
             const updatedProfile = await this.profileService.updateProfile(
-                userId, 
+                userId,
                 updateData,  // pass the data to update
                 tenant
             );
-            
+
             res.status(200).json(
                 ApiResponse.success(updatedProfile, 'Profile updated successfully')
             );
@@ -109,4 +114,39 @@ export class ProfileController {
             );
         }
     }
+
+    public updateAvatar = async (req: IUserCustomRequest, res: Response): Promise<void> => {
+        try {
+            const userId = req.id as string;
+            const tenant = req.clientAccount as string;
+            if (!req.file) {
+                throw new CustomError(
+                    'No file uploaded',
+                    400,
+                    'ProfileControllerError'
+                );
+            }
+            const result = await this.uploadService.uploadFileToModel(User, userId, tenant, req.file, 'avatar');
+            res.status(200).json(
+                ApiResponse.success(result, 'Avatar updated successfully')
+            );
+
+        } catch (error) {
+            this.logger.error('Error updating avatar:', error);
+            const customError =
+                error instanceof CustomError
+                    ? error
+                    : new CustomError(
+                        `Error updating avatar: ${error}`,
+                        500,
+                        'ProfileControllerError'
+                    );
+
+            res
+                .status(customError.statusCode)
+                .json(ApiResponse.error(customError.message));
+        }
+    }
+
+
 } 

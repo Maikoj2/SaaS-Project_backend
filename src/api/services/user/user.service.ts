@@ -19,7 +19,7 @@ export class UserService {
 
     public async getUsers(tenant: string, options: PaginationOptions) {
         try {
-            const query = {deleted: false};
+            const query = { deleted: false };
             const usersOptions = {
                 ...options,
                 select: USER_SELECT_FIELDS
@@ -34,7 +34,7 @@ export class UserService {
 
     public async getUserById(id: string, tenant: string) {
         try {
-            
+
             const user = await DatabaseHelper.findById(
                 User,
                 id,
@@ -58,9 +58,9 @@ export class UserService {
         try {
             // Generar código de verificación
             const verificationCode = uuidv4();
-            
+
             const processedData = DataProcessor.processAllData(userData);
-        
+
             const userToCreate = {
                 ...processedData,
                 email: userData.email.toLowerCase(),
@@ -88,17 +88,17 @@ export class UserService {
     }
 
     public async updateUser(id: string, tenant: string, userData: any) {
-        
+
         try {
             const existingUser = await DatabaseHelper.findById(User, id, tenant, {
                 throwError: true,
                 errorMessage: `user ${id} not found`
             });
-    
+
             if (!existingUser) {
                 throw new AuthError('user not found', 404);
             }
-    
+
             const processedData = DataProcessor.processSocialNetworks(userData);
             return await DatabaseHelper.update(User, id, tenant, processedData);
         } catch (error) {
@@ -117,8 +117,8 @@ export class UserService {
             if (!existingUser) {
                 throw new AuthError('user not found', 404);
             }
-            
-            const deletedUser = await DatabaseHelper.update(User, id, tenant, 
+
+            const deletedUser = await DatabaseHelper.update(User, id, tenant,
                 {
                     deletedAt: new Date(),
                     deleted: true
@@ -130,6 +130,4 @@ export class UserService {
         }
     }
 
-
-      
 }

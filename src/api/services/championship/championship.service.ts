@@ -3,11 +3,13 @@ import { Championship } from "../../models/mongoose/championship/championship";
 import { IChampionshipDocument } from "../../models/mongoose/championship/championship";
 import { InvitationLink } from "../../models/mongoose/championship/invitationLink";
 import { DatabaseHelper } from "../../utils/database.helper";
-import { Types } from "mongoose";
+import { FilterQuery, Types } from "mongoose";
 import ChampionshipConfiguration, { IConfigurationDocument } from "../../models/mongoose/championship/configuration";
 import { CustomError } from "../../errors";
 import Court from "../../models/mongoose/championship/court";
 import { ChampionshipStatusValue } from "../../constants/championship.constants";
+import { PaginationOptions } from "../../interfaces";
+import { UploadService } from "../upload/upload.service";
 
 
 
@@ -18,11 +20,18 @@ const selectFieldsGameFormat = ['name', 'description'];
 const selectFieldsCourts = ['name', 'description', 'status'];
 
 export class ChampionshipService {
+
+    private uploadService: UploadService;
+
+    constructor() {
+        this.uploadService = new UploadService();
+    }
     /**
      * Crear nuevo campeonato
      */
     async create(tenant: string, championshipData: Partial<IChampionshipDocument>): Promise<IChampionshipDocument> {
         try {
+
             const championship = await DatabaseHelper.create(
                 Championship,
                 tenant,
@@ -207,7 +216,8 @@ export class ChampionshipService {
                 Championship,
                 tenant,
                 {
-                    status: { $in: ['registration', 'in_progress', 'active'] }
+                    status: { $in: ['registration', 'in_progress', 'active'] },
+                    deleted: { $ne: true }
                 },
                 {
                     page: 1,
@@ -235,7 +245,9 @@ export class ChampionshipService {
     async getPaginated(page: number, limit: number, tenant: string) {
         try {
             return await Championship.byTenant(tenant).paginate(
-                {},
+                {
+                    deleted: { $ne: true }
+                },
                 {
                     page,
                     limit,
@@ -246,6 +258,88 @@ export class ChampionshipService {
         } catch (error: any) {
             throw new Error(`Error getting paginated championships: ${error.message}`);
         }
+    }
+
+    async softDelete(
+        tenant: string,
+        championshipId: string,
+        deletedBy: string,
+        deleteReason: string
+    ): Promise<IChampionshipDocument> {
+        const championship = await DatabaseHelper.findOne(
+            Championship,
+            tenant,
+            {
+                _id: new Types.ObjectId(championshipId),
+                deleted: { $ne: true },
+            },
+            {
+                throwError: false,
+            }
+        );
+
+        if (!championship) {
+            throw new CustomError(
+                'Championship not found',
+                404,
+                'ChampionshipServiceError'
+            );
+        }
+
+        if (['in_progress', 'completed'].includes(championship.status)) {
+            throw new CustomError(
+                `Championship cannot be deleted while status is ${championship.status}`,
+                400,
+                'ChampionshipServiceError'
+            );
+        }
+
+        const allowedStatuses: ChampionshipStatusValue[] = [
+            'draft',
+            'registration',
+            'cancelled',
+        ];
+
+        if (!allowedStatuses.includes(championship.status)) {
+            throw new CustomError(
+                `Championship cannot be deleted while status is ${championship.status}`,
+                400,
+                'ChampionshipServiceError'
+            );
+        }
+
+        const deletedChampionship = await DatabaseHelper.findOneAndUpdate(
+            Championship,
+            tenant,
+            {
+                _id: championship._id,
+                status: championship.status,
+                deleted: { $ne: true },
+            },
+            {
+                $set: {
+                    deleted: true,
+                    deletedAt: new Date(),
+                    deletedBy: new Types.ObjectId(deletedBy),
+                    deleteReason,
+                    status: 'cancelled',
+                },
+            },
+            {
+                new: true,
+                runValidators: true,
+            }
+        );
+
+        if (!deletedChampionship) {
+            throw new CustomError(
+                'Championship could not be deleted',
+                409,
+                'ChampionshipServiceError'
+            );
+        }
+
+        return deletedChampionship;
     }
 
     /**
@@ -545,6 +639,42 @@ export class ChampionshipService {
         };
     }
 
+    async getAll(
+        tenant: string,
+        filters: {
+            status?: string;
+            search?: string;
+        },
+        paginationOptions: PaginationOptions
+    ) {
+        const query = {} as Record<string, any>;
+
+        if (filters.status) {
+            query.status = filters.status;
+        }
+
+        if (filters.search) {
+            query.name = {
+                $regex: filters.search,
+                $options: 'i',
+            };
+        }
+
+        return DatabaseHelper.getItemsWithRelations(
+            Championship,
+            tenant,
+            {
+                deleted: false,
+                ...query
+            },
+            paginationOptions,
+            {
+                nested: this.populateOption(),
+            }
+
+        );
+    }
+
     private populateOption() {
         return [
             {
@@ -558,4 +688,4 @@ export class ChampionshipService {
     }
 
 
-} 
+}
