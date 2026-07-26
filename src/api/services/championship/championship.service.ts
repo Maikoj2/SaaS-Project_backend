@@ -593,6 +593,7 @@ export class ChampionshipService {
             tenant,
             {
                 _id: new Types.ObjectId(championshipId),
+                status: { $ne: 'completed' },
             },
             {
                 $set: {
@@ -606,11 +607,22 @@ export class ChampionshipService {
         );
 
         if (!championship) {
-            throw new CustomError(
-                'Championship not found',
-                404,
-                'ChampionshipServiceError'
+            const existing = await DatabaseHelper.findOne(
+                Championship,
+                tenant,
+                { _id: new Types.ObjectId(championshipId) }
             );
+            if (!existing) {
+                throw new CustomError(
+                    'Championship not found',
+                    404,
+                    'ChampionshipServiceError'
+                );
+            }
+            return {
+                championship: existing,
+                releasedCourts: 0,
+            };
         }
 
         const releaseResult = await Court.byTenant(tenant).updateMany(

@@ -54,53 +54,42 @@ export class InvitationLinkService {
     }
 
     async validateAndUpdateUsage(tenant: string, code: string) {
-        const invitationLink = await DatabaseHelper.findOne(
-            InvitationLink,
-            tenant,
-            { code, isActive: true }
-        );
-
-        if (!invitationLink) {
-            throw new Error('the link is not valid or expired');
-        }
-
-        // Validar fecha de expiración
-        if (invitationLink.expiresAt < new Date()) {
-            await DatabaseHelper.findOneAndUpdate(
-                InvitationLink,
-                tenant,
-                { code },
-                { isActive: false }
-            );
-            throw new Error('The invitation link has expired');
-        }
-
-        // Validar número máximo de usos
-        if (invitationLink.usedCount >= invitationLink.maxUses) {
-            await DatabaseHelper.findOneAndUpdate(
-                InvitationLink,
-                tenant,
-                { code },
-                { isActive: false }
-            );
-            throw new Error('The link has reached the maximum number of uses allowed');
-        }
-
-        // Incrementar el contador de usos
         const link = await DatabaseHelper.findOneAndUpdate(
             InvitationLink,
             tenant,
-            { code },
-            { $inc: { usedCount: 1 } }
+            {
+                code,
+                isActive: true,
+                expiresAt: { $gt: new Date() },
+                $expr: { $lt: ['$usedCount', '$maxUses'] },
+            },
+            { $inc: { usedCount: 1 } },
+            { new: true }
         );
+
         if (!link) {
-            throw new Error('Error updating link usage');
+            // Distinguir expirado vs agotado para mensaje claro
+            const existing = await DatabaseHelper.findOne(
+                InvitationLink,
+                tenant,
+                { code }
+            );
+            if (!existing) {
+                throw new Error('the link is not valid or expired');
+            }
+            if (existing.expiresAt < new Date()) {
+                throw new Error('The invitation link has expired');
+            }
+            if (existing.usedCount >= existing.maxUses) {
+                throw new Error('The link has reached the maximum number of uses allowed');
+            }
+            throw new Error('The invitation link is no longer active');
         }
 
         return {
             championshipId: link.championshipId,
             maxUses: link.maxUses,
-            usedCount: link.usedCount + 1,
+            usedCount: link.usedCount,
             expiresAt: link.expiresAt
         };
     }

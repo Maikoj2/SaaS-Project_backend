@@ -369,23 +369,22 @@ export class AuthService {
     public async resetPassword(urlId: string, newPassword: string, tenant: string): Promise<{ message: string }> {
         try {
 
-            const forgotPasswordRecord = await DatabaseHelper.findOne(
+            // Reclamar el token atómicamente: si otro request lo tomó primero, retorna null.
+            const forgotPasswordRecord = await DatabaseHelper.findOneAndUpdate(
                 ForgotPassword,
                 tenant,
                 {
                     urlId: urlId,
                     used: false,
                     expiresAt: { $gt: new Date() }
-                }
+                },
+                { $set: { used: true } },
+                { new: true }
             );
             if (!forgotPasswordRecord) {
                 throw new AuthError('Invalid or expired reset token', 400);
             }
-            const now = new Date();
-            if (now > forgotPasswordRecord.expiresAt) {
-                this.logger.error('Token expirado');
-                throw new AuthError('El enlace de recuperación ha expirado', 400);
-            }
+
             const user = await DatabaseHelper.findOne(User, tenant, {
                 email: forgotPasswordRecord.email
             });
@@ -399,9 +398,6 @@ export class AuthService {
             user.password = hashedPassword;
 
             await user.save({ validateBeforeSave: false });
-
-            forgotPasswordRecord.used = true;
-            await forgotPasswordRecord.save();
 
             return { message: 'Password updated successfully' };
         } catch (error) {

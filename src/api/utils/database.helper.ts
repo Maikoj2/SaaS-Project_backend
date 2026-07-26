@@ -195,7 +195,7 @@ export class DatabaseHelper {
         const { throwError = true, errorMessage = 'Document not found' } = options;
 
         try {
-            const doc = await model.byTenant(tenant).findByIdAndDelete(id);
+            const doc = await model.byTenant(tenant).findByIdAndDelete({ _id: id });
             if (!doc && throwError) throw new AuthError(errorMessage);
             return doc;
         } catch (error) {

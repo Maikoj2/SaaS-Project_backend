@@ -40,7 +40,7 @@ export class PaymentService {
         accessToken,
         options: {
           timeout: 5000,
-          idempotencyKey: `${tenant}-${Date.now()}`
+          idempotencyKey: `mp-pref-${tenant}-${purchaseData.metadata.purchase_id}`
         }
       });
 
@@ -124,7 +124,7 @@ export class PaymentService {
         accessToken,
         options: {
           timeout: 5000,
-          idempotencyKey: `${tenant}-${Date.now()}`
+          idempotencyKey: `mp-pay-${tenant}-${paymentId}`
         }
       });
       const payment = await new Payment(client).get({ id: paymentId });

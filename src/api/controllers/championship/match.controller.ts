@@ -71,9 +71,10 @@ export class MatchController {
                 })
             );
         } catch (error: any) {
-            res.status(error.statusCode || 500).json(
+            this.logger.error('Error retrieving matches:', error);
+            res.status(error?.statusCode || 500).json(
                 ApiResponse.error(
-                    error || 'Error retrieving matches'
+                    error instanceof Error ? error.message : 'Error retrieving matches'
                 )
             );
         }
@@ -99,9 +100,10 @@ export class MatchController {
                 })
             );
         } catch (error: any) {
-            res.status(error.statusCode || 500).json(
+            this.logger.error('Error retrieving matches:', error);
+            res.status(error?.statusCode || 500).json(
                 ApiResponse.error(
-                    error || 'Error retrieving match',
+                    error instanceof Error ? error.message : 'Error retrieving matches'
                 )
             );
         }
@@ -130,9 +132,10 @@ export class MatchController {
                 })
             );
         } catch (error: any) {
-            res.status(error.statusCode || 500).json(
+            this.logger.error('Error retrieving matches:', error);
+            res.status(error?.statusCode || 500).json(
                 ApiResponse.error(
-                    error || 'Error retrieving group matches',
+                    error instanceof Error ? error.message : 'Error retrieving matches'
                 )
             );
         }
@@ -162,10 +165,10 @@ export class MatchController {
                 })
             );
         } catch (error: any) {
-            res.status(error.statusCode || 500).json(
+            this.logger.error('Error retrieving matches:', error);
+            res.status(error?.statusCode || 500).json(
                 ApiResponse.error(
-                    error ||
-                    'Error retrieving elimination bracket matches',
+                    error instanceof Error ? error.message : 'Error retrieving matches'
                 )
             );
         }
