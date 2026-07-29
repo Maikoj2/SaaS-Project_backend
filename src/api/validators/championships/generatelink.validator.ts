@@ -30,14 +30,14 @@ export const validateGenerateInvitationLink = [
 
 
             (req as any).championshipConfiguration = championshipConfiguration;
-            const link = await linkService.findActiveLink(req.clientAccount, value);
+            const link = await linkService.findUsableLink(req.clientAccount, value);
             if (link) {
                 throw new Error('LINK_ALREADY_EXISTS');
             }
             return true;
         }),
     check('maxUses')
-        .isInt()
+        .isInt({ min: 1 })
         .withMessage('MUST_BE_INTEGER')
         .custom((value: number, { req }) => {
             const championshipConfiguration: any = (req as any).championshipConfiguration;
@@ -62,10 +62,12 @@ export const validateGenerateInvitationLink = [
             const championshipConfiguration: any = (req as any).championshipConfiguration;
 
             if (championshipConfiguration) {
-                const championshipStartDate = new Date(championshipConfiguration.championshipId.startDate);
-                // 3. check that the expiration date of the link is not after the start date of the tournament
-                if (expiresDate >= championshipStartDate) {
-                    throw new Error('EXPIRE_DATE_AFTER_OR_EQUAL_CHAMPIONSHIP_START');
+                const registrationDeadline = new Date(
+                    championshipConfiguration.registrationDeadline
+                );
+                // 3. Expiration may equal, but cannot exceed, registrationDeadline.
+                if (expiresDate > registrationDeadline) {
+                    throw new Error('EXPIRE_DATE_AFTER_REGISTRATION_DEADLINE');
                 }
             }
 
