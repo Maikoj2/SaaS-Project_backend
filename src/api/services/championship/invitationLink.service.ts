@@ -271,7 +271,7 @@ export class InvitationLinkService {
         return {
             usedCount: link.usedCount,
             maxUses: link.maxUses,
-            remainingUses: link.maxUses - link.usedCount,
+            remainingUses: Math.max(0, link.maxUses - link.usedCount),
             expiresAt: link.expiresAt,
             isActive: link.isActive,
             code: link.code
