@@ -10,6 +10,7 @@ import passport from 'passport';
 import { seedGameFormats } from '../../seeds/gameFormats.seed';
 import { seedCourts } from '../../seeds/courts.seed';
 import { seedClubs } from '../../seeds/clubs.seed';
+import type { Server as HttpServer } from 'node:http';
 
 
 
@@ -17,7 +18,7 @@ export class Server {
     private readonly app: Application;
     private readonly port: string;
     private readonly logger: Logger;
-    private server: any; // Para almacenar la instancia del servidor HTTP
+    private server?: HttpServer; // Para almacenar la instancia del servidor HTTP
 
     constructor() {
         this.app = express();
@@ -83,7 +84,7 @@ export class Server {
 
         } catch (error) {
             this.logger.error('Error iniciando servidor:', error);
-            process.exit(1);
+            throw error;
         }
     }
 
@@ -95,7 +96,7 @@ export class Server {
     public async close(): Promise<void> {
         if (this.server) {
             await new Promise((resolve) => {
-                this.server.close(resolve);
+                this.server?.close(resolve);
             });
         }
     }

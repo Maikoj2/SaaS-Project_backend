@@ -103,7 +103,7 @@ export class UserController {
         }
     }
 
-    public async getCurrentUser(req: IUserCustomRequest, res: Response): Promise<void> {
+    public getCurrentUser = async (req: IUserCustomRequest, res: Response): Promise<void> => {
         try {
             const userId = req.user?._id;
             const tenant = req.clientAccount as string;
@@ -120,7 +120,7 @@ export class UserController {
             res.status(error instanceof AuthError ? error.statusCode : 500)
                 .json(ApiResponse.error(error instanceof AuthError ? error : 'Error fetching user'));
         }
-    }
+    };
 
     public updateUser = async (req: IUserCustomRequest, res: Response): Promise<void> => {
         try {

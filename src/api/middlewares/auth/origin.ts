@@ -38,6 +38,8 @@ const checkDomain = async (req: IUserCustomRequest, res: Response, next: NextFun
         const clean = rawDomain ? parse(rawDomain) : null;
         const subDomain = (clean && 'subdomain' in clean) ? clean.subdomain : null;
 
+        console.log(origin);
+
         if (!subDomain) {
             return res.status(400).json(
                 ApiResponse.error('The subdomain must be specified for determining the tenant ')

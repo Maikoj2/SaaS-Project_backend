@@ -43,12 +43,16 @@ export class ChampionshipController {
             maxTeams,
             gameFormatId,
             tieBreakerCriteria,
+            matchRules,
             customRules,
             matchDurationLimit,
             setDurationLimit,
             registrationDeadline,
             registrationFee,
             competitionRulePreset,
+            distributionStrategy,
+            tablePointsPolicy,
+            eliminationSettings,
             logo,
             banner
         } = req.body;
@@ -84,13 +88,17 @@ export class ChampionshipController {
                 maxTeams,
                 gameFormatId: gameFormatId as any,
                 tieBreakerCriteria,
+                matchRules,
                 customRules,
                 matchDurationLimit,
                 setDurationLimit,
                 registrationDeadline,
                 registrationFee,
                 competitionRulePreset,
-                competitionRules
+                competitionRules,
+                distributionStrategy,
+                tablePointsPolicy,
+                eliminationSettings
             });
 
 
@@ -184,12 +192,12 @@ export class ChampionshipController {
 
     public getById = async (req: IUserCustomRequest, res: Response) => {
         try {
-            const { id } = req.params;
+            const { championshipId } = req.params;
             const tenant = req.clientAccount as string;
             if (!tenant) {
                 throw new AuthError('Tenant not found', 404);
             }
-            const championshipConfiguration = await this.championshipService.findById(id, tenant);
+            const championshipConfiguration = await this.configurationService.getByChampionshipId(tenant, championshipId);
             if (!championshipConfiguration) {
                 return res.status(404).json(ApiResponse.error(new AuthError('Championship not found', 404)));
             }
@@ -277,17 +285,17 @@ export class ChampionshipController {
     }
 
 
-    async getAll(req: IUserCustomRequest, res: Response) {
+    public getAll = async (req: IUserCustomRequest, res: Response) => {
         try {
             const tenant = req.clientAccount as string;
-            if (!tenant) {
-                throw new AuthError('Tenant not found', 404);
-            }
             const championships = await this.championshipService.getAll(
                 tenant,
                 {
-                    status: String(req.query.status) || '',
-                    search: String(req.query.search) || '',
+
+                    search:
+                        typeof req.query.search === 'string'
+                            ? req.query.search.trim()
+                            : undefined,
                 },
                 {
                     page: Number(req.query.page) || 1,
@@ -303,12 +311,12 @@ export class ChampionshipController {
         } catch (error) {
             this.logger.error('Error getting all championships:', error);
             res.status(500).json(
-                ApiResponse.error('Error getting all championships')
+                ApiResponse.error(error instanceof CustomError ? error.message : 'Error getting all championships')
             );
         }
-    }
+    };
 
-    async uploadLogo(req: IUserCustomRequest, res: Response, next: NextFunction): Promise<void> {
+    public uploadLogo = async (req: IUserCustomRequest, res: Response, next: NextFunction): Promise<void> => {
         try {
             const tenant = req.clientAccount as string;
             const { championshipId } = req.params;
@@ -334,7 +342,7 @@ export class ChampionshipController {
                 ApiResponse.error(error instanceof CustomError ? error.message : 'Error uploading championship logo')
             );
         }
-    }
+    };
 
     public uploadBanner = async (
         req: IUserCustomRequest,

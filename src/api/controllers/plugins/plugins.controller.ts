@@ -12,7 +12,7 @@ export class PluginsController {
         this.logger = new Logger();
     }
 
-    public async getItems(req: IPluginsCustomRequest, res: Response) {
+    public getItems = async (req: IPluginsCustomRequest, res: Response) => {
         try {
             const  searchQuery = await QueryHelper.buildSearchQuery(req.query);
             
@@ -21,5 +21,5 @@ export class PluginsController {
             res.status(error instanceof AuthError ? error.statusCode : 500)
                 .json(ApiResponse.error(error instanceof AuthError ? error : 'Error fetching plugins'));
         }
-    }
+    };
 }

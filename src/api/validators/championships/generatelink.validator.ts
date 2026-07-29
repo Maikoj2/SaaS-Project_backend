@@ -6,6 +6,7 @@ import { DatabaseHelper } from '../../utils/database.helper';
 import ChampionshipConfiguration from '../../models/mongoose/championship/configuration';
 import InvitationLink from '../../models/mongoose/championship/invitationLink';
 import { IUserCustomRequest } from '../../interfaces';
+import { paramsValidator } from '../expressValidatorHelper';
 
 const linkService = new InvitationLinkService();
 
@@ -83,3 +84,8 @@ export const validateUseInvitationLink = [
 
     validate,
 ];
+
+export const validateInvitationLink = [
+    ...paramsValidator('championshipId', true),
+    validate
+]

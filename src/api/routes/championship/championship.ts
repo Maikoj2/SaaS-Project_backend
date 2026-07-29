@@ -3,7 +3,7 @@ import { origin } from '../../middlewares';
 import { auth } from '../../middlewares/auth.middleware';
 import { ChampionshipController } from '../../controllers/championship/championship.controller';
 import trimRequest from 'trim-request';
-import { validateCreateChampionship, validateCreateChampionshipConfiguration, validateRegisterTeam, validateSoftDeleteChampionship, validateUpdateChampionshipStatus } from '../../validators/championships/championship.validator';
+import { validateChampionShip, validateCreateChampionship, validateCreateChampionshipConfiguration, validateRegisterTeam, validateSoftDeleteChampionship, validateUpdateChampionshipStatus } from '../../validators/championships/championship.validator';
 import { ChampionshipsRoutes } from '../../constants/apiRoutes/championship/championshipsRoutes';
 import { permissionAuthorization } from '../../middlewares/auth/permissionAuthorization.middleware';
 import { AuthPermission } from '../../constants/permissions';
@@ -21,13 +21,13 @@ router.post(ChampionshipsRoutes.CHAMPIONSHIPS, [
     origin.checkTenant as RequestHandler,
     auth as RequestHandler,
     permissionAuthorization([AuthPermission.CHAMPIONSHIP_CREATE]) as RequestHandler,
+    trimRequest.all,
     ...validateCreateChampionship,
     ...validateCreateChampionshipConfiguration,
-    trimRequest.all,
 ], championshipController.create as RequestHandler);
 
 // get active championships
-router.get(ChampionshipsRoutes.CHAMPIONSHIPS, [
+router.get(ChampionshipsRoutes.CHAMPIONSHIPS_ACTIVE, [
     origin.checkDomain as RequestHandler,
     origin.checkTenant as RequestHandler,
     auth as RequestHandler,
@@ -40,6 +40,8 @@ router.get(ChampionshipsRoutes.CHAMPIONSHIPS_ID, [
     origin.checkTenant as RequestHandler,
     auth as RequestHandler,
     permissionAuthorization([AuthPermission.CHAMPIONSHIP_READ]) as RequestHandler,
+    ...validateChampionShip.getChampionById,
+    trimRequest.all,
 ], championshipController.getById as RequestHandler);
 
 //update championship status
@@ -58,8 +60,8 @@ router.post(ChampionshipsRoutes.CHAMPIONSHIPS_ID_TEAMS, [
     origin.checkTenant as RequestHandler,
     auth as RequestHandler,
     permissionAuthorization([AuthPermission.CHAMPIONSHIP_REGISTER_TEAM]) as RequestHandler,
-    ...validateRegisterTeam,
     trimRequest.all,
+    ...validateRegisterTeam,
 ], championshipController.registerTeam as RequestHandler);
 
 //  update config
@@ -68,8 +70,8 @@ router.patch(ChampionshipsRoutes.CHAMPIONSHIPS_ID_CONFIGURATION, [
     origin.checkTenant as RequestHandler,
     auth as RequestHandler,
     permissionAuthorization([AuthPermission.CHAMPIONSHIP_UPDATE]) as RequestHandler,
-    ...championshipConfigurationValidators.updateChampionshipConfiguration,
     trimRequest.all,
+    ...championshipConfigurationValidators.updateChampionshipConfiguration,
 ], championshipController.updateChampionshipConfiguration as RequestHandler);
 
 // get championship configuration
@@ -97,6 +99,7 @@ router.get(ChampionshipsRoutes.CHAMPIONSHIPS, [
     origin.checkTenant as RequestHandler,
     auth as RequestHandler,
     permissionAuthorization([AuthPermission.CHAMPIONSHIP_READ]) as RequestHandler,
+    trimRequest.all as RequestHandler
 ], championshipController.getAll as RequestHandler);
 
 router.patch(
@@ -124,7 +127,7 @@ router.patch(
         ...championshipConfigurationValidators.uploadLogoAndBanner,
         trimRequest.all,
     ],
-    championshipController.uploadLogo.bind(championshipController) as RequestHandler
+    championshipController.uploadLogo as RequestHandler
 );
 
 

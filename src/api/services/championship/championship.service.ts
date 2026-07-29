@@ -673,14 +673,15 @@ export class ChampionshipService {
         }
 
         return DatabaseHelper.getItemsWithRelations(
-            Championship,
+            ChampionshipConfiguration,
             tenant,
             {
-                deleted: false,
+
                 ...query
             },
             paginationOptions,
             {
+
                 nested: this.populateOption(),
             }
 
@@ -690,10 +691,13 @@ export class ChampionshipService {
     private populateOption() {
         return [
             {
-                path: 'teams courts matches registrations',
-                select: '',
+                path: 'championshipId',
+                select: 'name description startDate endDate status courts logo banner',
                 populate: [
-
+                    {
+                        path: 'courts',
+                        select: 'name type status capacity location dimensions surface amenities currentChampionshipId',
+                    },
                 ],
             },
         ]

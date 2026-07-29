@@ -1,4 +1,5 @@
 import mongoose from 'mongoose';
+import dns from 'node:dns';
 import { Injectable } from '@decorators/di';
 import { Logger } from '../../logger';
 import { env } from '../../env.config';
@@ -56,6 +57,16 @@ export class DatabaseConnection {
     public async connect(): Promise<void> {
         try {
             this.validateEnvironment();
+
+            const dnsServers = env.DNS_SERVERS
+                .split(',')
+                .map(server => server.trim())
+                .filter(Boolean);
+
+            if (dnsServers.length > 0) {
+                dns.setServers(dnsServers);
+                this.logger.info(`Using configured DNS servers: ${dnsServers.join(', ')}`);
+            }
 
             await mongoose.connect(this.DB_URI, this.options);
             this.logger.info(`Connected to MongoDB database: ${this.DB_NAME}`);

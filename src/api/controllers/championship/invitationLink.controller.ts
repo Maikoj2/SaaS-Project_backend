@@ -59,7 +59,7 @@ export class InvitationLinkController {
 
     public getActiveLink = async (req: IUserCustomRequest, res: Response) => {
         try {
-            const { id: championshipId } = req.params;
+            const { championshipId } = req.params;
             const tenant = req.clientAccount as string;
 
             const link = await this.invitationLinkService.findActiveLink(tenant, championshipId);
@@ -82,7 +82,7 @@ export class InvitationLinkController {
 
     public deactivateLink = async (req: IUserCustomRequest, res: Response) => {
         try {
-            const { id: championshipId } = req.params;
+            const { championshipId } = req.params;
             const tenant = req.clientAccount as string;
 
             await this.invitationLinkService.deactivateLink(tenant, championshipId);
@@ -99,7 +99,7 @@ export class InvitationLinkController {
 
     public getLinkStats = async (req: IUserCustomRequest, res: Response) => {
         try {
-            const { id: championshipId } = req.params;
+            const { championshipId } = req.params;
             const tenant = req.clientAccount as string;
 
             const stats = await this.invitationLinkService.getLinkStats(tenant, championshipId);

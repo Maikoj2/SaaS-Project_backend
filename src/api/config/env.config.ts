@@ -12,6 +12,7 @@ export const env = cleanEnv(process.env, {
     // Database
     DB_URI: str(),
     DB_NAME: str(),
+    DNS_SERVERS: str({ default: '' }),
 
     // logger
     LOG_LEVEL: str({ default: 'info' }),

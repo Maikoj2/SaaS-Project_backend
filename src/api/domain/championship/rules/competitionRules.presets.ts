@@ -219,3 +219,19 @@ export function getCompetitionRulesByPreset(
 
     return rules;
 }
+
+export function getVolleyballTypeByPreset(
+    preset: CompetitionRulePreset
+): 'beach' | 'indoor' {
+    const starters = getCompetitionRulesByPreset(preset).teamSize.starters;
+
+    if (starters === 2) {
+        return 'beach';
+    }
+
+    if (starters === 6) {
+        return 'indoor';
+    }
+
+    throw new Error(`Cannot derive volleyball type from preset: ${preset}`);
+}

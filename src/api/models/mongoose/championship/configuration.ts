@@ -5,6 +5,10 @@ import mongoTenant from 'mongo-tenant';
 import mongoosePaginate from 'mongoose-paginate-v2';
 import { Types } from "mongoose";
 import { CompetitionRulePreset } from "../../../domain/championship/rules/competitionRules.presets";
+import {
+    DISTRIBUTION_STRATEGIES,
+    DistributionStrategy
+} from "../../../domain/championship/competition";
 
 // Interfaces
 export interface ITeamSizeRules {
@@ -61,7 +65,12 @@ export interface IMatchRules {
 export interface IEliminationSettings {
     enabled: boolean;
 
-    qualificationMode: 'topPerGroup' | 'topPerGroupPlusBestThirds' | 'bestOverall';
+    qualificationMode:
+    | 'topPerGroup'
+    | 'topPerGroupPlusBestThirds'
+    | 'overallRanking'
+    | 'bestOverall'
+    | 'topPerGroupPlusBestRemaining';
 
     topPerGroup?: number;
     bestThirdsCount?: number;
@@ -69,11 +78,12 @@ export interface IEliminationSettings {
 
     bracketSeedingStrategy:
     | 'overallRanking'
+    | 'groupCross'
     | 'crossGroup'
     | 'manual'
     | 'random';
 
-    bracketSize?: 2 | 4 | 8 | 16 | 32;
+    bracketSize?: 4 | 8 | 16 | 32;
 
     includeThirdPlaceMatch: boolean;
 
@@ -234,21 +244,26 @@ const TablePointsPolicySchema = new Schema<ITablePointsPolicy>({
     winPoints: {
         type: Number,
         required: true,
+        min: 0,
         default: 2
     },
     lossPoints: {
         type: Number,
         required: true,
+        min: 0,
         default: 1
     },
     walkoverLossPoints: {
         type: Number,
         required: true,
+        min: 0,
         default: 0
     },
     walkoverWinPoints: {
         type: Number,
-        required: false
+        required: true,
+        min: 0,
+        default: 2
     }
 }, { _id: false });
 
@@ -256,7 +271,7 @@ const EliminationSettingsSchema = new Schema(
     {
         enabled: {
             type: Boolean,
-            default: true,
+            default: false,
         },
         qualificationMode: {
             type: String,
@@ -265,33 +280,37 @@ const EliminationSettingsSchema = new Schema(
                 'topPerGroupPlusBestThirds',
                 'topPerGroupPlusBestRemaining',
                 'bestOverall',
+                'overallRanking',
             ],
             default: 'topPerGroup',
         },
         topPerGroup: {
             type: Number,
+            min: 1,
             default: 2,
         },
         bestThirdsCount: {
             type: Number,
+            min: 0,
             default: 0,
         },
         totalQualifiers: {
             type: Number,
+            min: 2,
             required: false,
         },
         normalizeStandingsForUnevenGroups: {
             type: Boolean,
-            default: true,
+            default: false,
         },
         bracketSeedingStrategy: {
             type: String,
-            enum: ['overallRanking', 'crossGroup', 'manual', 'random'],
+            enum: ['overallRanking', 'groupCross', 'crossGroup', 'manual', 'random'],
             default: 'overallRanking',
         },
         bracketSize: {
             type: Number,
-            enum: [2, 4, 8, 16, 32],
+            enum: [4, 8, 16, 32],
             required: false,
         },
         includeThirdPlaceMatch: {
@@ -300,6 +319,7 @@ const EliminationSettingsSchema = new Schema(
         },
         initialMatchNumber: {
             type: Number,
+            min: 1,
             default: 1,
         },
         autoGenerateAfterGroupStage: {
@@ -392,11 +412,14 @@ const ChampionshipConfigurationSchema = new Schema<IConfigurationDocument>(
             type: EliminationSettingsSchema,
             required: true,
             default: () => ({
-                enabled: true,
+                enabled: false,
                 qualificationMode: 'topPerGroup',
                 topPerGroup: 2,
                 bestThirdsCount: 0,
+                totalQualifiers: 4,
+                normalizeStandingsForUnevenGroups: false,
                 bracketSeedingStrategy: 'overallRanking',
+                bracketSize: 4,
                 includeThirdPlaceMatch: true,
                 initialMatchNumber: 1,
                 autoGenerateAfterGroupStage: false,
@@ -404,8 +427,8 @@ const ChampionshipConfigurationSchema = new Schema<IConfigurationDocument>(
         },
         distributionStrategy: {
             type: String,
-            enum: ['serpentine', 'linear', 'random', 'balancedByClub'],
-            default: 'serpentine'
+            enum: DISTRIBUTION_STRATEGIES,
+            default: 'linear'
         },
         competitionRulePreset: {
             type: String,
@@ -435,6 +458,7 @@ const ChampionshipConfigurationSchema = new Schema<IConfigurationDocument>(
             default: () => ({
                 winPoints: 2,
                 lossPoints: 1,
+                walkoverWinPoints: 2,
                 walkoverLossPoints: 0
             })
         },
@@ -513,6 +537,34 @@ ChampionshipConfigurationSchema.pre('save', function (next) {
 
         if (!mixedRules?.minMalePlayers || !mixedRules?.minFemalePlayers) {
             next(new Error('mixed competitions require minMalePlayers and minFemalePlayers'));
+        }
+    }
+
+    const points = this.tablePointsPolicy;
+    if (points && points.winPoints < points.lossPoints) {
+        return next(new Error('winPoints cannot be less than lossPoints'));
+    }
+    if (
+        points?.walkoverWinPoints !== undefined &&
+        points.walkoverWinPoints < points.walkoverLossPoints
+    ) {
+        return next(new Error('walkoverWinPoints cannot be less than walkoverLossPoints'));
+    }
+
+    const elimination = this.eliminationSettings;
+    if (elimination?.enabled) {
+        if (
+            elimination.bracketSize !== undefined &&
+            elimination.totalQualifiers !== undefined &&
+            elimination.bracketSize < elimination.totalQualifiers
+        ) {
+            return next(new Error('bracketSize cannot be less than totalQualifiers'));
+        }
+        if (
+            elimination.qualificationMode === 'topPerGroupPlusBestThirds' &&
+            (!elimination.bestThirdsCount || elimination.bestThirdsCount < 1)
+        ) {
+            return next(new Error('bestThirdsCount must be greater than 0 for topPerGroupPlusBestThirds'));
         }
     }
 

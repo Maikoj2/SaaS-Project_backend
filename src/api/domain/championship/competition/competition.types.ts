@@ -17,12 +17,26 @@ export type CompetitionGroup = {
     teams: CompetitionTeam[];
 };
 
-export type DistributionStrategy =
-    | 'serpentine'
-    | 'linear'
-    | 'random'
-    | 'balancedByClub'
-    | 'manual';
+export const DISTRIBUTION_STRATEGIES = [
+    'linear',
+    'balanced',
+    'random',
+    'serpentine',
+    'balancedByClub',
+    'manual'
+] as const;
+
+export type DistributionStrategy = typeof DISTRIBUTION_STRATEGIES[number];
+
+export const EXECUTABLE_DISTRIBUTION_STRATEGIES = [
+    'linear',
+    'random',
+    'serpentine',
+    'balancedByClub',
+] as const satisfies readonly DistributionStrategy[];
+
+export type ExecutableDistributionStrategy =
+    typeof EXECUTABLE_DISTRIBUTION_STRATEGIES[number];
 
 export type GroupSizePreference =
     | 'preferGroupsOf3'

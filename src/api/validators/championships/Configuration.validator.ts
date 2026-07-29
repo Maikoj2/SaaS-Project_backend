@@ -2,9 +2,13 @@ import { check } from "express-validator";
 import { validate } from "../../middlewares";
 import { paramsValidator, validateField } from "../expressValidatorHelper";
 import { validateMongoIds } from "./championship.validator";
-import { IMatchRules } from "../../models/mongoose/championship/configuration";
+import { EXECUTABLE_DISTRIBUTION_STRATEGIES } from "../../domain/championship/competition";
+import {
+    validateMatchRulesSetRelationship,
+    validatePresetMatchRulesCompatibility
+} from "./matchRules.validator";
+import { validateEliminationSettingsRelationships } from "./eliminationSettings.validator";
 
-const distributionStrategies = ['serpentine', 'linear', 'random', 'balancedByClub'];
 const volleyballTypes = ['beach', 'indoor'];
 
 
@@ -34,7 +38,8 @@ export const championshipConfigurationValidators = {
             .withMessage('INVALID_GAME_FORMAT_ID'),
         check("distributionStrategy")
             .optional()
-            .isIn(distributionStrategies)
+            .trim()
+            .isIn(EXECUTABLE_DISTRIBUTION_STRATEGIES)
             .withMessage('INVALID_DISTRIBUTION_STRATEGY'),
         check("tieBreakerCriteria")
             .optional()
@@ -73,6 +78,12 @@ export const championshipConfigurationValidators = {
             .isInt({ min: 1, max: 5 })
             .withMessage('MAX_SETS_MUST_BE_INTEGER')
             .toInt(),
+        check("matchRules")
+            .optional()
+            .custom(validateMatchRulesSetRelationship),
+        check("matchRules")
+            .optional()
+            .custom(validatePresetMatchRulesCompatibility),
         check("matchRules.regularSetPoints")
             .optional()
             .isInt({ min: 1 })
@@ -112,6 +123,11 @@ export const championshipConfigurationValidators = {
             .isInt({ min: 0 })
             .withMessage('WALKOVER_WIN_POINTS_MUST_BE_NON_NEGATIVE_INTEGER')
             .toInt(),
+        check("eliminationSettings")
+            .optional()
+            .isObject()
+            .withMessage('MUST_BE_OBJECT')
+            .custom(validateEliminationSettingsRelationships),
         ...validateField("tournamentBracket", false),
         check("customRules")
             .optional()

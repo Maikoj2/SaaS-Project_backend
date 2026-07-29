@@ -33,7 +33,7 @@ import { CustomError } from '../../errors';
 
 
 interface TokenResponse {
-    token: string;
+    session: string;
     settings?: any;
     plugins?: any[];
     parentAccount?: string;
@@ -222,7 +222,7 @@ export class AuthService {
             throw new AuthError('Tenant not provided', 401);
         }
 
-        // Verificar refresh token
+        // Verificar refresh toke
         const decoded = this.tokenService.getUserIdFromToken(refreshToken);
 
         // Buscar usuario
@@ -233,10 +233,10 @@ export class AuthService {
         }
 
         // Generar nuevos tokens
-        const tokens = this.tokenService.generateToken(user._id.toString());
+        const token = this.tokenService.generateToken(user._id.toString());
 
         return {
-            token: tokens,
+            session: `Bearer ${token}`,
             settings: await this.settingsService.getSettings(tenant),
             plugins: await this.pluginService.getPlugins(tenant),
             ...(req.parentAccount && { parentAccount: req.parentAccount })
