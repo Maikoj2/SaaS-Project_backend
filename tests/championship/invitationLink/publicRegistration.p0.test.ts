@@ -215,6 +215,14 @@ function installInMemoryDatabase(
                         state.championshipId.toString()
                         ? ({ ...state.configuration } as any)
                         : null;
+                case 'Championship':
+                    return query._id?.toString() ===
+                        state.championshipId.toString()
+                        ? ({
+                            _id: state.championshipId,
+                            status: state.championshipStatus,
+                        } as any)
+                        : null;
                 case 'Team':
                     return (
                         state.teams.find(
