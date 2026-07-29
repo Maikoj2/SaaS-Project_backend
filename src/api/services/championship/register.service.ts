@@ -17,7 +17,14 @@ import { EmailService } from '../email/email.service';
 import { env } from '../../config';
 import { validateCompetitionRulesForTeam } from '../../domain/championship/rules/competitionRules.validator';
 import { validateChampionshipTeamCapacity } from '../../domain/championship/rules/championshipCapacity.validator';
-import { Image } from '../../models/mongoose/championship/championship';
+import Championship, { Image } from '../../models/mongoose/championship/championship';
+import {
+    ChampionshipStatus,
+    ChampionshipStatusValue,
+} from '../../constants/championship.constants';
+
+const REGISTRATION_CHAMPIONSHIP_STATUS: ChampionshipStatusValue =
+    ChampionshipStatus[1];
 export interface PayerData {
     name: string;
     surname?: string;
@@ -472,16 +479,59 @@ export class RegistrationService {
                 });
             }
 
-            await DatabaseHelper.findOneAndUpdate(
-                InvitationLink,
-                tenant,
-                { code },
-                {
-                    $inc: {
-                        usedCount: 1,
+            const consumedInvitationLink =
+                await DatabaseHelper.findOneAndUpdate(
+                    InvitationLink,
+                    tenant,
+                    {
+                        code,
+                        isActive: true,
+                        expiresAt: { $gt: new Date() },
+                        $expr: {
+                            $lt: ['$usedCount', '$maxUses'],
+                        },
                     },
+                    {
+                        $inc: {
+                            usedCount: 1,
+                        },
+                    },
+                    { new: true }
+                );
+
+            if (
+                !consumedInvitationLink ||
+                consumedInvitationLink.usedCount >
+                    consumedInvitationLink.maxUses
+            ) {
+                // The conditional update cannot overflow in MongoDB. Keep the
+                // compensation as a defensive guard for non-atomic adapters.
+                if (
+                    consumedInvitationLink &&
+                    consumedInvitationLink.usedCount >
+                        consumedInvitationLink.maxUses
+                ) {
+                    await DatabaseHelper.findOneAndUpdate(
+                        InvitationLink,
+                        tenant,
+                        {
+                            code,
+                            usedCount: consumedInvitationLink.usedCount,
+                        },
+                        {
+                            $inc: {
+                                usedCount: -1,
+                            },
+                        }
+                    );
                 }
-            );
+
+                throw new CustomError(
+                    'Invitation link is no longer available',
+                    400,
+                    'RegistrationServiceError'
+                );
+            }
 
             return {
                 team: createdTeam,
@@ -550,20 +600,74 @@ export class RegistrationService {
             tenant,
             { code: code },
             {
-                select: ['code', 'championshipId', 'maxUses', 'usedCount', 'expiresAt']
+                select: [
+                    'code',
+                    'championshipId',
+                    'isActive',
+                    'maxUses',
+                    'usedCount',
+                    'expiresAt',
+                ]
             }
         );
 
         if (!invitationLink) {
-            throw new CustomError('Invalid or expired code invitation link');
+            throw new CustomError(
+                'Invitation link not found',
+                404,
+                'RegistrationServiceError'
+            );
+        }
+
+        if (!invitationLink.isActive) {
+            throw new CustomError(
+                'Invitation link is no longer active',
+                400,
+                'RegistrationServiceError'
+            );
+        }
+
+        if (invitationLink.expiresAt.getTime() <= Date.now()) {
+            throw new CustomError(
+                'Invitation link has expired',
+                400,
+                'RegistrationServiceError'
+            );
         }
 
         // 2. Verificar límite de usos
-        if (invitationLink.maxUses && invitationLink.usedCount >= invitationLink.maxUses) {
-            throw new CustomError('Invitation link has reached maximum uses');
+        if (invitationLink.usedCount >= invitationLink.maxUses) {
+            throw new CustomError(
+                'Invitation link has reached maximum uses',
+                400,
+                'RegistrationServiceError'
+            );
         }
 
-        // 3. Obtener configuración del campeonato
+        // 3. Verificar que el campeonato siga aceptando inscripciones
+        const championship = await DatabaseHelper.findOne(
+            Championship,
+            tenant,
+            { _id: invitationLink.championshipId }
+        );
+
+        if (!championship) {
+            throw new CustomError(
+                'Championship not found',
+                404,
+                'RegistrationServiceError'
+            );
+        }
+
+        if (championship.status !== REGISTRATION_CHAMPIONSHIP_STATUS) {
+            throw new CustomError(
+                'Championship is not accepting registrations',
+                400,
+                'RegistrationServiceError'
+            );
+        }
+
+        // 4. Obtener configuración del campeonato
         const configuration = await DatabaseHelper.findOne(
             ChampionshipConfiguration,
             tenant,
@@ -574,7 +678,7 @@ export class RegistrationService {
             throw new CustomError('Championship configuration not found', 404, 'RegistrationServiceError');
         }
 
-        // 4. Validar fecha límite
+        // 5. Validar fecha límite
         if (new Date() > configuration.registrationDeadline) {
             throw new CustomError('Registration deadline has passed');
         }
