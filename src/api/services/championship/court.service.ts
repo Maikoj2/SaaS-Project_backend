@@ -43,11 +43,78 @@ interface DetachCourtsDTO {
     courtIds: string[];
 }
 
+interface CourtAssignmentSnapshot {
+    id: Types.ObjectId;
+    status: ICourtDocument['status'];
+}
+
 export class CourtService {
     private logger: Logger;
 
     constructor() {
         this.logger = new Logger();
+    }
+
+    private async releaseNewlyReservedCourts(
+        tenant: string,
+        championshipId: Types.ObjectId,
+        courtIds: Types.ObjectId[]
+    ): Promise<void> {
+        if (courtIds.length === 0) return;
+
+        await Court.byTenant(tenant).updateMany(
+            {
+                _id: { $in: courtIds },
+                status: 'reserved',
+                currentChampionshipId: championshipId,
+            },
+            {
+                $set: { status: 'available' },
+                $unset: { currentChampionshipId: '' },
+            }
+        );
+    }
+
+    private async restoreDetachedCourts(
+        tenant: string,
+        championshipId: Types.ObjectId,
+        snapshots: CourtAssignmentSnapshot[]
+    ): Promise<void> {
+        const snapshotsByStatus = new Map<
+            ICourtDocument['status'],
+            Types.ObjectId[]
+        >();
+
+        snapshots.forEach(({ id, status }) => {
+            const courtIds = snapshotsByStatus.get(status) ?? [];
+            courtIds.push(id);
+            snapshotsByStatus.set(status, courtIds);
+        });
+
+        for (const [status, courtIds] of snapshotsByStatus) {
+            const releasedCourts = await Court.byTenant(tenant).find({
+                _id: { $in: courtIds },
+                status: 'available',
+            });
+            const releasedCourtIds = releasedCourts
+                .filter((court) => !court.currentChampionshipId)
+                .map((court) => new Types.ObjectId(court._id));
+
+            if (releasedCourtIds.length === 0) continue;
+
+            await Court.byTenant(tenant).updateMany(
+                {
+                    _id: { $in: releasedCourtIds },
+                    status: 'available',
+                },
+                {
+                    $set: {
+                        status,
+                        currentChampionshipId: championshipId,
+                    },
+                }
+            );
+        }
     }
 
     async createCourt(
@@ -180,9 +247,16 @@ export class CourtService {
             tenant,
             {
                 status: 'available',
-                currentChampionshipId: {
-                    $exists: false,
-                },
+                $or: [
+                    {
+                        currentChampionshipId: {
+                            $exists: false,
+                        },
+                    },
+                    {
+                        currentChampionshipId: null,
+                    },
+                ],
             },
             {
                 page: options?.page || 1,
@@ -369,10 +443,22 @@ export class CourtService {
             );
         }
 
+        const alreadyAssignedCourts = courts.filter(
+            (court) =>
+                court.status === 'reserved' &&
+                court.currentChampionshipId?.toString() === championshipId
+        );
+
+        const courtsToReserve = courts.filter(
+            (court) =>
+                court.status === 'available' &&
+                !court.currentChampionshipId
+        );
+
         const unavailableCourts = courts.filter(
-            (court: any) =>
-                court.status !== 'available' ||
-                court.currentChampionshipId
+            (court) =>
+                !alreadyAssignedCourts.includes(court) &&
+                !courtsToReserve.includes(court)
         );
 
         if (unavailableCourts.length > 0) {
@@ -383,44 +469,70 @@ export class CourtService {
             );
         }
 
-        const updatedCourtsResult = await Court.byTenant(tenant).updateMany(
-            {
-                _id: {
-                    $in: courtObjectIds,
-                },
-                status: 'available',
-                $or: [
-                    {
-                        currentChampionshipId: {
-                            $exists: false,
-                        },
-                    },
-                    {
-                        currentChampionshipId: null,
-                    },
-                ],
-            },
-            {
-                $set: {
-                    status: 'reserved',
-                    currentChampionshipId: new Types.ObjectId(championshipId),
-                },
-            }
+        const courtObjectIdsToReserve = courtsToReserve.map(
+            (court) => new Types.ObjectId(court._id)
         );
+        const championshipObjectId = new Types.ObjectId(championshipId);
 
-        if (updatedCourtsResult.modifiedCount !== courtObjectIds.length) {
-            throw new CustomError(
-                'Some courts could not be reserved',
-                409,
-                'CourtServiceError'
+        if (courtObjectIdsToReserve.length > 0) {
+            const updatedCourtsResult = await Court.byTenant(tenant).updateMany(
+                {
+                    _id: {
+                        $in: courtObjectIdsToReserve,
+                    },
+                    status: 'available',
+                    $or: [
+                        {
+                            currentChampionshipId: {
+                                $exists: false,
+                            },
+                        },
+                        {
+                            currentChampionshipId: null,
+                        },
+                    ],
+                },
+                {
+                    $set: {
+                        status: 'reserved',
+                        currentChampionshipId: championshipObjectId,
+                    },
+                }
             );
+
+            if (updatedCourtsResult.modifiedCount !== courtObjectIdsToReserve.length) {
+                try {
+                    await this.releaseNewlyReservedCourts(
+                        tenant,
+                        championshipObjectId,
+                        courtObjectIdsToReserve
+                    );
+                } catch (rollbackError) {
+                    this.logger.error(
+                        'Court reservation was partial and rollback failed:',
+                        { rollbackError }
+                    );
+                    throw new CustomError(
+                        'Court assignment failed and rollback could not restore integrity',
+                        500,
+                        'CourtServiceIntegrityError'
+                    );
+                }
+
+                throw new CustomError(
+                    'Some courts could not be reserved',
+                    409,
+                    'CourtServiceError'
+                );
+            }
         }
 
-        const updatedChampionship = await DatabaseHelper.findOneAndUpdate(
+        try {
+            const updatedChampionship = await DatabaseHelper.findOneAndUpdate(
             Championship,
             tenant,
             {
-                _id: new Types.ObjectId(championshipId),
+                _id: championshipObjectId,
             },
             {
                 $addToSet: {
@@ -444,7 +556,7 @@ export class CourtService {
             await Court.byTenant(tenant).updateMany(
                 {
                     _id: {
-                        $in: courtObjectIds,
+                        $in: courtObjectIdsToReserve,
                     },
                     currentChampionshipId: new Types.ObjectId(championshipId),
                 },
@@ -463,8 +575,29 @@ export class CourtService {
 
         return {
             championship: updatedChampionship,
-            courtsReserved: courtObjectIds.length,
+            courtsReserved: courtObjectIdsToReserve.length,
         };
+        } catch (assignmentError) {
+            try {
+                await this.releaseNewlyReservedCourts(
+                    tenant,
+                    championshipObjectId,
+                    courtObjectIdsToReserve
+                );
+            } catch (rollbackError) {
+                this.logger.error(
+                    'Court assignment and rollback failed:',
+                    { assignmentError, rollbackError }
+                );
+                throw new CustomError(
+                    'Court assignment failed and rollback could not restore integrity',
+                    500,
+                    'CourtServiceIntegrityError'
+                );
+            }
+
+            throw assignmentError;
+        }
     }
 
     async detachCourtsFromChampionship(
@@ -534,7 +667,7 @@ export class CourtService {
         }
 
         const occupiedCourts = courts.filter(
-            (court: any) => court.status === 'occupied'
+            (court) => court.status === 'occupied'
         );
 
         if (occupiedCourts.length > 0) {
@@ -545,11 +678,19 @@ export class CourtService {
             );
         }
 
+        const championshipObjectId = new Types.ObjectId(championshipId);
+        const courtSnapshots: CourtAssignmentSnapshot[] = courts.map(
+            (court) => ({
+                id: new Types.ObjectId(court._id),
+                status: court.status,
+            })
+        );
+
         const updatedChampionship = await DatabaseHelper.findOneAndUpdate(
             Championship,
             tenant,
             {
-                _id: new Types.ObjectId(championshipId),
+                _id: championshipObjectId,
             },
             {
                 $pull: {
@@ -568,22 +709,81 @@ export class CourtService {
             throw new AuthError('Error detaching courts from championship');
         }
 
-        await Court.byTenant(tenant).updateMany(
-            {
-                _id: {
-                    $in: courtObjectIds,
+        try {
+            const releasedCourtsResult = await Court.byTenant(tenant).updateMany(
+                {
+                    _id: {
+                        $in: courtObjectIds,
+                    },
+                    currentChampionshipId: championshipObjectId,
                 },
-                currentChampionshipId: new Types.ObjectId(championshipId),
-            },
-            {
-                $set: {
-                    status: 'available',
-                },
-                $unset: {
-                    currentChampionshipId: '',
-                },
+                {
+                    $set: {
+                        status: 'available',
+                    },
+                    $unset: {
+                        currentChampionshipId: '',
+                    },
+                }
+            );
+
+            if (releasedCourtsResult.modifiedCount !== courtObjectIds.length) {
+                throw new CustomError(
+                    'Some courts could not be released',
+                    409,
+                    'CourtServiceError'
+                );
             }
-        );
+        } catch (releaseError) {
+            const rollbackErrors: unknown[] = [];
+
+            try {
+                await this.restoreDetachedCourts(
+                    tenant,
+                    championshipObjectId,
+                    courtSnapshots
+                );
+            } catch (courtRollbackError) {
+                rollbackErrors.push(courtRollbackError);
+            }
+
+            try {
+                await DatabaseHelper.findOneAndUpdate(
+                    Championship,
+                    tenant,
+                    {
+                        _id: championshipObjectId,
+                    },
+                    {
+                        $addToSet: {
+                            courts: {
+                                $each: courtObjectIds,
+                            },
+                        },
+                    },
+                    {
+                        new: true,
+                        runValidators: true,
+                    }
+                );
+            } catch (championshipRollbackError) {
+                rollbackErrors.push(championshipRollbackError);
+            }
+
+            if (rollbackErrors.length > 0) {
+                this.logger.error(
+                    'Court detachment and rollback failed:',
+                    { releaseError, rollbackErrors }
+                );
+                throw new CustomError(
+                    'Court detachment failed and rollback could not restore integrity',
+                    500,
+                    'CourtServiceIntegrityError'
+                );
+            }
+
+            throw releaseError;
+        }
 
         return {
             championship: updatedChampionship,
