@@ -6,6 +6,7 @@ import { ITenantDocument, ITenantModel } from '../../interfaces';
 import { Types } from 'mongoose';
 import { DatabaseHelper } from '../../utils/database.helper';
 import cloudinary from '../../config/cloudinary/cloudinary';
+import { Logger } from '../../config';
 
 interface UploadImageOptions {
     folder: string;
@@ -18,6 +19,8 @@ interface UploadImageResult {
 }
 
 export class UploadService {
+    private readonly logger = new Logger();
+
     async uploadImage(
         file: Express.Multer.File,
         options: UploadImageOptions
@@ -87,31 +90,50 @@ export class UploadService {
             );
         }
 
-        const updatedModel = await DatabaseHelper.findOneAndUpdate(
-            model,
-            tenant,
-            {
-                _id: new Types.ObjectId(id),
-            },
-            {
-                $set: {
-                    [type]: image,
+        try {
+            const updatedModel = await DatabaseHelper.findOneAndUpdate(
+                model,
+                tenant,
+                {
+                    _id: new Types.ObjectId(id),
                 },
-            },
-            {
-                new: true,
-            }
-        );
-        if (!updatedModel) {
-            throw new CustomError(
-                `Error updating ${type}`,
-                500,
-                'UploadServiceError'
+                {
+                    $set: {
+                        [type]: image,
+                    },
+                },
+                {
+                    new: true,
+                }
             );
+            if (!updatedModel) {
+                throw new CustomError(
+                    `Error updating ${type}`,
+                    500,
+                    'UploadServiceError'
+                );
+            }
+        } catch (error: unknown) {
+            try {
+                await this.deleteImage(image.publicId);
+            } catch (cleanupError: unknown) {
+                this.logger.error(
+                    `Error cleaning up newly uploaded ${type}`,
+                    cleanupError
+                );
+            }
+            throw error;
         }
 
         if (previousPublicId && previousPublicId !== image.publicId) {
-            await this.deleteImage(previousPublicId);
+            try {
+                await this.deleteImage(previousPublicId);
+            } catch (error: unknown) {
+                this.logger.error(
+                    `Error cleaning up previous ${type}`,
+                    error
+                );
+            }
         }
 
         return image;

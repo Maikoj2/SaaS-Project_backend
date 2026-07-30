@@ -3,12 +3,12 @@ import { origin } from '../../middlewares';
 import { auth } from '../../middlewares/auth.middleware';
 import { ChampionshipController } from '../../controllers/championship/championship.controller';
 import trimRequest from 'trim-request';
-import { validateChampionShip, validateCreateChampionship, validateCreateChampionshipConfiguration, validateRegisterTeam, validateSoftDeleteChampionship, validateUpdateChampionshipStatus } from '../../validators/championships/championship.validator';
+import { validateChampionShip, validateCreateChampionship, validateCreateChampionshipConfiguration, validateRegisterTeam, validateSoftDeleteChampionship, validateUpdateChampionshipBasicInfo, validateUpdateChampionshipStatus } from '../../validators/championships/championship.validator';
 import { ChampionshipsRoutes } from '../../constants/apiRoutes/championship/championshipsRoutes';
 import { permissionAuthorization } from '../../middlewares/auth/permissionAuthorization.middleware';
 import { AuthPermission } from '../../constants/permissions';
 import { championshipConfigurationValidators } from '../../validators/championships/Configuration.validator';
-import { uploadLogoImage } from '../../middlewares/uploadImage.middleware';
+import { uploadBannerImage, uploadLogoImage } from '../../middlewares/uploadImage.middleware';
 
 
 const championshipController = new ChampionshipController();
@@ -53,6 +53,16 @@ router.patch(ChampionshipsRoutes.CHAMPIONSHIPS, [
     ...validateUpdateChampionshipStatus,
     trimRequest.all,
 ], championshipController.updateStatus as RequestHandler);
+
+// update Championship basic information
+router.patch(ChampionshipsRoutes.CHAMPIONSHIPS_BASIC_UPDATE, [
+    origin.checkDomain as RequestHandler,
+    origin.checkTenant as RequestHandler,
+    auth as RequestHandler,
+    permissionAuthorization([AuthPermission.CHAMPIONSHIP_UPDATE]) as RequestHandler,
+    ...validateUpdateChampionshipBasicInfo,
+    trimRequest.all,
+], championshipController.updateBasicInfo as RequestHandler);
 
 // register team
 router.post(ChampionshipsRoutes.CHAMPIONSHIPS_ID_TEAMS, [
@@ -109,7 +119,7 @@ router.patch(
         origin.checkTenant as RequestHandler,
         auth as RequestHandler,
         permissionAuthorization([AuthPermission.CHAMPIONSHIP_UPDATE]) as RequestHandler,
-        uploadLogoImage.single("image"),
+        uploadBannerImage.single("image"),
         ...championshipConfigurationValidators.uploadLogoAndBanner,
         trimRequest.all,
     ],
