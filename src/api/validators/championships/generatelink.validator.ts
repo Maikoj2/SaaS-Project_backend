@@ -10,6 +10,43 @@ import { paramsValidator } from '../expressValidatorHelper';
 
 const linkService = new InvitationLinkService();
 
+export const validateInvitationLinkExpiresAt = body('expiresAt')
+    .notEmpty()
+    .withMessage('expiresAt must be a valid ISO date')
+    .bail()
+    .isISO8601({ strict: true, strictSeparator: true })
+    .withMessage('expiresAt must be a valid ISO date')
+    .bail()
+    .custom((value: string, { req }) => {
+        const expiresDate = new Date(value);
+
+        if (expiresDate.getTime() <= Date.now()) {
+            throw new Error('expiresAt must be in the future');
+        }
+
+        const championshipConfiguration = (
+            req as typeof req & {
+                championshipConfiguration?: {
+                    registrationDeadline?: Date | string;
+                };
+            }
+        ).championshipConfiguration;
+
+        if (championshipConfiguration?.registrationDeadline) {
+            const registrationDeadline = new Date(
+                championshipConfiguration.registrationDeadline
+            );
+
+            if (expiresDate > registrationDeadline) {
+                throw new Error(
+                    'expiresAt must be before or equal to registrationDeadline'
+                );
+            }
+        }
+
+        return true;
+    });
+
 export const validateGenerateInvitationLink = [
     param('championshipId')
         .isMongoId()
@@ -47,38 +84,23 @@ export const validateGenerateInvitationLink = [
             }
             return true;
         }),
-    check('expiresAt')
-        .isDate()
-        .isISO8601()
-        .withMessage('MUST_BE_DATE')
-        .custom((value: string, { req }) => {
-            const expiresDate = new Date(value);
-
-            // 1. validate date is in the future
-            if (expiresDate.getTime() <= Date.now()) {
-                throw new Error('MUST_BE_DATE_IN_FUTURE');
-            }
-            // 2. get championship from request
-            const championshipConfiguration: any = (req as any).championshipConfiguration;
-
-            if (championshipConfiguration) {
-                const registrationDeadline = new Date(
-                    championshipConfiguration.registrationDeadline
-                );
-                // 3. Expiration may equal, but cannot exceed, registrationDeadline.
-                if (expiresDate > registrationDeadline) {
-                    throw new Error('EXPIRE_DATE_AFTER_REGISTRATION_DEADLINE');
-                }
-            }
-
-            return true;
-        }),
+    validateInvitationLinkExpiresAt,
     validate,
 ];
 
 
 export const validateUseInvitationLink = [
     check('code')
+        .notEmpty()
+        .withMessage('MUST_NOT_BE_EMPTY')
+        .isString()
+        .withMessage('MUST_BE_STRING'),
+
+    validate,
+];
+
+export const validateCheckInvitation = [
+    param('code')
         .notEmpty()
         .withMessage('MUST_NOT_BE_EMPTY')
         .isString()

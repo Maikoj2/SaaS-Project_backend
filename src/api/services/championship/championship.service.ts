@@ -19,6 +19,13 @@ const selectFieldsChampionship = ['status', 'teams'];
 const selectFieldsGameFormat = ['name', 'description'];
 const selectFieldsCourts = ['name', 'description', 'status'];
 
+export interface UpdateChampionshipBasicInfoDTO {
+    name?: string;
+    description?: string;
+    startDate?: Date;
+    endDate?: Date;
+}
+
 export class ChampionshipService {
 
     private uploadService: UploadService;
@@ -113,6 +120,135 @@ export class ChampionshipService {
         } catch (error: any) {
             throw new Error(`Error updating championship status: ${error.message}`);
         }
+    }
+
+    async updateBasicInfo(
+        tenant: string,
+        championshipId: string,
+        data: UpdateChampionshipBasicInfoDTO
+    ): Promise<IChampionshipDocument> {
+        const championship = await DatabaseHelper.findOne(
+            Championship,
+            tenant,
+            { _id: championshipId }
+        );
+
+        if (!championship) {
+            throw new CustomError(
+                'Championship not found',
+                404,
+                'ChampionshipServiceError'
+            );
+        }
+
+        const patch: UpdateChampionshipBasicInfoDTO = {};
+
+        if (data.name !== undefined) {
+            if (typeof data.name !== 'string') {
+                throw new CustomError(
+                    'Championship name must be a string',
+                    400,
+                    'ChampionshipServiceError'
+                );
+            }
+            const name = data.name.trim();
+            if (name.length < 3 || name.length > 100) {
+                throw new CustomError(
+                    'Championship name must contain between 3 and 100 characters',
+                    400,
+                    'ChampionshipServiceError'
+                );
+            }
+            patch.name = name;
+        }
+
+        if (data.description !== undefined) {
+            if (
+                typeof data.description !== 'string' ||
+                data.description.length > 500
+            ) {
+                throw new CustomError(
+                    'Championship description must contain at most 500 characters',
+                    400,
+                    'ChampionshipServiceError'
+                );
+            }
+            patch.description = data.description;
+        }
+
+        for (const field of ['startDate', 'endDate'] as const) {
+            if (data[field] === undefined) continue;
+            const value = data[field];
+            if (!(value instanceof Date) || Number.isNaN(value.getTime())) {
+                throw new CustomError(
+                    `${field} must be a valid date`,
+                    400,
+                    'ChampionshipServiceError'
+                );
+            }
+            patch[field] = value;
+        }
+
+        const finalStartDate = patch.startDate ?? championship.startDate;
+        const finalEndDate = patch.endDate ?? championship.endDate;
+
+        if (finalStartDate.getTime() >= finalEndDate.getTime()) {
+            throw new CustomError(
+                'Championship startDate must be before endDate',
+                400,
+                'ChampionshipServiceError'
+            );
+        }
+
+        if (patch.startDate) {
+            const configuration = await DatabaseHelper.findOne(
+                ChampionshipConfiguration,
+                tenant,
+                { championshipId: championship._id }
+            );
+
+            if (!configuration) {
+                throw new CustomError(
+                    'Championship configuration not found',
+                    404,
+                    'ChampionshipServiceError'
+                );
+            }
+
+            if (
+                configuration.registrationDeadline.getTime() >=
+                finalStartDate.getTime()
+            ) {
+                throw new CustomError(
+                    'registrationDeadline must be before Championship startDate',
+                    400,
+                    'ChampionshipServiceError'
+                );
+            }
+        }
+
+        const updatedChampionship =
+            await DatabaseHelper.findOneAndUpdate(
+                Championship,
+                tenant,
+                { _id: championship._id },
+                { $set: patch },
+                {
+                    new: true,
+                    runValidators: true,
+                    select: 'name description startDate endDate status',
+                }
+            );
+
+        if (!updatedChampionship) {
+            throw new CustomError(
+                'Championship could not be updated',
+                409,
+                'ChampionshipServiceError'
+            );
+        }
+
+        return updatedChampionship;
     }
 
     /**
@@ -330,10 +466,38 @@ export class ChampionshipService {
                 runValidators: true,
             }
         );
-
         if (!deletedChampionship) {
             throw new CustomError(
                 'Championship could not be deleted',
+                409,
+                'ChampionshipServiceError'
+            );
+        }
+        const deletedChampionshipConfig = await DatabaseHelper.findOneAndUpdate(
+            ChampionshipConfiguration,
+            tenant,
+            {
+                championshipId: championship._id,
+                deleted: { $ne: true },
+            },
+            {
+                $set: {
+                    deleted: true,
+                    deletedAt: new Date(),
+                    deletedBy: new Types.ObjectId(deletedBy),
+                    deleteReason,
+                    status: 'cancelled',
+                },
+            },
+            {
+                new: true,
+                runValidators: true,
+            }
+        );
+
+        if (!deletedChampionship) {
+            throw new CustomError(
+                'Championship configuration could not be deleted',
                 409,
                 'ChampionshipServiceError'
             );
@@ -401,11 +565,19 @@ export class ChampionshipService {
     /**
      * Actualizar configuración del campeonato
      */
-    async updateConfiguration(championshipConfigurationId: string, tenant: string, configuration: Partial<IConfigurationDocument>) {
+    async updateConfiguration(
+        tenant: string,
+        championshipId: string,
+        championshipConfigurationId: string,
+        configuration: Partial<IConfigurationDocument>
+    ) {
         const championshipConfiguration = await DatabaseHelper.findOne(
             ChampionshipConfiguration,
             tenant,
-            { _id: championshipConfigurationId }
+            {
+                _id: championshipConfigurationId,
+                championshipId
+            }
         );
         if (!championshipConfiguration) {
             throw new Error('Championship configuration not found');
@@ -427,23 +599,36 @@ export class ChampionshipService {
     /**
      * Obtener configuración del campeonato por ID
      */
-    async getConfigurationById(championshipConfigurationId: string, tenant: string) {
+    async getConfigurationById(
+        tenant: string,
+        championshipId: string,
+        championshipConfigurationId: string
+    ) {
         return await DatabaseHelper.findOneWithRelations(
             ChampionshipConfiguration,
             tenant,
-            { _id: championshipConfigurationId },
             {
-                basic: ['championshipId', 'gameFormatId', 'courts'],
-                nested: [{
-                    path: 'championshipId',
-                    select: selectFieldsChampionship.join(' ')
-                }, {
-                    path: 'gameFormatId',
-                    select: selectFieldsGameFormat.join(' ')
-                }, {
-                    path: 'courts',
-                    select: selectFieldsCourts.join(' ')
-                }]
+                _id: championshipConfigurationId,
+                championshipId
+            },
+            {
+                basic: ['championshipId', 'gameFormatId'],
+                nested: [
+                    {
+                        path: 'championshipId',
+                        select: selectFieldsChampionship.join(' '),
+                        populate: [
+                            {
+                                path: 'courts',
+                                select: selectFieldsCourts.join(' ')
+                            }
+                        ]
+                    },
+                    {
+                        path: 'gameFormatId',
+                        select: selectFieldsGameFormat.join(' ')
+                    }
+                ]
             }
         );
     }

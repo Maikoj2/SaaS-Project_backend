@@ -49,7 +49,7 @@ export const COMPETITION_RULE_PRESETS: Record<CompetitionRulePreset, Competition
         genderMode: 'open',
         teamSize: {
             minPlayers: 2,
-            maxPlayers: 4,
+            maxPlayers: 2,
             starters: 2,
         },
         categories: {
@@ -62,7 +62,7 @@ export const COMPETITION_RULE_PRESETS: Record<CompetitionRulePreset, Competition
         genderMode: 'male',
         teamSize: {
             minPlayers: 2,
-            maxPlayers: 4,
+            maxPlayers: 2,
             starters: 2,
         },
         categories: {
@@ -82,7 +82,7 @@ export const COMPETITION_RULE_PRESETS: Record<CompetitionRulePreset, Competition
         genderMode: 'female',
         teamSize: {
             minPlayers: 2,
-            maxPlayers: 4,
+            maxPlayers: 2,
             starters: 2,
         },
         categories: {
@@ -102,7 +102,7 @@ export const COMPETITION_RULE_PRESETS: Record<CompetitionRulePreset, Competition
         genderMode: 'mixed',
         teamSize: {
             minPlayers: 2,
-            maxPlayers: 4,
+            maxPlayers: 2,
             starters: 2,
         },
         mixedRules: {

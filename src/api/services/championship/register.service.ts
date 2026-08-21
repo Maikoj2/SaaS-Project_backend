@@ -202,18 +202,87 @@ export class RegistrationService {
 
         let createdTeam: any;
         let registration: IRegistrationDocument | undefined;
+        let invitationUseReserved = false;
+        let championshipSlotReserved = false;
+        let reservedChampionshipId: Types.ObjectId | string | undefined;
+        const reservedTeamId = new Types.ObjectId();
 
         try {
             const { invitationLink, configuration } =
                 await this.validateInitialRegistration(tenant, code);
 
             const championshipId = invitationLink.championshipId;
+            reservedChampionshipId = championshipId;
             await validateChampionshipTeamCapacity(
                 tenant,
                 championshipId,
                 configuration.maxTeams,
                 'RegistrationServiceError'
             );
+
+            const reservedInvitationLink =
+                await DatabaseHelper.findOneAndUpdate(
+                    InvitationLink,
+                    tenant,
+                    {
+                        code,
+                        isActive: true,
+                        expiresAt: { $gt: new Date() },
+                        $expr: {
+                            $lt: ['$usedCount', '$maxUses'],
+                        },
+                    },
+                    {
+                        $inc: {
+                            usedCount: 1,
+                        },
+                    },
+                    { new: true }
+                );
+
+            if (!reservedInvitationLink) {
+                throw new CustomError(
+                    'Invitation link is no longer available',
+                    400,
+                    'RegistrationServiceError'
+                );
+            }
+            invitationUseReserved = true;
+
+            const reservedChampionship =
+                await DatabaseHelper.findOneAndUpdate(
+                    Championship,
+                    tenant,
+                    {
+                        _id: championshipId,
+                        status: REGISTRATION_CHAMPIONSHIP_STATUS,
+                        $expr: {
+                            $lt: [
+                                {
+                                    $size: {
+                                        $ifNull: ['$teams', []],
+                                    },
+                                },
+                                configuration.maxTeams,
+                            ],
+                        },
+                    },
+                    {
+                        $addToSet: {
+                            teams: reservedTeamId,
+                        },
+                    },
+                    { new: true }
+                );
+
+            if (!reservedChampionship) {
+                throw new CustomError(
+                    `The championship has reached the maximum number of teams (${configuration.maxTeams})`,
+                    400,
+                    'RegistrationServiceError'
+                );
+            }
+            championshipSlotReserved = true;
 
             if (!data.team?.name) {
                 throw new CustomError(
@@ -387,6 +456,7 @@ export class RegistrationService {
                 Team,
                 tenant,
                 {
+                    _id: reservedTeamId,
                     championshipId,
                     name: data.team.name,
                     logo: data.team.logo! || {
@@ -409,6 +479,9 @@ export class RegistrationService {
                 }
             );
 
+            const isFreeRegistration =
+                Number(configuration.registrationFee) === 0;
+
             registration = await DatabaseHelper.create(
                 Registration,
                 tenant,
@@ -416,8 +489,13 @@ export class RegistrationService {
                     championshipId,
                     teamId: createdTeam._id,
                     registrationDate: new Date(),
-                    registrationStatus: 'pending',
-                    feePaid: false,
+                    registrationStatus: isFreeRegistration
+                        ? 'confirmed'
+                        : 'pending',
+                    feePaid: isFreeRegistration,
+                    ...(isFreeRegistration && {
+                        paymentDate: new Date(),
+                    }),
                     registrationDeadline: configuration.registrationDeadline,
                 }
             );
@@ -431,37 +509,74 @@ export class RegistrationService {
                 }
             );
 
-            const paymentData = {
-                price: Number(configuration.registrationFee),
-                description: `Inscripción al campeonato - Equipo ${createdTeam.name}`,
-                track: registration._id.toString(),
-                currency: configuration.currency,
-            };
+            const championshipWithRegistration =
+                await DatabaseHelper.findOneAndUpdate(
+                    Championship,
+                    tenant,
+                    {
+                        _id: championshipId,
+                        teams: createdTeam._id,
+                    },
+                    {
+                        $addToSet: {
+                            registrations: registration._id,
+                        },
+                    },
+                    { new: true }
+                );
 
-            const fullName = data.payerData.name?.trim() || '';
-            const [firstName, ...lastNameParts] = fullName.split(' ');
+            if (!championshipWithRegistration) {
+                throw new CustomError(
+                    'Error associating registration with championship',
+                    500,
+                    'RegistrationServiceError'
+                );
+            }
 
-            const payer = {
-                role: 'admin',
-                name: firstName,
-                surname:
-                    data.payerData.surname || lastNameParts.join(' '),
-                email: data.payerData.email,
-                areaCode: data.payerData.areaCode || '57',
-                phoneNumber:
-                    data.payerData.phoneNumber || data.payerData.phone,
-                address: data.payerData.address || '',
-            };
+            let paymentLink: { init_point: string } | string | null = null;
 
-            const paymentLink = await generate_link(
-                {},
-                null,
-                paymentData,
-                tenant,
-                payer
-            );
+            if (!isFreeRegistration) {
+                const paymentData = {
+                    price: Number(configuration.registrationFee),
+                    description: `Inscripción al campeonato - Equipo ${createdTeam.name}`,
+                    track: registration._id.toString(),
+                    currency: configuration.currency,
+                };
 
-            if (!paymentLink || paymentLink.error) {
+                const fullName = data.payerData.name?.trim() || '';
+                const [firstName, ...lastNameParts] = fullName.split(' ');
+
+                const payer = {
+                    role: 'admin',
+                    name: firstName,
+                    surname:
+                        data.payerData.surname || lastNameParts.join(' '),
+                    email: data.payerData.email,
+                    areaCode: data.payerData.areaCode || '57',
+                    phoneNumber:
+                        data.payerData.phoneNumber || data.payerData.phone,
+                    address: data.payerData.address || '',
+                };
+
+                paymentLink = await generate_link(
+                    {},
+                    null,
+                    paymentData,
+                    tenant,
+                    payer
+                );
+            }
+
+            if (
+                !isFreeRegistration &&
+                (
+                    !paymentLink ||
+                    (
+                        typeof paymentLink === 'object' &&
+                        'error' in paymentLink
+                    )
+                )
+            ) {
                 throw new CustomError(
                     'Error generating payment link',
                     500,
@@ -470,67 +585,20 @@ export class RegistrationService {
             }
 
             for (const credential of createdCredentials) {
-                await this.emailService.sendTemporaryPasswordEmail({
-                    email: credential.email,
-                    name: credential.name,
-                    temporaryPassword: credential.temporaryPassword,
-                    tenant,
-                    locale: 'es',
-                });
-            }
-
-            const consumedInvitationLink =
-                await DatabaseHelper.findOneAndUpdate(
-                    InvitationLink,
-                    tenant,
-                    {
-                        code,
-                        isActive: true,
-                        expiresAt: { $gt: new Date() },
-                        $expr: {
-                            $lt: ['$usedCount', '$maxUses'],
-                        },
-                    },
-                    {
-                        $inc: {
-                            usedCount: 1,
-                        },
-                    },
-                    { new: true }
-                );
-
-            if (
-                !consumedInvitationLink ||
-                consumedInvitationLink.usedCount >
-                    consumedInvitationLink.maxUses
-            ) {
-                // The conditional update cannot overflow in MongoDB. Keep the
-                // compensation as a defensive guard for non-atomic adapters.
-                if (
-                    consumedInvitationLink &&
-                    consumedInvitationLink.usedCount >
-                        consumedInvitationLink.maxUses
-                ) {
-                    await DatabaseHelper.findOneAndUpdate(
-                        InvitationLink,
+                try {
+                    await this.emailService.sendTemporaryPasswordEmail({
+                        email: credential.email,
+                        name: credential.name,
+                        temporaryPassword: credential.temporaryPassword,
                         tenant,
-                        {
-                            code,
-                            usedCount: consumedInvitationLink.usedCount,
-                        },
-                        {
-                            $inc: {
-                                usedCount: -1,
-                            },
-                        }
+                        locale: 'es',
+                    });
+                } catch (error: unknown) {
+                    this.logger.error(
+                        'Error sending temporary password email:',
+                        error
                     );
                 }
-
-                throw new CustomError(
-                    'Invitation link is no longer available',
-                    400,
-                    'RegistrationServiceError'
-                );
             }
 
             return {
@@ -577,6 +645,38 @@ export class RegistrationService {
                     User,
                     user._id.toString(),
                     tenant
+                );
+            }
+
+            if (championshipSlotReserved) {
+                await DatabaseHelper.findOneAndUpdate(
+                    Championship,
+                    tenant,
+                    { _id: reservedChampionshipId },
+                    {
+                        $pull: {
+                            teams: reservedTeamId,
+                            ...(registration && {
+                                registrations: registration._id,
+                            }),
+                        },
+                    }
+                );
+            }
+
+            if (invitationUseReserved) {
+                await DatabaseHelper.findOneAndUpdate(
+                    InvitationLink,
+                    tenant,
+                    {
+                        code,
+                        usedCount: { $gt: 0 },
+                    },
+                    {
+                        $inc: {
+                            usedCount: -1,
+                        },
+                    }
                 );
             }
 

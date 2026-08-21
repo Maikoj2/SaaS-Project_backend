@@ -313,14 +313,31 @@ function installInMemoryDatabase(
             update: Record<string, any>,
         ) => {
             expect(tenant).toBe(state.tenant);
+
+            if (modelName(model) === 'Championship') {
+                return {
+                    _id: state.championshipId,
+                    status: state.championshipStatus,
+                } as any;
+            }
+
+            if (modelName(model) !== 'InvitationLink' || query.code !== state.code) {
+                return null;
+            }
+
+            const increment = update.$inc?.usedCount ?? 0;
             if (
-                modelName(model) !== 'InvitationLink' ||
-                query.code !== state.code
+                increment > 0 &&
+                state.invitationLink.usedCount >=
+                    state.invitationLink.maxUses
             ) {
                 return null;
             }
 
-            state.invitationLink.usedCount += update.$inc?.usedCount ?? 0;
+            state.invitationLink.usedCount = Math.max(
+                0,
+                state.invitationLink.usedCount + increment,
+            );
             return { ...state.invitationLink } as any;
         },
     );

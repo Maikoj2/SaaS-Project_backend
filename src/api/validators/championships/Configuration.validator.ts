@@ -157,7 +157,8 @@ export const championshipConfigurationValidators = {
     ],
 
     getChampionshipConfiguration: [
-        ...paramsValidator("idConfiguration", true),
+        ...paramsValidator("championshipId", true),
+        ...paramsValidator("configurationId", true),
         validate
     ],
     uploadLogoAndBanner: [

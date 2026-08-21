@@ -3,7 +3,7 @@ import { InvitationLinkController } from '../../controllers/championship/invitat
 import trimRequest from 'trim-request';
 import { origin } from '../../middlewares';
 import { auth } from '../../middlewares/auth.middleware';
-import { validateGenerateInvitationLink, validateInvitationLink, validateUseInvitationLink } from '../../validators/championships/generatelink.validator';
+import { validateCheckInvitation, validateGenerateInvitationLink, validateInvitationLink, validateUseInvitationLink } from '../../validators/championships/generatelink.validator';
 import { InvitationLinkRoutes } from '../../constants/apiRoutes/invitationlinkroutes.ts/invitationlinkRoutes';
 import { permissionAuthorization } from '../../middlewares/auth/permissionAuthorization.middleware';
 import { AuthPermission } from '../../constants/permissions';
@@ -28,6 +28,14 @@ router.post(InvitationLinkRoutes.USE_LINK, [
     ...validateUseInvitationLink,
     trimRequest.all as RequestHandler,
 ] as RequestHandler[], controller.useInvitationLink as RequestHandler);
+
+// Consultar enlace sin consumir un uso.
+router.get(InvitationLinkRoutes.CHECK_INVITATION, [
+    origin.checkDomain as RequestHandler,
+    origin.checkTenant as RequestHandler,
+    ...validateCheckInvitation,
+    trimRequest.all as RequestHandler,
+] as RequestHandler[], controller.checkInvitation as RequestHandler);
 
 // Obtener enlace activo
 router.get(InvitationLinkRoutes.GET_ACTIVE_LINK, [

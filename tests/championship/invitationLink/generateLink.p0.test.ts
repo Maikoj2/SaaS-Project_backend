@@ -25,10 +25,10 @@ vi.mock('../../../src/api/config/env.config', () => ({
 
 vi.mock('../../../src/api/config', () => ({
     Logger: class {
-        debug() {}
-        error() {}
-        info() {}
-        warn() {}
+        debug() { }
+        error() { }
+        info() { }
+        warn() { }
     },
 }));
 
@@ -61,6 +61,8 @@ interface GenerationState {
         championshipId: Types.ObjectId;
         maxTeams: number;
         registrationDeadline: Date;
+        matchRules: { volleyballType: 'beach' | 'indoor' };
+        competitionRules: Record<string, any>;
     };
     existingLink: Record<string, any> | null;
     createdLinks: Array<Record<string, any>>;
@@ -97,6 +99,12 @@ function createState(
             championshipId,
             maxTeams: overrides.maxTeams ?? 8,
             registrationDeadline: DEADLINE,
+            matchRules: { volleyballType: 'beach' },
+            competitionRules: {
+                genderMode: 'open',
+                teamSize: { minPlayers: 2, maxPlayers: 4, starters: 2 },
+                categories: { enabled: false, list: [] },
+            },
         },
         existingLink: overrides.existingLink ?? null,
         createdLinks: [],
@@ -145,7 +153,7 @@ function installDatabase(state: GenerationState) {
                 !tenantCanRead(tenant) ||
                 modelName(model) !== modelName(ChampionshipConfiguration) ||
                 query.championshipId?.toString() !==
-                    state.championshipId.toString()
+                state.championshipId.toString()
             ) {
                 return null;
             }
@@ -230,7 +238,16 @@ describe('P0 - InvitationLink generation contract', () => {
         expect(result).toMatchObject({
             code: 'generated-code',
             expiresAt: VALID_EXPIRATION,
+            maxUses: 5,
+            registrationRules: {
+                volleyballType: 'beach',
+                allowedPositions: ['BLOCKER', 'DEFENDER'],
+                teamSize: { minPlayers: 2, maxPlayers: 4, starters: 2 },
+                gender: { mode: 'open' },
+                categories: [],
+            },
         });
+        expect(state.createdLinks[0]).not.toHaveProperty('registrationRules');
         expect(result.invitationLink).toBeTruthy();
     });
 
@@ -412,8 +429,8 @@ describe('P0 - InvitationLink generation contract', () => {
 
         const result = await generate(state);
 
-        expect(result.invitationLink).toBe(
-            'https://frontend.example/register/generated-code',
+        expect(new URL(result.invitationLink).pathname).toBe(
+            '/register/generated-code',
         );
         expect(result.invitationLink).not.toContain('/api/v1');
         expect(result.invitationLink).not.toContain('?code=');

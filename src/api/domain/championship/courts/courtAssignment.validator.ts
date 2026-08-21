@@ -2,6 +2,11 @@ import { Types } from 'mongoose';
 import { CustomError } from '../../../errors';
 import Match from '../../../models/mongoose/championship/match';
 import { DatabaseHelper } from '../../../utils/database.helper';
+import { MatchStatus } from '../../../constants/championship.constants';
+
+const COURT_ASSIGNMENT_BLOCKING_MATCH_STATUSES = MatchStatus.filter(
+    (status) => status !== 'cancelled' && status !== 'completed'
+);
 
 export async function validateCourtsCanBeChangedForChampionship(
     tenant: string,
@@ -21,7 +26,7 @@ export async function validateCourtsCanBeChangedForChampionship(
         {
             championshipId: new Types.ObjectId(championshipId),
             status: {
-                $in: ['scheduled', 'in_progress', 'completed'],
+                $in: COURT_ASSIGNMENT_BLOCKING_MATCH_STATUSES,
             },
         }
     );

@@ -3,6 +3,7 @@ import { IUserCustomRequest } from '../../interfaces';
 import { InvitationLinkService } from '../../services/championship/invitationLink.service';
 import { Logger } from '../../config/logger/WinstonLogger';
 import { ApiResponse } from '../../responses';
+import { CustomError } from '../../errors';
 
 
 export class InvitationLinkController {
@@ -53,6 +54,42 @@ export class InvitationLinkController {
             this.logger.error('Error using invitation link:', error);
             return res.status(400).json(
                 ApiResponse.error(error.message)
+            );
+        }
+    }
+
+    public checkInvitation = async (
+        req: IUserCustomRequest,
+        res: Response
+    ) => {
+        try {
+            const tenant = req.clientAccount as string;
+            const { code } = req.params;
+            const result = await this.invitationLinkService.checkInvitation(
+                tenant,
+                code
+            );
+
+            res.status(200).json(
+                ApiResponse.success(
+                    result,
+                    'Invitation checked successfully'
+                )
+            );
+        } catch (error: unknown) {
+            this.logger.error('Error checking invitation link:', error);
+            const statusCode =
+                error instanceof CustomError ? error.statusCode : 500;
+            res.status(statusCode).json(
+                ApiResponse.error(
+                    error instanceof Error
+                        ? {
+                            message: error.message,
+                            statusCode,
+                            name: error.name,
+                        }
+                        : 'Error checking invitation link'
+                )
             );
         }
     }

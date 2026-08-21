@@ -1,15 +1,20 @@
 import { nanoid } from 'nanoid';
-import { InvitationLink } from '../../models/mongoose/championship/invitationLink';
+import { InvitationLink, IInvitationLink } from '../../models/mongoose/championship/invitationLink';
 import { DatabaseHelper } from '../../utils/database.helper';
 import { env } from '../../config/env.config';
 import { Logger } from '../../config';
 import { PaginationOptions } from '../../interfaces';
+import { CustomError } from '../../errors';
 import Championship from '../../models/mongoose/championship/championship';
 import ChampionshipConfiguration from '../../models/mongoose/championship/configuration';
 import {
     ChampionshipStatus,
     ChampionshipStatusValue,
 } from '../../constants/championship.constants';
+import {
+    buildPublicRegistrationRules,
+    PublicRegistrationRules,
+} from '../../domain/championship/rules/publicRegistrationRules';
 
 const logger = new Logger()
 const REGISTRATION_CHAMPIONSHIP_STATUS: ChampionshipStatusValue =
@@ -50,6 +55,15 @@ export function buildInvitationUrl(tenant: string, code: string): string {
     ).replace(/\/+$/, '');
 
     return `${tenantOrigin}/register/${encodeURIComponent(code)}`;
+}
+
+export interface InvitationCheckResponse {
+    championshipId: IInvitationLink['championshipId'];
+    expiresAt: Date;
+    maxUses: number;
+    usedCount: number;
+    remainingUses: number;
+    registrationRules: PublicRegistrationRules;
 }
 
 export class InvitationLinkService {
@@ -159,7 +173,9 @@ export class InvitationLinkService {
             return {
                 invitationLink: buildInvitationUrl(tenant, code),
                 expiresAt: invitationLink.expiresAt,
-                code: code
+                code,
+                maxUses,
+                registrationRules: buildPublicRegistrationRules(configuration),
             };
         } catch (error: any) {
             logger.debug('Error detallado:', {
@@ -207,6 +223,122 @@ export class InvitationLinkService {
         }
 
         return link;
+    }
+
+    async checkInvitation(
+        tenant: string,
+        code: string
+    ): Promise<InvitationCheckResponse> {
+        const invitationLink = await DatabaseHelper.findOne(
+            InvitationLink,
+            tenant,
+            { code },
+            {
+                select: [
+                    'championshipId',
+                    'isActive',
+                    'expiresAt',
+                    'maxUses',
+                    'usedCount',
+                ],
+            }
+        );
+
+        if (!invitationLink) {
+            throw new CustomError(
+                'Invitation link not found',
+                404,
+                'InvitationCheckError'
+            );
+        }
+
+        if (!invitationLink.isActive) {
+            throw new CustomError(
+                'Invitation link is no longer active',
+                400,
+                'InvitationCheckError'
+            );
+        }
+
+        if (invitationLink.expiresAt.getTime() <= Date.now()) {
+            throw new CustomError(
+                'Invitation link has expired',
+                410,
+                'InvitationCheckError'
+            );
+        }
+
+        if (invitationLink.usedCount >= invitationLink.maxUses) {
+            throw new CustomError(
+                'Invitation link has reached maximum uses',
+                409,
+                'InvitationCheckError'
+            );
+        }
+
+        const championship = await DatabaseHelper.findOne(
+            Championship,
+            tenant,
+            { _id: invitationLink.championshipId },
+            { select: ['status'] }
+        );
+
+        if (!championship) {
+            throw new CustomError(
+                'Championship not found',
+                404,
+                'InvitationCheckError'
+            );
+        }
+
+        if (championship.status !== REGISTRATION_CHAMPIONSHIP_STATUS) {
+            throw new CustomError(
+                'Championship is not accepting registrations',
+                409,
+                'InvitationCheckError'
+            );
+        }
+
+        const configuration = await DatabaseHelper.findOne(
+            ChampionshipConfiguration,
+            tenant,
+            { championshipId: invitationLink.championshipId },
+            {
+                select: [
+                    'registrationDeadline',
+                    'matchRules',
+                    'competitionRules',
+                ],
+            }
+        );
+
+        if (!configuration) {
+            throw new CustomError(
+                'Championship configuration not found',
+                404,
+                'InvitationCheckError'
+            );
+        }
+
+        if (configuration.registrationDeadline.getTime() <= Date.now()) {
+            throw new CustomError(
+                'Registration deadline has passed',
+                410,
+                'InvitationCheckError'
+            );
+        }
+
+        return {
+            championshipId: invitationLink.championshipId,
+            expiresAt: invitationLink.expiresAt,
+            maxUses: invitationLink.maxUses,
+            usedCount: invitationLink.usedCount,
+            remainingUses: Math.max(
+                0,
+                invitationLink.maxUses - invitationLink.usedCount
+            ),
+            registrationRules: buildPublicRegistrationRules(configuration),
+        };
     }
 
     async validateAndUpdateUsage(tenant: string, code: string) {

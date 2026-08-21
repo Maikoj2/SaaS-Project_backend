@@ -64,6 +64,13 @@ export class PaymentService {
           },
           auto_return: "approved",
           binary_mode: true,
+          payer: {
+            name: dataUser.name,
+            ...(dataUser.surname && {
+              surname: dataUser.surname,
+            }),
+            email: dataUser.email,
+          },
           notification_url: `${env.BACKEND_URL}/api/v1/register/tenant/${tenant}/championship/${purchaseData.metadata.purchase_id}/registration/webhook`,
           metadata: {
             tenant_id: tenant,

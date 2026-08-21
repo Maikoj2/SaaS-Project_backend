@@ -254,12 +254,17 @@ export class ChampionshipController {
 
     public updateChampionshipConfiguration = async (req: IUserCustomRequest, res: Response) => {
         try {
-            const { idConfiguration } = req.params;
+            const { championshipId, configurationId } = req.params;
             const tenant = req.clientAccount as string;
             if (!tenant) {
                 throw new AuthError('Tenant not found', 404);
             }
-            const championshipConfiguration = await this.championshipService.updateConfiguration(idConfiguration, tenant, req.body);
+            const championshipConfiguration = await this.championshipService.updateConfiguration(
+                tenant,
+                championshipId,
+                configurationId,
+                req.body
+            );
             res.status(200).json(ApiResponse.success(championshipConfiguration, 'Championship configuration updated successfully'));
         } catch (error) {
             this.logger.error('Error updating championship configuration:', error);
@@ -270,17 +275,64 @@ export class ChampionshipController {
 
     public getChampionshipConfiguration = async (req: IUserCustomRequest, res: Response) => {
         try {
-            const { idConfiguration } = req.params;
+            const { championshipId, configurationId } = req.params;
             const tenant = req.clientAccount as string;
             if (!tenant) {
                 throw new AuthError('Tenant not found', 404);
             }
-            const championshipConfiguration = await this.championshipService.getConfigurationById(idConfiguration, tenant);
+            const championshipConfiguration = await this.championshipService.getConfigurationById(
+                tenant,
+                championshipId,
+                configurationId
+            );
             res.status(200).json(ApiResponse.success(championshipConfiguration, 'Championship configuration retrieved successfully'));
         } catch (error) {
             this.logger.error('Error getting championship configuration:', error);
             res.status(error instanceof AuthError ? error.statusCode : 500)
                 .json(ApiResponse.error(error instanceof AuthError ? error : error instanceof Error ? error.message : 'Error getting championship configuration'));
+        }
+    }
+
+    public updateBasicInfo = async (
+        req: IUserCustomRequest,
+        res: Response
+    ) => {
+        try {
+            const tenant = req.clientAccount as string;
+            const { championshipId } = req.params;
+            if (!tenant) {
+                throw new AuthError('Tenant not found', 404);
+            }
+
+            const championship =
+                await this.championshipService.updateBasicInfo(
+                    tenant,
+                    championshipId,
+                    req.body
+                );
+
+            res.status(200).json(
+                ApiResponse.success(
+                    championship,
+                    'Championship basic information updated successfully'
+                )
+            );
+        } catch (error: unknown) {
+            this.logger.error(
+                'Error updating championship basic information:',
+                error
+            );
+            const statusCode =
+                error instanceof AuthError || error instanceof CustomError
+                    ? error.statusCode
+                    : 500;
+            res.status(statusCode).json(
+                ApiResponse.error(
+                    error instanceof Error
+                        ? error.message
+                        : 'Error updating championship basic information'
+                )
+            );
         }
     }
 

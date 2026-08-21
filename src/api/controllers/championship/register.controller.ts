@@ -99,42 +99,24 @@ export class RegistrationController {
         req: IUserCustomRequest,
         res: Response
     ) => {
-        let registrationAdded = false;
-        let teamAdded = false;
-        let result: any;
-
         try {
             const code = req.params.code;
             const tenant = req.clientAccount as string;
 
-            result =
+            const result =
                 await this.registrationService.registerTeamUsersAndPlayersWithInvitation(
                     tenant,
                     code,
                     req.body
                 );
 
-            if (!result.paymentLink) {
+            if (result.paymentLink === undefined) {
                 throw new CustomError(
                     'Failed to generate payment link',
                     500,
                     'RegistrationError'
                 );
             }
-
-            await this.championshipService.addRegistrationId(
-                result.registration.championshipId,
-                tenant,
-                result.registration._id
-            );
-            registrationAdded = true;
-
-            await this.championshipService.updateTeamId(
-                tenant,
-                result.registration.championshipId,
-                result.team._id
-            );
-            teamAdded = true;
 
             res.status(201).json(
                 ApiResponse.success({
@@ -144,7 +126,10 @@ export class RegistrationController {
                         team: result.team,
                         players: result.players,
                         registration: result.registration,
-                        paymentUrl: result.paymentLink,
+                        paymentUrl:
+                            result.paymentLink?.init_point ??
+                            result.paymentLink ??
+                            null,
 
                         // Solo mientras estás en desarrollo.
                         // Luego esto se elimina y se envía por correo.
@@ -157,29 +142,6 @@ export class RegistrationController {
                 'Error in public team registration process:',
                 error
             );
-
-            if (result?.registration?._id) {
-                await this.registrationService.deleteRegistrationId(
-                    result.registration._id,
-                    req.clientAccount as string
-                );
-            }
-
-            if (registrationAdded && result?.registration) {
-                await this.championshipService.deleteRegistrationId(
-                    req.clientAccount as string,
-                    result.registration.championshipId,
-                    result.registration._id
-                );
-            }
-
-            if (teamAdded && result?.team) {
-                await this.championshipService.deleteTeamId(
-                    req.clientAccount as string,
-                    result.registration.championshipId,
-                    result.team._id
-                );
-            }
 
             res.status(error.statusCode || 400).json(
                 ApiResponse.error(

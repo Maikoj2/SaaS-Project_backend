@@ -2,6 +2,7 @@ export const ChampionshipsRoutes = {
     CHAMPIONSHIPS: '/',
     CHAMPIONSHIPS_ACTIVE: '/active',
     CHAMPIONSHIPS_ID: '/:championshipId',
+    CHAMPIONSHIPS_BASIC_UPDATE: '/:championshipId',
     CHAMPIONSHIPS_DELETE: '/:championshipId',
     CHAMPIONSHIPS_ID_PHASES: '/:id/phases',
     CHAMPIONSHIPS_ID_PHASES_ID: '/:id/phases/:phaseId',

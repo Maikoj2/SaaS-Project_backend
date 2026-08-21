@@ -307,6 +307,34 @@ export const validateUpdateChampionshipStatus: any[] = [
     validate,
 ];
 
+export const validateUpdateChampionshipBasicInfo: any[] = [
+    ...paramsValidator('championshipId', true),
+    check('name')
+        .optional()
+        .isString()
+        .withMessage('MUST_BE_STRING')
+        .trim()
+        .isLength({ min: 3, max: 100 })
+        .withMessage('NAME_LENGTH_3_100'),
+    check('description')
+        .optional()
+        .isString()
+        .withMessage('MUST_BE_STRING')
+        .isLength({ max: 500 })
+        .withMessage('DESCRIPTION_MAX_500'),
+    check('startDate')
+        .optional()
+        .isISO8601()
+        .withMessage('INVALID_DATE_FORMAT')
+        .toDate(),
+    check('endDate')
+        .optional()
+        .isISO8601()
+        .withMessage('INVALID_DATE_FORMAT')
+        .toDate(),
+    validate,
+];
+
 export const validateSoftDeleteChampionship: any[] = [
     check('championshipId')
         .exists()
